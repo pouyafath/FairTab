@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { db } from '@/lib/db'
+import { getDb } from '@/lib/db'
 import { groups, groupMembers } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
@@ -9,6 +9,7 @@ import { createGroupSchema, addMemberSchema } from '@/lib/validations/group'
 import type { ActionResult, Group, GroupMember, GroupWithMembers } from '@/types'
 
 export async function createGroup(formData: unknown): Promise<ActionResult<Group>> {
+  const db = getDb()
   const parsed = createGroupSchema.safeParse(formData)
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input' }
@@ -30,6 +31,7 @@ export async function createGroup(formData: unknown): Promise<ActionResult<Group
 }
 
 export async function getGroupByToken(token: string): Promise<GroupWithMembers | null> {
+  const db = getDb()
   const group = await db.query.groups.findFirst({
     where: eq(groups.token, token),
     with: { members: true },
@@ -47,6 +49,7 @@ export async function addGroupMember(
   groupId: number,
   formData: unknown
 ): Promise<ActionResult<GroupMember>> {
+  const db = getDb()
   const parsed = addMemberSchema.safeParse(formData)
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input' }

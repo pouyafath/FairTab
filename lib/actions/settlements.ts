@@ -1,13 +1,14 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { db } from '@/lib/db'
+import { getDb } from '@/lib/db'
 import { settlements, groupMembers, expenses } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { calculateMemberBalances, calculateSettlements } from '@/lib/calculations/balances'
 import type { ActionResult, MemberBalance, SettlementSuggestion } from '@/types'
 
 export async function getGroupBalances(groupId: number): Promise<MemberBalance[]> {
+  const db = getDb()
   const members = await db.query.groupMembers.findMany({
     where: eq(groupMembers.groupId, groupId),
   })
@@ -42,6 +43,7 @@ export async function markSettlementPaid(
   toMemberId: number,
   amount: number
 ): Promise<ActionResult<void>> {
+  const db = getDb()
   await db.insert(settlements).values({
     groupId,
     fromMemberId,

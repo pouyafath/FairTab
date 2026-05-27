@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { getPersonalTransactions } from '@/lib/actions/personal'
 import { calculatePersonalSummary } from '@/lib/calculations/personal'
 import { PersonalDashboard } from '@/components/personal/personal-dashboard'

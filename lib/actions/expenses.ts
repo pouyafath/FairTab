@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { db } from '@/lib/db'
+import { getDb } from '@/lib/db'
 import { expenses, expenseParticipants } from '@/lib/db/schema'
 import { eq, desc } from 'drizzle-orm'
 import { addExpenseSchema } from '@/lib/validations/expense'
@@ -12,6 +12,7 @@ export async function addExpense(
   groupId: number,
   formData: unknown
 ): Promise<ActionResult<Expense>> {
+  const db = getDb()
   const parsed = addExpenseSchema.safeParse(formData)
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input' }
@@ -64,6 +65,7 @@ export async function addExpense(
 }
 
 export async function getGroupExpenses(groupId: number): Promise<ExpenseWithParticipants[]> {
+  const db = getDb()
   const rows = await db.query.expenses.findMany({
     where: eq(expenses.groupId, groupId),
     with: {

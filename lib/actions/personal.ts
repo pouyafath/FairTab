@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { db } from '@/lib/db'
+import { getDb } from '@/lib/db'
 import { personalTransactions } from '@/lib/db/schema'
 import { eq, desc } from 'drizzle-orm'
 import { addTransactionSchema } from '@/lib/validations/personal'
@@ -10,6 +10,7 @@ import type { ActionResult, PersonalTransaction } from '@/types'
 export async function addPersonalTransaction(
   formData: unknown
 ): Promise<ActionResult<PersonalTransaction>> {
+  const db = getDb()
   const parsed = addTransactionSchema.safeParse(formData)
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input' }
@@ -45,6 +46,7 @@ export async function addPersonalTransaction(
 }
 
 export async function getPersonalTransactions(): Promise<PersonalTransaction[]> {
+  const db = getDb()
   const txs = await db
     .select()
     .from(personalTransactions)
@@ -58,6 +60,7 @@ export async function getPersonalTransactions(): Promise<PersonalTransaction[]> 
 }
 
 export async function deletePersonalTransaction(id: number): Promise<ActionResult<void>> {
+  const db = getDb()
   await db.delete(personalTransactions).where(eq(personalTransactions.id, id))
   revalidatePath('/personal')
   return { success: true, data: undefined }

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { notFound } from 'next/navigation'
 import { getGroupByToken } from '@/lib/actions/groups'
 import { getGroupExpenses } from '@/lib/actions/expenses'
