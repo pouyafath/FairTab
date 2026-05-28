@@ -36,3 +36,8 @@ next-env.d.ts
 fairtab.db
 fairtab.db-shm
 fairtab.db-wal
+*.db-shm
+*.db-wal
+
+# Docker data volume (self-hosted)
+data/
