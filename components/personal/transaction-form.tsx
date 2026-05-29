@@ -13,16 +13,20 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { addPersonalTransaction } from '@/lib/actions/personal'
-import { dollarsToCentsString } from '@/lib/formatting'
+import { dateInputToTimestamp, dollarsToCentsString } from '@/lib/formatting'
 import {
   CURRENCIES,
   PERSONAL_INCOME_CATEGORIES,
   PERSONAL_EXPENSE_CATEGORIES,
 } from '@/lib/constants'
 import type { TransactionType } from '@/types'
+import type { AddPersonalTransactionAction } from '@/types/actions'
 
-export function TransactionForm() {
+interface Props {
+  addTransactionAction: AddPersonalTransactionAction
+}
+
+export function TransactionForm({ addTransactionAction }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -49,12 +53,12 @@ export function TransactionForm() {
     }
 
     startTransition(async () => {
-      const result = await addPersonalTransaction({
+      const result = await addTransactionAction({
         type,
         title,
         amount,
         currency,
-        date: new Date(date).getTime(),
+        date: dateInputToTimestamp(date),
         category: category || undefined,
         note: note || undefined,
         accountLabel: accountLabel || undefined,

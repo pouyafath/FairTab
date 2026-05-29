@@ -16,20 +16,27 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { addExpense } from '@/lib/actions/expenses'
 import { calculateSplits } from '@/lib/calculations/split'
-import { formatCurrency, dollarsToCentsString } from '@/lib/formatting'
+import { dateInputToTimestamp, formatCurrency, dollarsToCentsString } from '@/lib/formatting'
 import { GROUP_CATEGORIES, SPLIT_METHODS, CURRENCIES } from '@/lib/constants'
 import type { GroupMember, SplitMethod } from '@/types'
+import type { AddExpenseAction } from '@/types/actions'
 
 interface Props {
   groupId: number
   groupToken: string
   members: GroupMember[]
   defaultCurrency: string
+  addExpenseAction: AddExpenseAction
 }
 
-export function ExpenseForm({ groupId, groupToken, members, defaultCurrency }: Props) {
+export function ExpenseForm({
+  groupId,
+  groupToken,
+  members,
+  defaultCurrency,
+  addExpenseAction,
+}: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -84,7 +91,11 @@ export function ExpenseForm({ groupId, groupToken, members, defaultCurrency }: P
   function toggleMember(id: number) {
     setCheckedMembers((prev) => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
       return next
     })
   }
@@ -128,12 +139,12 @@ export function ExpenseForm({ groupId, groupToken, members, defaultCurrency }: P
     }
 
     startTransition(async () => {
-      const result = await addExpense(groupId, {
+      const result = await addExpenseAction(groupId, {
         title,
         amount: totalCents,
         currency,
         paidById: parseInt(paidById, 10),
-        date: new Date(date).getTime(),
+        date: dateInputToTimestamp(date),
         category: category || undefined,
         notes: notes || undefined,
         splitMethod,

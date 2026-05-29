@@ -19,6 +19,11 @@ export function formatDate(value: Date | number): string {
   }).format(date)
 }
 
+export function dateInputToTimestamp(value: string): number {
+  const [year, month, day] = value.split('-').map(Number)
+  return new Date(year, month - 1, day, 12).getTime()
+}
+
 export function formatMonth(year: number, month: number): string {
   return new Intl.DateTimeFormat('en-CA', {
     year: 'numeric',

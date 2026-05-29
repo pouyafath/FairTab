@@ -37,6 +37,8 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+The repo includes `.npmrc` with `legacy-peer-deps=true` because `@cloudflare/next-on-pages@1.13.16` has not updated its peer range for Next.js 16 yet. Keep that install behavior until the Cloudflare adapter is upgraded or replaced during server/deployment work.
+
 ---
 
 ## Available Scripts
@@ -46,6 +48,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | `npm run dev` | Start development server with Turbopack (hot reload) |
 | `npm run build` | Production build (creates `.next/` and `.next/standalone/`) |
 | `npm run start` | Run the production build locally |
+| `npm run test` | Run backend service tests with in-memory repositories, no server or DB |
 | `npm run typecheck` | TypeScript type check (no emit) |
 | `npm run lint` | Run ESLint |
 | `npm run db:push` | Sync Drizzle schema → SQLite (creates `fairtab.db` if missing) |
@@ -111,24 +114,30 @@ components/
     recent-groups.tsx         Client: reads localStorage
     group-dashboard.tsx       Client: tabs for balances/expenses/settle
     balance-summary.tsx       Client: member net balances
-    add-member-dialog.tsx     Client: dialog → addGroupMember action
+    add-member-dialog.tsx     Client: dialog with injected add-member action
+    new-group-form.tsx        Client: create-group form with injected action
     settlements-view.tsx      Client: copy Interac, mark paid
   expenses/
-    expense-form.tsx          Client: full split UI with live preview
+    expense-form.tsx          Client: full split UI with injected add-expense action
     expense-list.tsx          Client: collapsible expense cards
   personal/
     personal-dashboard.tsx    Client: month filter, export, tabs
     summary-cards.tsx         Income / expenses / net cards
-    transaction-list.tsx      List with delete
-    transaction-form.tsx      Client: add income/expense
+    transaction-list.tsx      List with injected delete action
+    transaction-form.tsx      Client: add income/expense with injected action
     category-breakdown.tsx    Category spending bars
 
 lib/
-  actions/                    Server Actions — all DB mutations
+  actions/                    Thin Next.js Server Action adapters
     groups.ts                 createGroup, getGroupByToken, addGroupMember
     expenses.ts               addExpense, getGroupExpenses
     settlements.ts            getGroupBalances, getSettlementSuggestions, markSettlementPaid
     personal.ts               addPersonalTransaction, getPersonalTransactions, deletePersonalTransaction
+  backend/
+    ports.ts                  Repository contracts used by services and tests
+    runtime.ts                Wires Drizzle repositories, nanoid, and clock
+    services/                 Backend use cases, no Next.js or DB imports
+    repositories/             Drizzle-backed repository implementations
   calculations/               Pure functions, no I/O
     split.ts                  calculateSplits() — equal, exact, percentage, shares
     balances.ts               calculateMemberBalances(), calculateSettlements()
@@ -148,7 +157,15 @@ lib/
 
 types/
   index.ts                    All shared TypeScript types + ActionResult<T>
+  actions.ts                  Action contracts passed from pages into client components
   cloudflare.d.ts             Minimal D1Database interface
+
+tests/
+  backend/                    Backend service tests
+  fixtures/                   Mock UI data and action stubs
+  support/                    In-memory repository implementation
+  register-loader.mjs         Registers the test TypeScript/alias loader
+  ts-alias-loader.mjs         Test-time resolver for TypeScript path aliases
 
 scripts/
   migrate.js                  Applies migration SQL (used by Docker entrypoint)
@@ -169,20 +186,38 @@ public/
 ## Code Conventions
 
 - **No inline comments** unless the reason is non-obvious
-- **Server Actions** are the only place that touches the database
+- **Client components** receive action functions as props; route pages wire them to Server Actions
+- **Server Actions** stay thin: call backend services and handle Next.js revalidation
+- **Backend services** do not import Next.js or database modules
+- **Repository adapters** are the only layer that touches the database
 - **Pure calculations** live in `lib/calculations/` — no imports from Next.js or DB
 - **All amounts** are integer cents throughout — never float dollars
 - **`getDb()`** — never import `db` directly; always call `getDb()` inside the function body
 - TypeScript strict mode is enforced — no `any` except the documented DB singleton
 
+## Parallel Development
+
+- Frontend developers can build reusable components with `tests/fixtures/` data and typed action stubs.
+- Backend developers should add or change use cases in `lib/backend/services/` and cover them with in-memory repository tests.
+- Persistence/server work should stay in repository adapters and deployment docs until the server environment is ready.
+
 ---
 
 ## Testing
 
-FairTab has no automated test suite in the current MVP. To verify a change:
+Run the server-independent test suite:
 
-1. Run `npm run typecheck` — zero errors required
-2. Run `npm run build` — production build must succeed
-3. Manually test the affected user flow
+```bash
+npm run test
+```
+
+These tests exercise backend services through in-memory repositories, so they do not need Docker, SQLite, D1, migrations, or a running Next.js server.
+
+To verify a broader change:
+
+1. Run `npm run test` — backend behavior must pass without server setup
+2. Run `npm run typecheck` — zero errors required
+3. Run `npm run build` — production build must succeed
+4. Manually test the affected user flow
 
 See [docs/contributing.md](contributing.md) for how to add tests.

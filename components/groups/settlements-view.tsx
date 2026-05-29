@@ -7,18 +7,25 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { formatCurrency, generateInteracMessage } from '@/lib/formatting'
-import { markSettlementPaid } from '@/lib/actions/settlements'
 import { useToast } from '@/components/ui/use-toast'
 import type { SettlementSuggestion } from '@/types'
+import type { MarkSettlementPaidAction } from '@/types/actions'
 
 interface Props {
   settlements: SettlementSuggestion[]
   groupId: number
   groupName: string
   currency: string
+  markSettlementPaidAction: MarkSettlementPaidAction
 }
 
-export function SettlementsView({ settlements, groupId, groupName, currency }: Props) {
+export function SettlementsView({
+  settlements,
+  groupId,
+  groupName,
+  currency,
+  markSettlementPaidAction,
+}: Props) {
   const [paid, setPaid] = useState<Set<string>>(new Set())
   const [copied, setCopied] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -41,7 +48,7 @@ export function SettlementsView({ settlements, groupId, groupName, currency }: P
   function handleMarkPaid(s: SettlementSuggestion) {
     const key = settlementKey(s)
     startTransition(async () => {
-      const result = await markSettlementPaid(
+      const result = await markSettlementPaidAction(
         groupId,
         s.fromMember.id,
         s.toMember.id,

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,29 @@ export interface RecentGroup {
 }
 
 const STORAGE_KEY = 'fairtab_recent_groups'
+const EMPTY_RECENT_GROUPS: RecentGroup[] = []
+let lastStoredValue: string | null = null
+let lastSnapshot: RecentGroup[] = EMPTY_RECENT_GROUPS
+
+function readRecentGroups(): RecentGroup[] {
+  if (typeof window === 'undefined') return EMPTY_RECENT_GROUPS
+
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (stored === lastStoredValue) return lastSnapshot
+
+    lastStoredValue = stored
+    lastSnapshot = stored ? JSON.parse(stored) : EMPTY_RECENT_GROUPS
+    return lastSnapshot
+  } catch {
+    return EMPTY_RECENT_GROUPS
+  }
+}
+
+function subscribeToRecentGroups(onStoreChange: () => void) {
+  window.addEventListener('storage', onStoreChange)
+  return () => window.removeEventListener('storage', onStoreChange)
+}
 
 export function saveRecentGroup(group: RecentGroup) {
   try {
@@ -28,20 +51,11 @@ export function saveRecentGroup(group: RecentGroup) {
 }
 
 export function RecentGroups() {
-  const [groups, setGroups] = useState<RecentGroup[]>([])
-  const [loaded, setLoaded] = useState(false)
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY)
-      if (stored) setGroups(JSON.parse(stored))
-    } catch {
-      // ignore
-    }
-    setLoaded(true)
-  }, [])
-
-  if (!loaded) return null
+  const groups = useSyncExternalStore(
+    subscribeToRecentGroups,
+    readRecentGroups,
+    () => EMPTY_RECENT_GROUPS
+  )
 
   if (groups.length === 0) {
     return (

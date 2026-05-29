@@ -5,15 +5,16 @@ import { Trash2, TrendingUp, TrendingDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency, formatDate } from '@/lib/formatting'
-import { deletePersonalTransaction } from '@/lib/actions/personal'
 import { useToast } from '@/components/ui/use-toast'
 import type { PersonalTransaction } from '@/types'
+import type { DeletePersonalTransactionAction } from '@/types/actions'
 
 interface Props {
   transactions: PersonalTransaction[]
+  deleteTransactionAction: DeletePersonalTransactionAction
 }
 
-export function TransactionList({ transactions }: Props) {
+export function TransactionList({ transactions, deleteTransactionAction }: Props) {
   const [isPending, startTransition] = useTransition()
   const { toast } = useToast()
 
@@ -25,7 +26,7 @@ export function TransactionList({ transactions }: Props) {
 
   function handleDelete(id: number, title: string) {
     startTransition(async () => {
-      await deletePersonalTransaction(id)
+      await deleteTransactionAction(id)
       toast({ title: `Deleted: ${title}` })
     })
   }
@@ -76,6 +77,7 @@ export function TransactionList({ transactions }: Props) {
               className="h-7 w-7 text-muted-foreground hover:text-destructive"
               onClick={() => handleDelete(t.id, t.title)}
               disabled={isPending}
+              aria-label={`Delete ${t.title}`}
             >
               <Trash2 className="h-3.5 w-3.5" />
             </Button>

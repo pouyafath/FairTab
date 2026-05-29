@@ -10,13 +10,23 @@ Browser
   │
   └── Dynamic pages (SSR): group dashboard, add expense, settlements, personal finance
         ↓ Server Component renders on request
-        ↓ calls Server Actions (lib/actions/)
+        ↓ passes Server Actions into client components as action contracts
+        ↓ lib/actions/ thin Next.js adapters
+        ↓ lib/backend/services/ use cases
+        ↓ lib/backend/ports.ts repository interfaces
+        ↓ lib/backend/repositories/drizzle.ts
         ↓ getDb() → better-sqlite3 (local/Docker) OR D1 (Cloudflare Pages)
-        ↓ Drizzle ORM query
         ↓ SQLite database
 ```
 
-There is no separate API server. All data mutations and reads go through **Next.js Server Actions** (`'use server'` files). Client Components call them as async functions — no REST or GraphQL layer.
+There is no separate API server in the current app. The important boundary is still explicit:
+
+- `components/` contain reusable UI and receive action functions as props.
+- `lib/actions/` contain only Next.js concerns such as cache revalidation.
+- `lib/backend/services/` contain validation and use-case orchestration.
+- `lib/backend/repositories/` contain database access.
+
+This keeps frontend work, backend use-case work, and database adapter work separate enough for a small team to work in parallel.
 
 ---
 
@@ -66,10 +76,15 @@ shadcn components are copied into the codebase (not a library dependency), makin
 ```
 ExpenseForm (Client Component)
   │ user submits form
+  ↓ addExpenseAction prop
+lib/actions/expenses.ts
+  │ Next.js Server Action adapter
   ↓
-addExpense() Server Action
+backend.expenses.addExpense()
   │ Zod validates input
   │ calculateSplits() → per-participant amountCents
+  ↓
+ExpenseRepository
   ↓
 DB: INSERT INTO expenses
 DB: INSERT INTO expense_participants (one row per participant with amountCents stored)
@@ -158,10 +173,17 @@ remainder distributed to highest fractional parts
 
 ## File Naming and Organisation
 
-- **Server Actions** → `lib/actions/*.ts` — `'use server'` at top, call `getDb()` per function
+- **Server Actions** → `lib/actions/*.ts` — `'use server'` at top, thin adapters over backend services
+- **Backend services** → `lib/backend/services/*.ts` — validation and use cases, no Next.js or DB imports
+- **Repository ports** → `lib/backend/ports.ts` — contracts used by backend services and tests
+- **Repository adapters** → `lib/backend/repositories/*.ts` — database-specific implementations
 - **Pure calculations** → `lib/calculations/*.ts` — no imports from Next.js, DB, or actions
 - **Client Components** → files with `'use client'` at top — no direct DB or server imports
 - **Types** → `types/index.ts` — one source of truth for all shared types
+
+## Testing Boundary
+
+Backend service tests run with in-memory repositories from `tests/support/`. They do not start Next.js, connect to SQLite/D1, run migrations, or require the future production server. This is the main safety net while server infrastructure is being prepared separately.
 
 ---
 
@@ -170,7 +192,7 @@ remainder distributed to highest fractional parts
 | Constraint | Reason |
 |---|---|
 | All amounts are integer cents | No floating-point rounding errors in financial math |
-| `getDb()` called inside function body, not module level | CF Workers request context is per-request, not per-module |
+| `getDb()` called inside repository/runtime setup, not UI or services | CF Workers request context is per-request, not per-module |
 | `nanoid` only in server files | ESM-only package — safe in Server Actions, breaks Client Components |
 | `better-sqlite3` in `serverExternalPackages` | Native module — must not be bundled by Turbopack |
 | `export const dynamic = 'force-dynamic'` on data pages | Prevents stale cached HTML on CF Pages |

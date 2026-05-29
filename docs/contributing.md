@@ -38,12 +38,20 @@ npm run dev
 3. **Make your changes** — keep them focused on one thing
 4. **Verify** everything still works:
    ```bash
+   npm run test        # must pass
    npm run typecheck   # must pass (zero errors)
    npm run build       # must pass
    npm run lint        # fix any warnings
    ```
 5. **Commit** with a clear message (see style below)
 6. **Push** and open a Pull Request against `main`
+
+## Parallel Work Checklist
+
+- **Frontend**: work in `components/` and pass typed action props from pages; use `tests/fixtures/` for mock group, expense, settlement, transaction, and action data.
+- **Backend use cases**: work in `lib/backend/services/` and add server-independent coverage in `tests/backend/`.
+- **Persistence/server**: work behind `lib/backend/ports.ts` in repository adapters and deployment docs; do not move database access into UI or services.
+- **Server setup**: keep Docker, production database, and deployment execution separate until server infrastructure work starts.
 
 ---
 
@@ -77,7 +85,10 @@ Keep the subject line under 72 characters. Add a body if the "why" is non-obviou
 - **No inline comments** unless the reason is genuinely non-obvious
 - **No docstrings** on simple functions — good names are enough
 - **Strict types** — avoid `any`; the one documented exception is the DB singleton in `lib/db/index.ts`
-- **Server Actions** are the only layer that calls `getDb()` — keep business logic in `lib/calculations/`
+- **Client components** receive action functions as props instead of importing Server Actions directly
+- **Server Actions** are thin Next.js adapters — keep business logic in `lib/backend/services/`
+- **Repository adapters** are the only layer that calls `getDb()`
+- **Pure business math** belongs in `lib/calculations/`
 - **Integer cents everywhere** — never convert to dollars inside server code
 - **No premature abstractions** — three similar lines is fine; a helper is only justified at four or more
 
@@ -98,11 +109,10 @@ Keep the subject line under 72 characters. Add a body if the "why" is non-obviou
 
 ## Adding Tests
 
-The MVP has no automated tests. If you'd like to add some:
-
-- Pure calculation functions (`lib/calculations/`) are ideal candidates for unit tests
-- Suggested test framework: **Vitest** (compatible with the existing TypeScript setup)
-- Add test files alongside the source as `*.test.ts`
+- Backend service tests go in `tests/backend/`
+- In-memory repository support goes in `tests/support/`
+- Tests should not require Docker, SQLite, D1, migrations, or a running Next.js server
+- Pure calculation functions (`lib/calculations/`) are ideal candidates for additional focused tests
 
 ---
 

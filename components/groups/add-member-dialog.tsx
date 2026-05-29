@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { UserPlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,38 +15,48 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { addGroupMember } from '@/lib/actions/groups'
 import { useToast } from '@/components/ui/use-toast'
+import type { AddGroupMemberAction } from '@/types/actions'
 
 interface Props {
   groupId: number
+  addMemberAction: AddGroupMemberAction
   onMemberAdded?: () => void
 }
 
-export function AddMemberDialog({ groupId, onMemberAdded }: Props) {
+export function AddMemberDialog({ groupId, addMemberAction, onMemberAdded }: Props) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [isPending, startTransition] = useTransition()
+  const [isPending, setIsPending] = useState(false)
   const { toast } = useToast()
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    setIsPending(true)
+    const memberName = name
+    const memberEmail = email
+    setOpen(false)
 
-    startTransition(async () => {
-      const result = await addGroupMember(groupId, { name, email: email || undefined })
+    try {
+      const result = await addMemberAction(groupId, {
+        name: memberName,
+        email: memberEmail || undefined,
+      })
       if (result.success) {
-        toast({ title: `${name} added to group` })
         setName('')
         setEmail('')
-        setOpen(false)
+        toast({ title: `${memberName} added to group` })
         onMemberAdded?.()
       } else {
+        setOpen(true)
         setError(result.error)
       }
-    })
+    } finally {
+      setIsPending(false)
+    }
   }
 
   return (

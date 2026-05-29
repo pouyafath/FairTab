@@ -5,15 +5,14 @@ import { ChevronDown, ChevronUp, Receipt } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency, formatDate } from '@/lib/formatting'
-import type { ExpenseWithParticipants, GroupMember } from '@/types'
+import type { ExpenseWithParticipants } from '@/types'
 
 interface Props {
   expenses: ExpenseWithParticipants[]
-  members: GroupMember[]
   currency: string
 }
 
-export function ExpenseList({ expenses, members, currency }: Props) {
+export function ExpenseList({ expenses, currency }: Props) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
 
   if (expenses.length === 0) {
@@ -30,7 +29,11 @@ export function ExpenseList({ expenses, members, currency }: Props) {
   function toggle(id: number) {
     setExpanded((prev) => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
       return next
     })
   }

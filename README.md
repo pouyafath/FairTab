@@ -86,6 +86,7 @@ App is live at **http://localhost:3000**. Data is in `./data/fairtab.db`.
 |---|---|---|
 | Framework | Next.js 16 (App Router, Turbopack) | RSC + Server Actions, no separate API layer |
 | Language | TypeScript (strict) | End-to-end type safety |
+| Backend boundary | Server Actions + backend services | Thin Next adapters over testable use cases |
 | Database | SQLite via better-sqlite3 + Drizzle ORM | Zero-config, portable, migrates to D1 |
 | UI | Tailwind CSS v3 + shadcn/ui | Accessible components, consistent design tokens |
 | Validation | Zod v4 | Runtime validation on all Server Actions |
@@ -109,12 +110,14 @@ components/
   expenses/                 Expense form with live split preview
   personal/                 Personal finance components
 lib/
-  actions/                  Server Actions (all DB mutations live here)
+  actions/                  Thin Next.js Server Action adapters
+  backend/                  Backend services, ports, and Drizzle repositories
   calculations/             Pure functions: split, balances, settlements, CSV
   db/                       Drizzle schema, relations, dual-mode client
   formatting/               Currency, date, Interac message formatting
   validations/              Zod schemas for every Server Action
 types/                      Shared TypeScript types
+tests/                      Server-independent backend tests with in-memory repositories
 scripts/
   migrate.js                Applies SQL migration (used by Docker entrypoint)
 migrations/
@@ -147,6 +150,7 @@ personal_transactions id, type, title, amount, currency, date, category, note, a
 npm run dev           # Development server (http://localhost:3000)
 npm run build         # Production build (Next.js + standalone output)
 npm run start         # Start production server (after build)
+npm run test          # Backend service tests without server/database setup
 npm run typecheck     # TypeScript type checking
 npm run lint          # ESLint
 npm run db:push       # Sync Drizzle schema → SQLite (dev only)

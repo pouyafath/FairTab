@@ -3,7 +3,10 @@ export const dynamic = 'force-dynamic'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getGroupByToken } from '@/lib/actions/groups'
-import { getSettlementSuggestions } from '@/lib/actions/settlements'
+import {
+  getSettlementSuggestions,
+  markSettlementPaid,
+} from '@/lib/actions/settlements'
 import { SettlementsView } from '@/components/groups/settlements-view'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
@@ -41,6 +44,7 @@ export default async function SettlementsPage({ params }: Props) {
         groupId={group.id}
         groupName={group.name}
         currency={group.currency}
+        markSettlementPaidAction={markSettlementPaid}
       />
     </div>
   )

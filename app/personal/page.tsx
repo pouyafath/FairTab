@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { getPersonalTransactions } from '@/lib/actions/personal'
+import { deletePersonalTransaction, getPersonalTransactions } from '@/lib/actions/personal'
 import { calculatePersonalSummary } from '@/lib/calculations/personal'
 import { PersonalDashboard } from '@/components/personal/personal-dashboard'
 import type { Metadata } from 'next'
@@ -21,6 +21,7 @@ export default async function PersonalPage() {
         currentSummary={summary}
         currentYear={year}
         currentMonth={month}
+        deleteTransactionAction={deletePersonalTransaction}
       />
     </div>
   )

@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import Link from 'next/link'
-import { Plus, ArrowRightLeft, Share2, Copy } from 'lucide-react'
+import { Plus, ArrowRightLeft, Copy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { BalanceSummary } from '@/components/groups/balance-summary'
@@ -11,13 +11,15 @@ import { ExpenseList } from '@/components/expenses/expense-list'
 import { saveRecentGroup } from '@/components/groups/recent-groups'
 import { useToast } from '@/components/ui/use-toast'
 import type { GroupWithMembers, ExpenseWithParticipants } from '@/types'
+import type { AddGroupMemberAction } from '@/types/actions'
 
 interface Props {
   group: GroupWithMembers
   expenses: ExpenseWithParticipants[]
+  addMemberAction: AddGroupMemberAction
 }
 
-export function GroupDashboard({ group, expenses }: Props) {
+export function GroupDashboard({ group, expenses, addMemberAction }: Props) {
   const { toast } = useToast()
 
   useEffect(() => {
@@ -54,7 +56,7 @@ export function GroupDashboard({ group, expenses }: Props) {
             <Copy className="h-4 w-4 mr-2" />
             Copy Link
           </Button>
-          <AddMemberDialog groupId={group.id} />
+          <AddMemberDialog groupId={group.id} addMemberAction={addMemberAction} />
         </div>
       </div>
 
@@ -103,7 +105,7 @@ export function GroupDashboard({ group, expenses }: Props) {
           <h2 className="font-semibold">Expenses</h2>
           <span className="text-sm text-muted-foreground">{expenses.length} total</span>
         </div>
-        <ExpenseList expenses={expenses} members={group.members} currency={group.currency} />
+        <ExpenseList expenses={expenses} currency={group.currency} />
       </div>
     </div>
   )
