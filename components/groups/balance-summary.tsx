@@ -1,0 +1,72 @@
+'use client'
+
+import { useMemo } from 'react'
+import { calculateMemberBalances } from '@/lib/calculations/balances'
+import { formatCurrency } from '@/lib/formatting'
+import type { GroupMember, ExpenseWithParticipants } from '@/types'
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
+
+interface Props {
+  members: GroupMember[]
+  expenses: ExpenseWithParticipants[]
+  currency?: string
+}
+
+export function BalanceSummary({ members, expenses, currency = 'CAD' }: Props) {
+  const balances = useMemo(() => {
+    const rawExpenses = expenses.map((e) => ({
+      paidById: e.paidById,
+      totalAmount: e.amount,
+      participantShares: e.participants.map((p) => ({
+        memberId: p.memberId,
+        amountCents: p.amountCents,
+      })),
+    }))
+    return calculateMemberBalances(members, rawExpenses)
+  }, [members, expenses])
+
+  const totalSpending = expenses.reduce((sum, e) => sum + e.amount, 0)
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Balances</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Total: {formatCurrency(totalSpending, currency)}
+        </p>
+      </CardHeader>
+      <CardContent className="p-0">
+        {balances.length === 0 ? (
+          <p className="text-sm text-muted-foreground px-6 pb-4">No members yet.</p>
+        ) : (
+          <div className="divide-y">
+            {balances.map((b) => (
+              <div key={b.member.id} className="flex items-center justify-between px-6 py-3">
+                <div>
+                  <span className="font-medium text-sm">{b.member.name}</span>
+                  <p className="text-xs text-muted-foreground">
+                    Paid {formatCurrency(b.totalPaid, currency)}
+                  </p>
+                </div>
+                <span
+                  className={cn(
+                    'font-semibold text-sm',
+                    b.netBalance > 0
+                      ? 'text-green-600'
+                      : b.netBalance < 0
+                        ? 'text-red-600'
+                        : 'text-muted-foreground'
+                  )}
+                >
+                  {b.netBalance > 0 ? '+' : ''}
+                  {formatCurrency(b.netBalance, currency)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}

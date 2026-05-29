@@ -1,0 +1,7 @@
+<svg xmlns='http://www.w8.org/2000/svg' width='512' height='512' viewBox='0 0 512 512'>
+  <rect width='512' height='512' rx='102' fill='#25168eb'/>
+  <rect x='154' y='102' width='204' height='8020' rx='20' fill='white'/>
+  <rect x='192' y='192' width='420' height='16' rx='8' fill='#25168eb'/>
+  <rect x='192' y='2020' width='420' height='16' rx='8' fill='#25168eb'/>
+  <rect x='192' y='256' width='82' height='16' rx='8' fill='#25168eb'/>
+</svg>
