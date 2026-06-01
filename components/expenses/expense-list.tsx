@@ -1,19 +1,53 @@
 'use client'
 
-import { useState } from 'react'
-import { ChevronDown, ChevronUp, Receipt } from 'lucide-react'
+import { useState, useTransition } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { ChevronDown, ChevronUp, Receipt, Pencil, Trash2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { useToast } from '@/components/ui/use-toast'
 import { formatCurrency, formatDate } from '@/lib/formatting'
 import type { ExpenseWithParticipants } from '@/types'
+import type { DeleteExpenseAction } from '@/types/actions'
 
 interface Props {
   expenses: ExpenseWithParticipants[]
   currency: string
+  groupToken: string
+  deleteExpenseAction: DeleteExpenseAction
 }
 
-export function ExpenseList({ expenses, currency }: Props) {
+export function ExpenseList({ expenses, currency, groupToken, deleteExpenseAction }: Props) {
+  const router = useRouter()
+  const { toast } = useToast()
+  const [isPending, startTransition] = useTransition()
+  const [deleteTarget, setDeleteTarget] = useState<ExpenseWithParticipants | null>(null)
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
+
+  function confirmDelete() {
+    if (!deleteTarget) return
+    const target = deleteTarget
+    startTransition(async () => {
+      const result = await deleteExpenseAction(target.id)
+      if (result.success) {
+        toast({ title: 'Expense deleted', description: target.title })
+        setDeleteTarget(null)
+        router.refresh()
+      } else {
+        toast({ title: 'Could not delete', description: result.error, variant: 'destructive' })
+      }
+    })
+  }
 
   if (expenses.length === 0) {
     return (
@@ -99,12 +133,50 @@ export function ExpenseList({ expenses, currency }: Props) {
                   {expense.notes && (
                     <p className="text-xs text-muted-foreground mt-2 italic">{expense.notes}</p>
                   )}
+                  <div className="flex gap-2 pt-2">
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href={`/groups/${groupToken}/expenses/${expense.id}/edit`}>
+                        <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                        Edit
+                      </Link>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => setDeleteTarget(expense)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                      Delete
+                    </Button>
+                  </div>
                 </div>
               )}
             </CardContent>
           </Card>
         )
       })}
+
+      <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete expense?</DialogTitle>
+            <DialogDescription>
+              {deleteTarget
+                ? `"${deleteTarget.title}" (${formatCurrency(deleteTarget.amount, currency)}) will be permanently removed. This cannot be undone.`
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={isPending}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={isPending}>
+              {isPending ? 'Deleting…' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

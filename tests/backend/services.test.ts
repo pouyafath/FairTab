@@ -168,6 +168,128 @@ describe('backend services', () => {
     ])
   })
 
+  it('edits an expense and recalculates participant shares', async () => {
+    const { backend, state } = createTestBackend()
+    const { groupId, members } = await createGroupWithMembers(backend, ['Alice', 'Bob', 'Cara'])
+
+    const created = await backend.expenses.addExpense(groupId, {
+      title: 'Cabin rental',
+      amount: 9000,
+      currency: 'CAD',
+      paidById: members[0].id,
+      date: fixedNow.getTime(),
+      splitMethod: 'equal',
+      participants: members.map((member) => ({ memberId: member.id, shareValue: 1 })),
+    })
+    assert.equal(created.success, true)
+    if (!created.success) return
+
+    // Change amount and drop Cara from the split
+    const updated = await backend.expenses.updateExpense(created.data.id, {
+      title: 'Cabin rental (updated)',
+      amount: 10000,
+      currency: 'CAD',
+      paidById: members[1].id,
+      date: fixedNow.getTime(),
+      splitMethod: 'equal',
+      participants: [
+        { memberId: members[0].id, shareValue: 1 },
+        { memberId: members[1].id, shareValue: 1 },
+      ],
+    })
+    assert.equal(updated.success, true)
+
+    const expenses = await backend.expenses.getGroupExpenses(groupId)
+    assert.equal(expenses.length, 1)
+    assert.equal(expenses[0].title, 'Cabin rental (updated)')
+    assert.equal(expenses[0].amount, 10000)
+    assert.equal(expenses[0].paidById, members[1].id)
+    assert.deepEqual(
+      expenses[0].participants.map((p) => p.amountCents),
+      [5000, 5000]
+    )
+    // Old participant rows replaced, not appended
+    assert.equal(state.expenseParticipants.length, 2)
+  })
+
+  it('rejects edits with invalid splits and reports missing expenses', async () => {
+    const { backend } = createTestBackend()
+    const { groupId, members } = await createGroupWithMembers(backend, ['Alice', 'Bob'])
+
+    const created = await backend.expenses.addExpense(groupId, {
+      title: 'Dinner',
+      amount: 5000,
+      currency: 'CAD',
+      paidById: members[0].id,
+      date: fixedNow.getTime(),
+      splitMethod: 'equal',
+      participants: members.map((member) => ({ memberId: member.id, shareValue: 1 })),
+    })
+    assert.equal(created.success, true)
+    if (!created.success) return
+
+    // Exact split that doesn't sum to the total must fail and leave data intact
+    const badEdit = await backend.expenses.updateExpense(created.data.id, {
+      title: 'Dinner',
+      amount: 5000,
+      currency: 'CAD',
+      paidById: members[0].id,
+      date: fixedNow.getTime(),
+      splitMethod: 'exact',
+      participants: [
+        { memberId: members[0].id, shareValue: 1000 },
+        { memberId: members[1].id, shareValue: 1000 },
+      ],
+    })
+    assert.equal(badEdit.success, false)
+
+    const stillThere = await backend.expenses.getGroupExpenses(groupId)
+    assert.equal(stillThere[0].amount, 5000)
+    assert.deepEqual(
+      stillThere[0].participants.map((p) => p.amountCents),
+      [2500, 2500]
+    )
+
+    const missing = await backend.expenses.updateExpense(99999, {
+      title: 'Nope',
+      amount: 100,
+      currency: 'CAD',
+      paidById: members[0].id,
+      date: fixedNow.getTime(),
+      splitMethod: 'equal',
+      participants: [{ memberId: members[0].id, shareValue: 1 }],
+    })
+    assert.equal(missing.success, false)
+    if (!missing.success) assert.match(missing.error, /not found/)
+  })
+
+  it('deletes an expense and its participant rows', async () => {
+    const { backend, state } = createTestBackend()
+    const { groupId, members } = await createGroupWithMembers(backend, ['Alice', 'Bob'])
+
+    const created = await backend.expenses.addExpense(groupId, {
+      title: 'Taxi',
+      amount: 2000,
+      currency: 'CAD',
+      paidById: members[0].id,
+      date: fixedNow.getTime(),
+      splitMethod: 'equal',
+      participants: members.map((member) => ({ memberId: member.id, shareValue: 1 })),
+    })
+    assert.equal(created.success, true)
+    if (!created.success) return
+
+    assert.equal(state.expenseParticipants.length, 2)
+
+    const deleted = await backend.expenses.deleteExpense(created.data.id)
+    assert.equal(deleted.success, true)
+    assert.equal((await backend.expenses.getGroupExpenses(groupId)).length, 0)
+    assert.equal(state.expenseParticipants.length, 0)
+
+    const deleteAgain = await backend.expenses.deleteExpense(created.data.id)
+    assert.equal(deleteAgain.success, false)
+  })
+
   it('manages personal transactions without server actions or DB adapters', async () => {
     const { backend } = createTestBackend()
 

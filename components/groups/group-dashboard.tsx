@@ -11,15 +11,16 @@ import { ExpenseList } from '@/components/expenses/expense-list'
 import { saveRecentGroup } from '@/components/groups/recent-groups'
 import { useToast } from '@/components/ui/use-toast'
 import type { GroupWithMembers, ExpenseWithParticipants } from '@/types'
-import type { AddGroupMemberAction } from '@/types/actions'
+import type { AddGroupMemberAction, DeleteExpenseAction } from '@/types/actions'
 
 interface Props {
   group: GroupWithMembers
   expenses: ExpenseWithParticipants[]
   addMemberAction: AddGroupMemberAction
+  deleteExpenseAction: DeleteExpenseAction
 }
 
-export function GroupDashboard({ group, expenses, addMemberAction }: Props) {
+export function GroupDashboard({ group, expenses, addMemberAction, deleteExpenseAction }: Props) {
   const { toast } = useToast()
 
   useEffect(() => {
@@ -105,7 +106,12 @@ export function GroupDashboard({ group, expenses, addMemberAction }: Props) {
           <h2 className="font-semibold">Expenses</h2>
           <span className="text-sm text-muted-foreground">{expenses.length} total</span>
         </div>
-        <ExpenseList expenses={expenses} currency={group.currency} />
+        <ExpenseList
+          expenses={expenses}
+          currency={group.currency}
+          groupToken={group.token}
+          deleteExpenseAction={deleteExpenseAction}
+        />
       </div>
     </div>
   )

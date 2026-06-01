@@ -15,6 +15,7 @@ import type {
   CreateExpenseRecord,
   CreateGroupRecord,
   CreatePersonalTransactionRecord,
+  UpdateExpenseRecord,
 } from '@/lib/backend/ports'
 import type {
   Expense,
@@ -136,6 +137,62 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
           })),
           paidBy: expense.paidBy,
         }))
+      },
+
+      async findById(expenseId: number): Promise<ExpenseWithParticipants | null> {
+        const expense = await db.query.expenses.findFirst({
+          where: eq(expenses.id, expenseId),
+          with: {
+            participants: { with: { member: true } },
+            paidBy: true,
+          },
+        })
+        if (!expense) return null
+
+        return {
+          ...serializeExpense(expense),
+          participants: expense.participants.map((participant) => ({
+            ...serializeExpenseParticipant(participant),
+            member: participant.member,
+          })),
+          paidBy: expense.paidBy,
+        }
+      },
+
+      async updateWithParticipants(
+        expenseId: number,
+        input: UpdateExpenseRecord
+      ): Promise<Expense> {
+        const [expense] = await db
+          .update(expenses)
+          .set({
+            title: input.title,
+            amount: input.amount,
+            currency: input.currency,
+            paidById: input.paidById,
+            date: input.date,
+            category: input.category,
+            notes: input.notes,
+            splitMethod: input.splitMethod,
+          })
+          .where(eq(expenses.id, expenseId))
+          .returning()
+
+        await db.delete(expenseParticipants).where(eq(expenseParticipants.expenseId, expenseId))
+        await db.insert(expenseParticipants).values(
+          input.participants.map((participant) => ({
+            expenseId,
+            memberId: participant.memberId,
+            shareValue: participant.shareValue,
+            amountCents: participant.amountCents,
+          }))
+        )
+
+        return serializeExpense(expense)
+      },
+
+      async delete(expenseId: number): Promise<void> {
+        await db.delete(expenses).where(eq(expenses.id, expenseId))
       },
 
       async getBalanceData(groupId: number) {
