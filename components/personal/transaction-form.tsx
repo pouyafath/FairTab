@@ -19,6 +19,7 @@ import {
   PERSONAL_INCOME_CATEGORIES,
   PERSONAL_EXPENSE_CATEGORIES,
 } from '@/lib/constants'
+import { readDefaultCurrency } from '@/lib/settings'
 import type { TransactionType } from '@/types'
 import type { AddPersonalTransactionAction } from '@/types/actions'
 
@@ -34,7 +35,7 @@ export function TransactionForm({ addTransactionAction }: Props) {
   const [type, setType] = useState<TransactionType>('expense')
   const [title, setTitle] = useState('')
   const [amountStr, setAmountStr] = useState('')
-  const [currency, setCurrency] = useState('CAD')
+  const [currency, setCurrency] = useState(readDefaultCurrency)
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   const [category, setCategory] = useState('')
   const [note, setNote] = useState('')
