@@ -1,10 +1,6 @@
-import type { GroupMember, MemberBalance, SettlementSuggestion } from '@/types'
+import type { GroupMember, MemberBalance, RawExpenseData, SettlementSuggestion } from '@/types'
 
-export interface RawExpenseData {
-  paidById: number
-  totalAmount: number // cents actually paid out by paidBy
-  participantShares: { memberId: number; amountCents: number }[]
-}
+export type { RawExpenseData }
 
 /**
  * Compute net balance for each member.

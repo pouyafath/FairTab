@@ -21,17 +21,16 @@ import type {
   ExpenseParticipant,
   ExpenseWithParticipants,
   Group,
+  GroupMember,
   GroupWithMembers,
   PersonalTransaction,
 } from '@/types'
 
-type EpochInput = Date | number | string | null
-
-function toEpochMs(value: EpochInput): number {
+function toEpochMs(value: Date | number | string | null): number {
+  if (value === null) return 0
   if (value instanceof Date) return value.getTime()
   if (typeof value === 'number') return value
-  if (typeof value === 'string') return new Date(value).getTime()
-  throw new Error('Expected a timestamp value')
+  return new Date(value).getTime()
 }
 
 function serializeGroup(row: typeof groups.$inferSelect): Group {
@@ -83,7 +82,7 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
         }
       },
 
-      async addMember(input): Promise<typeof groupMembers.$inferSelect> {
+      async addMember(input): Promise<GroupMember> {
         const [member] = await db.insert(groupMembers).values(input).returning()
         return member
       },
