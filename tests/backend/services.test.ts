@@ -290,6 +290,107 @@ describe('backend services', () => {
     assert.equal(deleteAgain.success, false)
   })
 
+  it('renames a group', async () => {
+    const { backend } = createTestBackend()
+    const { groupId } = await createGroupWithMembers(backend, ['Alice'])
+
+    const result = await backend.groups.renameGroup(groupId, { name: 'Updated Name' })
+    assert.equal(result.success, true)
+    if (!result.success) return
+
+    assert.equal(result.data.name, 'Updated Name')
+
+    const group = await backend.groups.getGroupByToken('group123')
+    assert.equal(group?.name, 'Updated Name')
+  })
+
+  it('rejects rename with invalid name', async () => {
+    const { backend } = createTestBackend()
+    const { groupId } = await createGroupWithMembers(backend, ['Alice'])
+
+    const result = await backend.groups.renameGroup(groupId, { name: 'X' })
+    assert.equal(result.success, false)
+    if (!result.success) assert.match(result.error, /at least 2 characters/)
+  })
+
+  it('deletes a group and cascades members, expenses, and participants', async () => {
+    const { backend, state } = createTestBackend()
+    const { groupId, members } = await createGroupWithMembers(backend, ['Alice', 'Bob'])
+
+    await backend.expenses.addExpense(groupId, {
+      title: 'Lunch',
+      amount: 2000,
+      currency: 'CAD',
+      paidById: members[0].id,
+      date: fixedNow.getTime(),
+      splitMethod: 'equal',
+      participants: members.map((m) => ({ memberId: m.id, shareValue: 1 })),
+    })
+
+    assert.equal(state.expenses.length, 1)
+    assert.equal(state.expenseParticipants.length, 2)
+
+    const result = await backend.groups.deleteGroup(groupId)
+    assert.equal(result.success, true)
+
+    assert.equal(state.groups.length, 0)
+    assert.equal(state.members.length, 0)
+    assert.equal(state.expenses.length, 0)
+    assert.equal(state.expenseParticipants.length, 0)
+  })
+
+  it("updates a member's name and email", async () => {
+    const { backend } = createTestBackend()
+    const { members } = await createGroupWithMembers(backend, ['Alice'])
+
+    const result = await backend.groups.updateMember(members[0].id, {
+      name: 'Alicia',
+      email: 'alicia@example.com',
+    })
+    assert.equal(result.success, true)
+    if (!result.success) return
+
+    assert.equal(result.data.name, 'Alicia')
+    assert.equal(result.data.email, 'alicia@example.com')
+  })
+
+  it('removes a member who has no expenses', async () => {
+    const { backend, state } = createTestBackend()
+    const { groupId, members } = await createGroupWithMembers(backend, ['Alice', 'Bob'])
+
+    const result = await backend.groups.removeMember(groupId, members[1].id)
+    assert.equal(result.success, true)
+    assert.equal(state.members.length, 1)
+    assert.equal(state.members[0].name, 'Alice')
+  })
+
+  it('blocks removing a member who is referenced in expenses', async () => {
+    const { backend, state } = createTestBackend()
+    const { groupId, members } = await createGroupWithMembers(backend, ['Alice', 'Bob'])
+
+    await backend.expenses.addExpense(groupId, {
+      title: 'Dinner',
+      amount: 4000,
+      currency: 'CAD',
+      paidById: members[0].id,
+      date: fixedNow.getTime(),
+      splitMethod: 'equal',
+      participants: members.map((m) => ({ memberId: m.id, shareValue: 1 })),
+    })
+
+    // Alice is paidBy — blocked
+    const paidByBlock = await backend.groups.removeMember(groupId, members[0].id)
+    assert.equal(paidByBlock.success, false)
+    if (!paidByBlock.success) assert.match(paidByBlock.error, /Cannot remove/)
+
+    // Bob is a participant — also blocked
+    const participantBlock = await backend.groups.removeMember(groupId, members[1].id)
+    assert.equal(participantBlock.success, false)
+    if (!participantBlock.success) assert.match(participantBlock.error, /Cannot remove/)
+
+    assert.equal(state.members.length, 2)
+  })
+
   it('manages personal transactions without server actions or DB adapters', async () => {
     const { backend } = createTestBackend()
 

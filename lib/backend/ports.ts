@@ -72,6 +72,15 @@ export interface CreatePersonalTransactionRecord {
   createdAt: Date
 }
 
+export interface UpdateGroupRecord {
+  name: string
+}
+
+export interface UpdateMemberRecord {
+  name: string
+  email: string | null
+}
+
 export interface RecordPaidSettlementInput {
   groupId: number
   fromMemberId: number
@@ -83,7 +92,11 @@ export interface RecordPaidSettlementInput {
 export interface GroupRepository {
   create(input: CreateGroupRecord): Promise<Group>
   findByToken(token: string): Promise<GroupWithMembers | null>
+  update(groupId: number, input: UpdateGroupRecord): Promise<Group>
+  delete(groupId: number): Promise<void>
   addMember(input: AddMemberRecord): Promise<GroupMember>
+  updateMember(memberId: number, input: UpdateMemberRecord): Promise<GroupMember>
+  removeMember(memberId: number): Promise<void>
 }
 
 export interface ExpenseRepository {
@@ -93,6 +106,7 @@ export interface ExpenseRepository {
   updateWithParticipants(expenseId: number, input: UpdateExpenseRecord): Promise<Expense>
   delete(expenseId: number): Promise<void>
   getBalanceData(groupId: number): Promise<BalanceData>
+  memberHasExpenses(memberId: number): Promise<boolean>
 }
 
 export interface PersonalRepository {

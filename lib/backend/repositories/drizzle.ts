@@ -16,6 +16,8 @@ import type {
   CreateGroupRecord,
   CreatePersonalTransactionRecord,
   UpdateExpenseRecord,
+  UpdateGroupRecord,
+  UpdateMemberRecord,
 } from '@/lib/backend/ports'
 import type {
   Expense,
@@ -83,9 +85,35 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
         }
       },
 
+      async update(groupId: number, input: UpdateGroupRecord): Promise<Group> {
+        const [group] = await db
+          .update(groups)
+          .set({ name: input.name })
+          .where(eq(groups.id, groupId))
+          .returning()
+        return serializeGroup(group)
+      },
+
+      async delete(groupId: number): Promise<void> {
+        await db.delete(groups).where(eq(groups.id, groupId))
+      },
+
       async addMember(input): Promise<GroupMember> {
         const [member] = await db.insert(groupMembers).values(input).returning()
         return member
+      },
+
+      async updateMember(memberId: number, input: UpdateMemberRecord): Promise<GroupMember> {
+        const [member] = await db
+          .update(groupMembers)
+          .set({ name: input.name, email: input.email })
+          .where(eq(groupMembers.id, memberId))
+          .returning()
+        return member
+      },
+
+      async removeMember(memberId: number): Promise<void> {
+        await db.delete(groupMembers).where(eq(groupMembers.id, memberId))
       },
     },
 
@@ -193,6 +221,21 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
 
       async delete(expenseId: number): Promise<void> {
         await db.delete(expenses).where(eq(expenses.id, expenseId))
+      },
+
+      async memberHasExpenses(memberId: number): Promise<boolean> {
+        const asPayee = await db
+          .select({ id: expenses.id })
+          .from(expenses)
+          .where(eq(expenses.paidById, memberId))
+          .limit(1)
+        if (asPayee.length > 0) return true
+        const asParticipant = await db
+          .select({ id: expenseParticipants.id })
+          .from(expenseParticipants)
+          .where(eq(expenseParticipants.memberId, memberId))
+          .limit(1)
+        return asParticipant.length > 0
       },
 
       async getBalanceData(groupId: number) {

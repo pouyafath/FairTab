@@ -8,10 +8,27 @@ import type {
 
 export type CreateGroupAction = (formData: unknown) => Promise<ActionResult<Group>>
 
+export type RenameGroupAction = (
+  groupId: number,
+  formData: unknown
+) => Promise<ActionResult<Group>>
+
+export type DeleteGroupAction = (groupId: number) => Promise<ActionResult<void>>
+
 export type AddGroupMemberAction = (
   groupId: number,
   formData: unknown
 ) => Promise<ActionResult<GroupMember>>
+
+export type UpdateGroupMemberAction = (
+  memberId: number,
+  formData: unknown
+) => Promise<ActionResult<GroupMember>>
+
+export type RemoveGroupMemberAction = (
+  groupId: number,
+  memberId: number
+) => Promise<ActionResult<void>>
 
 export type AddExpenseAction = (
   groupId: number,
