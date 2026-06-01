@@ -41,5 +41,50 @@ export function createExpenseService({ repositories, now }: BackendServiceDeps) 
     async getGroupExpenses(groupId: number): Promise<ExpenseWithParticipants[]> {
       return repositories.expenses.findForGroup(groupId)
     },
+
+    async getExpense(expenseId: number): Promise<ExpenseWithParticipants | null> {
+      return repositories.expenses.findById(expenseId)
+    },
+
+    async updateExpense(
+      expenseId: number,
+      formData: unknown
+    ): Promise<ActionResult<Expense>> {
+      const parsed = addExpenseSchema.safeParse(formData)
+      if (!parsed.success) return validationError<Expense>(parsed.error)
+
+      const existing = await repositories.expenses.findById(expenseId)
+      if (!existing) return failure<Expense>('Expense not found')
+
+      const data = parsed.data
+      let participants
+      try {
+        participants = calculateSplits(data.amount, data.splitMethod, data.participants)
+      } catch (err) {
+        return failure<Expense>((err as Error).message)
+      }
+
+      const expense = await repositories.expenses.updateWithParticipants(expenseId, {
+        title: data.title,
+        amount: data.amount,
+        currency: data.currency,
+        paidById: data.paidById,
+        date: new Date(data.date),
+        category: data.category ?? null,
+        notes: data.notes ?? null,
+        splitMethod: data.splitMethod,
+        participants,
+      })
+
+      return { success: true, data: expense }
+    },
+
+    async deleteExpense(expenseId: number): Promise<ActionResult<void>> {
+      const existing = await repositories.expenses.findById(expenseId)
+      if (!existing) return failure<void>('Expense not found')
+
+      await repositories.expenses.delete(expenseId)
+      return { success: true, data: undefined }
+    },
   }
 }

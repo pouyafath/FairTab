@@ -17,17 +17,29 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { calculateSplits } from '@/lib/calculations/split'
-import { dateInputToTimestamp, formatCurrency, dollarsToCentsString } from '@/lib/formatting'
+import {
+  dateInputToTimestamp,
+  formatCurrency,
+  dollarsToCentsString,
+  centsToInputString,
+  timestampToDateInput,
+} from '@/lib/formatting'
 import { GROUP_CATEGORIES, SPLIT_METHODS, CURRENCIES } from '@/lib/constants'
-import type { GroupMember, SplitMethod } from '@/types'
-import type { AddExpenseAction } from '@/types/actions'
+import type { GroupMember, SplitMethod, ExpenseWithParticipants } from '@/types'
+import type { AddExpenseAction, UpdateExpenseAction } from '@/types/actions'
 
 interface Props {
   groupId: number
   groupToken: string
   members: GroupMember[]
   defaultCurrency: string
-  addExpenseAction: AddExpenseAction
+  addExpenseAction?: AddExpenseAction
+  updateExpenseAction?: UpdateExpenseAction
+  expense?: ExpenseWithParticipants
+}
+
+function initialShareValue(p: { shareValue: number }, method: SplitMethod): string {
+  return method === 'exact' ? centsToInputString(p.shareValue) : String(p.shareValue)
 }
 
 export function ExpenseForm({
@@ -36,27 +48,45 @@ export function ExpenseForm({
   members,
   defaultCurrency,
   addExpenseAction,
+  updateExpenseAction,
+  expense,
 }: Props) {
   const router = useRouter()
+  const isEdit = Boolean(expense)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
   // Form state
-  const [title, setTitle] = useState('')
-  const [amountStr, setAmountStr] = useState('')
-  const [currency, setCurrency] = useState(defaultCurrency)
-  const [paidById, setPaidById] = useState<string>('')
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
-  const [category, setCategory] = useState<string>('')
-  const [notes, setNotes] = useState('')
-  const [splitMethod, setSplitMethod] = useState<SplitMethod>('equal')
+  const [title, setTitle] = useState(expense?.title ?? '')
+  const [amountStr, setAmountStr] = useState(
+    expense ? centsToInputString(expense.amount) : ''
+  )
+  const [currency, setCurrency] = useState(expense?.currency ?? defaultCurrency)
+  const [paidById, setPaidById] = useState<string>(
+    expense ? String(expense.paidById) : ''
+  )
+  const [date, setDate] = useState(
+    expense ? timestampToDateInput(expense.date) : new Date().toISOString().split('T')[0]
+  )
+  const [category, setCategory] = useState<string>(expense?.category ?? '')
+  const [notes, setNotes] = useState(expense?.notes ?? '')
+  const [splitMethod, setSplitMethod] = useState<SplitMethod>(expense?.splitMethod ?? 'equal')
 
   // Participant state: memberId → checked (equal) or raw shareValue string
   const [checkedMembers, setCheckedMembers] = useState<Set<number>>(
-    new Set(members.map((m) => m.id))
+    expense
+      ? new Set(expense.participants.map((p) => p.memberId))
+      : new Set(members.map((m) => m.id))
   )
   const [shareValues, setShareValues] = useState<Record<number, string>>(
-    Object.fromEntries(members.map((m) => [m.id, '']))
+    expense
+      ? Object.fromEntries(
+          members.map((m) => {
+            const p = expense.participants.find((part) => part.memberId === m.id)
+            return [m.id, p ? initialShareValue(p, expense.splitMethod) : '']
+          })
+        )
+      : Object.fromEntries(members.map((m) => [m.id, '']))
   )
 
   const totalCents = dollarsToCentsString(amountStr)
@@ -138,18 +168,30 @@ export function ExpenseForm({
       return
     }
 
+    const payload = {
+      title,
+      amount: totalCents,
+      currency,
+      paidById: parseInt(paidById, 10),
+      date: dateInputToTimestamp(date),
+      category: category || undefined,
+      notes: notes || undefined,
+      splitMethod,
+      participants,
+    }
+
     startTransition(async () => {
-      const result = await addExpenseAction(groupId, {
-        title,
-        amount: totalCents,
-        currency,
-        paidById: parseInt(paidById, 10),
-        date: dateInputToTimestamp(date),
-        category: category || undefined,
-        notes: notes || undefined,
-        splitMethod,
-        participants,
-      })
+      const result =
+        isEdit && expense && updateExpenseAction
+          ? await updateExpenseAction(expense.id, payload)
+          : addExpenseAction
+            ? await addExpenseAction(groupId, payload)
+            : null
+
+      if (!result) {
+        setError('No action available')
+        return
+      }
 
       if (result.success) {
         router.push(`/groups/${groupToken}`)
@@ -371,7 +413,7 @@ export function ExpenseForm({
           Cancel
         </Button>
         <Button type="submit" disabled={isPending || !title || totalCents <= 0} className="flex-1">
-          {isPending ? 'Adding…' : 'Add Expense'}
+          {isPending ? (isEdit ? 'Saving…' : 'Adding…') : isEdit ? 'Save Changes' : 'Add Expense'}
         </Button>
       </div>
     </form>

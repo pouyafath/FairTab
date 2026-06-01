@@ -43,6 +43,18 @@ export interface CreateExpenseRecord {
   participants: ExpenseParticipantRecord[]
 }
 
+export interface UpdateExpenseRecord {
+  title: string
+  amount: number
+  currency: string
+  paidById: number
+  date: Date
+  category: string | null
+  notes: string | null
+  splitMethod: SplitMethod
+  participants: ExpenseParticipantRecord[]
+}
+
 export interface BalanceData {
   members: GroupMember[]
   expenses: RawExpenseData[]
@@ -77,6 +89,9 @@ export interface GroupRepository {
 export interface ExpenseRepository {
   createWithParticipants(input: CreateExpenseRecord): Promise<Expense>
   findForGroup(groupId: number): Promise<ExpenseWithParticipants[]>
+  findById(expenseId: number): Promise<ExpenseWithParticipants | null>
+  updateWithParticipants(expenseId: number, input: UpdateExpenseRecord): Promise<Expense>
+  delete(expenseId: number): Promise<void>
   getBalanceData(groupId: number): Promise<BalanceData>
 }
 

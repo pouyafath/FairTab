@@ -18,6 +18,13 @@ export type AddExpenseAction = (
   formData: unknown
 ) => Promise<ActionResult<Expense>>
 
+export type UpdateExpenseAction = (
+  expenseId: number,
+  formData: unknown
+) => Promise<ActionResult<Expense>>
+
+export type DeleteExpenseAction = (expenseId: number) => Promise<ActionResult<void>>
+
 export type AddPersonalTransactionAction = (
   formData: unknown
 ) => Promise<ActionResult<PersonalTransaction>>

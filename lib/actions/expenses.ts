@@ -16,3 +16,22 @@ export async function addExpense(
 export async function getGroupExpenses(groupId: number): Promise<ExpenseWithParticipants[]> {
   return getBackend().expenses.getGroupExpenses(groupId)
 }
+
+export async function getExpense(expenseId: number): Promise<ExpenseWithParticipants | null> {
+  return getBackend().expenses.getExpense(expenseId)
+}
+
+export async function updateExpense(
+  expenseId: number,
+  formData: unknown
+): Promise<ActionResult<Expense>> {
+  const result = await getBackend().expenses.updateExpense(expenseId, formData)
+  if (result.success) revalidatePath('/groups')
+  return result
+}
+
+export async function deleteExpense(expenseId: number): Promise<ActionResult<void>> {
+  const result = await getBackend().expenses.deleteExpense(expenseId)
+  if (result.success) revalidatePath('/groups')
+  return result
+}

@@ -6,6 +6,7 @@ import type {
   CreatePersonalTransactionRecord,
   ExpenseParticipantRecord,
   RecordPaidSettlementInput,
+  UpdateExpenseRecord,
 } from '@/lib/backend/ports'
 import type {
   Expense,
@@ -75,6 +76,19 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
   }
   const counters = createCounters()
 
+  function withParticipants(expense: Expense): ExpenseWithParticipants {
+    return {
+      ...expense,
+      paidBy: state.members.find((member) => member.id === expense.paidById)!,
+      participants: state.expenseParticipants
+        .filter((participant) => participant.expenseId === expense.id)
+        .map((participant) => ({
+          ...participant,
+          member: state.members.find((member) => member.id === participant.memberId)!,
+        })),
+    }
+  }
+
   const repositories: AppRepositories = {
     groups: {
       async create(input: CreateGroupRecord): Promise<Group> {
@@ -136,16 +150,49 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
         return state.expenses
           .filter((expense) => expense.groupId === groupId)
           .sort(byNewestDate)
-          .map((expense) => ({
-            ...expense,
-            paidBy: state.members.find((member) => member.id === expense.paidById)!,
-            participants: state.expenseParticipants
-              .filter((participant) => participant.expenseId === expense.id)
-              .map((participant) => ({
-                ...participant,
-                member: state.members.find((member) => member.id === participant.memberId)!,
-              })),
+          .map((expense) => withParticipants(expense))
+      },
+
+      async findById(expenseId: number): Promise<ExpenseWithParticipants | null> {
+        const expense = state.expenses.find((candidate) => candidate.id === expenseId)
+        return expense ? withParticipants(expense) : null
+      },
+
+      async updateWithParticipants(
+        expenseId: number,
+        input: UpdateExpenseRecord
+      ): Promise<Expense> {
+        const expense = state.expenses.find((candidate) => candidate.id === expenseId)!
+        expense.title = input.title
+        expense.amount = input.amount
+        expense.currency = input.currency
+        expense.paidById = input.paidById
+        expense.date = input.date.getTime()
+        expense.category = input.category
+        expense.notes = input.notes
+        expense.splitMethod = input.splitMethod
+
+        state.expenseParticipants = state.expenseParticipants.filter(
+          (participant) => participant.expenseId !== expenseId
+        )
+        state.expenseParticipants.push(
+          ...input.participants.map((participant: ExpenseParticipantRecord) => ({
+            id: counters.expenseParticipantId++,
+            expenseId,
+            memberId: participant.memberId,
+            shareValue: participant.shareValue,
+            amountCents: participant.amountCents,
           }))
+        )
+
+        return expense
+      },
+
+      async delete(expenseId: number): Promise<void> {
+        state.expenses = state.expenses.filter((expense) => expense.id !== expenseId)
+        state.expenseParticipants = state.expenseParticipants.filter(
+          (participant) => participant.expenseId !== expenseId
+        )
       },
 
       async getBalanceData(groupId: number): Promise<BalanceData> {
