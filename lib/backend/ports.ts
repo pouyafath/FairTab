@@ -6,6 +6,7 @@ import type {
   GroupWithMembers,
   PersonalTransaction,
   RawExpenseData,
+  Settlement,
   SplitMethod,
   TransactionType,
 } from '@/types'
@@ -81,6 +82,17 @@ export interface UpdateMemberRecord {
   email: string | null
 }
 
+export interface UpdatePersonalTransactionRecord {
+  type: TransactionType
+  title: string
+  amount: number
+  currency: string
+  date: Date
+  category: string | null
+  note: string | null
+  accountLabel: string | null
+}
+
 export interface RecordPaidSettlementInput {
   groupId: number
   fromMemberId: number
@@ -111,12 +123,16 @@ export interface ExpenseRepository {
 
 export interface PersonalRepository {
   create(input: CreatePersonalTransactionRecord): Promise<PersonalTransaction>
+  findById(id: number): Promise<PersonalTransaction | null>
   findAll(): Promise<PersonalTransaction[]>
+  update(id: number, input: UpdatePersonalTransactionRecord): Promise<PersonalTransaction>
   delete(id: number): Promise<void>
 }
 
 export interface SettlementRepository {
   recordPaid(input: RecordPaidSettlementInput): Promise<void>
+  findPaidForGroup(groupId: number): Promise<Settlement[]>
+  undo(settlementId: number): Promise<void>
 }
 
 export interface AppRepositories {

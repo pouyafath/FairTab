@@ -1,7 +1,8 @@
 'use client'
 
 import { useTransition } from 'react'
-import { Trash2, TrendingUp, TrendingDown } from 'lucide-react'
+import Link from 'next/link'
+import { Pencil, Trash2, TrendingUp, TrendingDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency, formatDate } from '@/lib/formatting'
@@ -71,6 +72,12 @@ export function TransactionList({ transactions, deleteTransactionAction }: Props
               {t.type === 'income' ? '+' : '-'}
               {formatCurrency(t.amount, t.currency)}
             </span>
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" asChild>
+              <Link href={`/personal/transactions/${t.id}/edit`}>
+                <Pencil className="h-3.5 w-3.5" />
+                <span className="sr-only">Edit {t.title}</span>
+              </Link>
+            </Button>
             <Button
               variant="ghost"
               size="icon"

@@ -18,6 +18,7 @@ import type {
   UpdateExpenseRecord,
   UpdateGroupRecord,
   UpdateMemberRecord,
+  UpdatePersonalTransactionRecord,
 } from '@/lib/backend/ports'
 import type {
   Expense,
@@ -27,6 +28,7 @@ import type {
   GroupMember,
   GroupWithMembers,
   PersonalTransaction,
+  Settlement,
 } from '@/types'
 
 function toEpochMs(value: Date | number | string | null): number {
@@ -268,6 +270,13 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
         return serializePersonalTransaction(tx)
       },
 
+      async findById(id: number): Promise<PersonalTransaction | null> {
+        const tx = await db.query.personalTransactions.findFirst({
+          where: eq(personalTransactions.id, id),
+        })
+        return tx ? serializePersonalTransaction(tx) : null
+      },
+
       async findAll(): Promise<PersonalTransaction[]> {
         const txs = await db
           .select()
@@ -275,6 +284,24 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
           .orderBy(desc(personalTransactions.date))
 
         return txs.map(serializePersonalTransaction)
+      },
+
+      async update(id: number, input: UpdatePersonalTransactionRecord): Promise<PersonalTransaction> {
+        const [tx] = await db
+          .update(personalTransactions)
+          .set({
+            type: input.type,
+            title: input.title,
+            amount: input.amount,
+            currency: input.currency,
+            date: input.date,
+            category: input.category,
+            note: input.note,
+            accountLabel: input.accountLabel,
+          })
+          .where(eq(personalTransactions.id, id))
+          .returning()
+        return serializePersonalTransaction(tx)
       },
 
       async delete(id: number): Promise<void> {
@@ -292,6 +319,22 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
           isPaid: true,
           paidAt: input.paidAt,
         })
+      },
+
+      async findPaidForGroup(groupId: number): Promise<Settlement[]> {
+        const rows = await db
+          .select()
+          .from(settlements)
+          .where(eq(settlements.groupId, groupId))
+          .orderBy(desc(settlements.paidAt))
+        return rows.map((row) => ({
+          ...row,
+          paidAt: row.paidAt ? toEpochMs(row.paidAt) : null,
+        }))
+      },
+
+      async undo(settlementId: number): Promise<void> {
+        await db.delete(settlements).where(eq(settlements.id, settlementId))
       },
     },
   }
