@@ -1,7 +1,9 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { RecentGroups } from '@/components/groups/recent-groups'
+import { GroupTokenSearch } from '@/components/groups/group-token-search'
 import { Plus } from 'lucide-react'
+import { Separator } from '@/components/ui/separator'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Groups' }
@@ -22,6 +24,14 @@ export default function GroupsPage() {
         </Button>
       </div>
       <RecentGroups />
+      <Separator className="my-8" />
+      <div className="space-y-3">
+        <p className="text-sm font-medium">Find a group by token</p>
+        <p className="text-xs text-muted-foreground">
+          Use this if you have a group token but it&apos;s not showing in your recent groups.
+        </p>
+        <GroupTokenSearch />
+      </div>
     </div>
   )
 }
