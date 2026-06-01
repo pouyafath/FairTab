@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CURRENCIES } from '@/lib/constants'
+import { readDefaultCurrency } from '@/lib/settings'
 import type { CreateGroupAction } from '@/types/actions'
 
 interface Props {
@@ -25,7 +26,7 @@ export function NewGroupForm({ createGroupAction }: Props) {
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [name, setName] = useState('')
-  const [currency, setCurrency] = useState('CAD')
+  const [currency, setCurrency] = useState(readDefaultCurrency)
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
