@@ -193,6 +193,9 @@ Backend service tests run with in-memory repositories from `tests/support/`. The
 |---|---|
 | All amounts are integer cents | No floating-point rounding errors in financial math |
 | `getDb()` called inside repository/runtime setup, not UI or services | CF Workers request context is per-request, not per-module |
+| `getBackend()` memoized for Node.js only — fresh instance on CF Pages | D1 binding is tied to the CF request context; caching it across requests would use a stale binding |
+| `RawExpenseData` defined in `types/index.ts`, re-exported from `lib/calculations/balances.ts` | Keeps `lib/backend/ports.ts` depending only on `@/types`, not on the calculations layer |
+| `toEpochMs(null)` returns `0` | Drizzle infers nullable types for columns without `.notNull()`; returning 0 prevents crashes on rows with missing timestamps |
 | `nanoid` only in server files | ESM-only package — safe in Server Actions, breaks Client Components |
 | `better-sqlite3` in `serverExternalPackages` | Native module — must not be bundled by Turbopack |
 | `export const dynamic = 'force-dynamic'` on data pages | Prevents stale cached HTML on CF Pages |

@@ -1,4 +1,3 @@
-import type { RawExpenseData } from '@/lib/calculations/balances'
 import type {
   Expense,
   ExpenseWithParticipants,
@@ -6,6 +5,7 @@ import type {
   GroupMember,
   GroupWithMembers,
   PersonalTransaction,
+  RawExpenseData,
   SplitMethod,
   TransactionType,
 } from '@/types'
