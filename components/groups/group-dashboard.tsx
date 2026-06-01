@@ -7,20 +7,42 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { BalanceSummary } from '@/components/groups/balance-summary'
 import { AddMemberDialog } from '@/components/groups/add-member-dialog'
+import { GroupSettingsDialog } from '@/components/groups/group-settings-dialog'
+import { MemberList } from '@/components/groups/member-list'
 import { ExpenseList } from '@/components/expenses/expense-list'
 import { saveRecentGroup } from '@/components/groups/recent-groups'
 import { useToast } from '@/components/ui/use-toast'
 import type { GroupWithMembers, ExpenseWithParticipants } from '@/types'
-import type { AddGroupMemberAction, DeleteExpenseAction } from '@/types/actions'
+import type {
+  AddGroupMemberAction,
+  DeleteExpenseAction,
+  DeleteGroupAction,
+  RemoveGroupMemberAction,
+  RenameGroupAction,
+  UpdateGroupMemberAction,
+} from '@/types/actions'
 
 interface Props {
   group: GroupWithMembers
   expenses: ExpenseWithParticipants[]
   addMemberAction: AddGroupMemberAction
   deleteExpenseAction: DeleteExpenseAction
+  renameGroupAction: RenameGroupAction
+  deleteGroupAction: DeleteGroupAction
+  updateMemberAction: UpdateGroupMemberAction
+  removeMemberAction: RemoveGroupMemberAction
 }
 
-export function GroupDashboard({ group, expenses, addMemberAction, deleteExpenseAction }: Props) {
+export function GroupDashboard({
+  group,
+  expenses,
+  addMemberAction,
+  deleteExpenseAction,
+  renameGroupAction,
+  deleteGroupAction,
+  updateMemberAction,
+  removeMemberAction,
+}: Props) {
   const { toast } = useToast()
 
   useEffect(() => {
@@ -57,6 +79,11 @@ export function GroupDashboard({ group, expenses, addMemberAction, deleteExpense
             <Copy className="h-4 w-4 mr-2" />
             Copy Link
           </Button>
+          <GroupSettingsDialog
+            group={group}
+            renameGroupAction={renameGroupAction}
+            deleteGroupAction={deleteGroupAction}
+          />
           <AddMemberDialog groupId={group.id} addMemberAction={addMemberAction} />
         </div>
       </div>
@@ -81,13 +108,12 @@ export function GroupDashboard({ group, expenses, addMemberAction, deleteExpense
       {group.members.length > 0 && (
         <div>
           <h2 className="text-sm font-medium text-muted-foreground mb-2">Members</h2>
-          <div className="flex flex-wrap gap-2">
-            {group.members.map((m) => (
-              <Badge key={m.id} variant="outline">
-                {m.name}
-              </Badge>
-            ))}
-          </div>
+          <MemberList
+            groupId={group.id}
+            members={group.members}
+            updateMemberAction={updateMemberAction}
+            removeMemberAction={removeMemberAction}
+          />
         </div>
       )}
 

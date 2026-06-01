@@ -14,11 +14,44 @@ export async function getGroupByToken(token: string): Promise<GroupWithMembers |
   return getBackend().groups.getGroupByToken(token)
 }
 
+export async function renameGroup(
+  groupId: number,
+  formData: unknown
+): Promise<ActionResult<Group>> {
+  const result = await getBackend().groups.renameGroup(groupId, formData)
+  if (result.success) revalidatePath('/groups')
+  return result
+}
+
+export async function deleteGroup(groupId: number): Promise<ActionResult<void>> {
+  const result = await getBackend().groups.deleteGroup(groupId)
+  if (result.success) revalidatePath('/groups')
+  return result
+}
+
 export async function addGroupMember(
   groupId: number,
   formData: unknown
 ): Promise<ActionResult<GroupMember>> {
   const result = await getBackend().groups.addGroupMember(groupId, formData)
+  if (result.success) revalidatePath('/groups')
+  return result
+}
+
+export async function updateGroupMember(
+  memberId: number,
+  formData: unknown
+): Promise<ActionResult<GroupMember>> {
+  const result = await getBackend().groups.updateMember(memberId, formData)
+  if (result.success) revalidatePath('/groups')
+  return result
+}
+
+export async function removeGroupMember(
+  groupId: number,
+  memberId: number
+): Promise<ActionResult<void>> {
+  const result = await getBackend().groups.removeMember(groupId, memberId)
   if (result.success) revalidatePath('/groups')
   return result
 }

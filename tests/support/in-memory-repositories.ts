@@ -7,6 +7,8 @@ import type {
   ExpenseParticipantRecord,
   RecordPaidSettlementInput,
   UpdateExpenseRecord,
+  UpdateGroupRecord,
+  UpdateMemberRecord,
 } from '@/lib/backend/ports'
 import type {
   Expense,
@@ -113,6 +115,23 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
         }
       },
 
+      async update(groupId: number, input: UpdateGroupRecord): Promise<Group> {
+        const group = state.groups.find((g) => g.id === groupId)!
+        group.name = input.name
+        return group
+      },
+
+      async delete(groupId: number): Promise<void> {
+        const expenseIds = state.expenses.filter((e) => e.groupId === groupId).map((e) => e.id)
+        state.expenseParticipants = state.expenseParticipants.filter(
+          (p) => !expenseIds.includes(p.expenseId)
+        )
+        state.settlements = state.settlements.filter((s) => s.groupId !== groupId)
+        state.expenses = state.expenses.filter((e) => e.groupId !== groupId)
+        state.members = state.members.filter((m) => m.groupId !== groupId)
+        state.groups = state.groups.filter((g) => g.id !== groupId)
+      },
+
       async addMember(input): Promise<GroupMember> {
         const member: GroupMember = {
           id: counters.memberId++,
@@ -122,6 +141,17 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
         }
         state.members.push(member)
         return member
+      },
+
+      async updateMember(memberId: number, input: UpdateMemberRecord): Promise<GroupMember> {
+        const member = state.members.find((m) => m.id === memberId)!
+        member.name = input.name
+        member.email = input.email
+        return member
+      },
+
+      async removeMember(memberId: number): Promise<void> {
+        state.members = state.members.filter((m) => m.id !== memberId)
       },
     },
 
@@ -193,6 +223,11 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
         state.expenseParticipants = state.expenseParticipants.filter(
           (participant) => participant.expenseId !== expenseId
         )
+      },
+
+      async memberHasExpenses(memberId: number): Promise<boolean> {
+        if (state.expenses.some((e) => e.paidById === memberId)) return true
+        return state.expenseParticipants.some((p) => p.memberId === memberId)
       },
 
       async getBalanceData(groupId: number): Promise<BalanceData> {
