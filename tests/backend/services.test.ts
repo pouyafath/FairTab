@@ -422,4 +422,91 @@ describe('backend services', () => {
 
     assert.equal((await backend.personal.getPersonalTransactions()).length, 1)
   })
+
+  it('edits a personal transaction and updates all fields', async () => {
+    const { backend } = createTestBackend()
+
+    const created = await backend.personal.addPersonalTransaction({
+      type: 'expense',
+      title: 'Coffee',
+      amount: 500,
+      currency: 'CAD',
+      date: fixedNow.getTime(),
+    })
+    assert.equal(created.success, true)
+    if (!created.success) return
+
+    const updated = await backend.personal.updatePersonalTransaction(created.data.id, {
+      type: 'expense',
+      title: 'Coffee (updated)',
+      amount: 650,
+      currency: 'USD',
+      date: fixedNow.getTime(),
+      category: 'Food',
+    })
+
+    assert.equal(updated.success, true)
+    if (!updated.success) return
+
+    assert.equal(updated.data.title, 'Coffee (updated)')
+    assert.equal(updated.data.amount, 650)
+    assert.equal(updated.data.currency, 'USD')
+    assert.equal(updated.data.category, 'Food')
+  })
+
+  it('returns not-found for editing a missing personal transaction', async () => {
+    const { backend } = createTestBackend()
+
+    const result = await backend.personal.updatePersonalTransaction(99999, {
+      type: 'expense',
+      title: 'Ghost',
+      amount: 100,
+      currency: 'CAD',
+      date: fixedNow.getTime(),
+    })
+
+    assert.equal(result.success, false)
+    if (!result.success) assert.match(result.error, /not found/)
+  })
+
+  it('filters paid settlements out of suggestions and supports undo', async () => {
+    const { backend, state } = createTestBackend()
+    const { groupId, members } = await createGroupWithMembers(backend, ['Alice', 'Bob'])
+
+    await backend.expenses.addExpense(groupId, {
+      title: 'Dinner',
+      amount: 4000,
+      currency: 'CAD',
+      paidById: members[0].id,
+      date: fixedNow.getTime(),
+      splitMethod: 'equal',
+      participants: members.map((m) => ({ memberId: m.id, shareValue: 1 })),
+    })
+
+    // Before marking paid: suggestion present
+    const before = await backend.settlements.getSettlementSuggestions(groupId)
+    assert.equal(before.length, 1)
+    assert.equal(before[0].fromMember.id, members[1].id)
+
+    // Mark the settlement as paid
+    await backend.settlements.markSettlementPaid(
+      groupId,
+      members[1].id,
+      members[0].id,
+      2000
+    )
+
+    // After marking paid: suggestion filtered out
+    const after = await backend.settlements.getSettlementSuggestions(groupId)
+    assert.equal(after.length, 0)
+
+    const paid = await backend.settlements.getPaidSettlements(groupId)
+    assert.equal(paid.length, 1)
+
+    // Undo: settlement reappears
+    await backend.settlements.undoSettlement(paid[0].id)
+    const restored = await backend.settlements.getSettlementSuggestions(groupId)
+    assert.equal(restored.length, 1)
+    assert.equal(state.settlements.length, 0)
+  })
 })

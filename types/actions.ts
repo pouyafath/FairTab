@@ -6,6 +6,13 @@ import type {
   PersonalTransaction,
 } from '@/types'
 
+export type UpdatePersonalTransactionAction = (
+  id: number,
+  formData: unknown
+) => Promise<ActionResult<PersonalTransaction>>
+
+export type UndoSettlementAction = (settlementId: number) => Promise<ActionResult<void>>
+
 export type CreateGroupAction = (formData: unknown) => Promise<ActionResult<Group>>
 
 export type RenameGroupAction = (

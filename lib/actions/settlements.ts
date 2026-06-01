@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { getBackend } from '@/lib/backend/runtime'
-import type { ActionResult, MemberBalance, SettlementSuggestion } from '@/types'
+import type { ActionResult, MemberBalance, Settlement, SettlementSuggestion } from '@/types'
 
 export async function getGroupBalances(groupId: number): Promise<MemberBalance[]> {
   return getBackend().settlements.getGroupBalances(groupId)
@@ -12,6 +12,10 @@ export async function getSettlementSuggestions(
   groupId: number
 ): Promise<SettlementSuggestion[]> {
   return getBackend().settlements.getSettlementSuggestions(groupId)
+}
+
+export async function getPaidSettlements(groupId: number): Promise<Settlement[]> {
+  return getBackend().settlements.getPaidSettlements(groupId)
 }
 
 export async function markSettlementPaid(
@@ -26,6 +30,12 @@ export async function markSettlementPaid(
     toMemberId,
     amount
   )
+  if (result.success) revalidatePath('/groups')
+  return result
+}
+
+export async function undoSettlement(settlementId: number): Promise<ActionResult<void>> {
+  const result = await getBackend().settlements.undoSettlement(settlementId)
   if (result.success) revalidatePath('/groups')
   return result
 }

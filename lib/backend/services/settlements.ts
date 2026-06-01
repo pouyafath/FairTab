@@ -1,5 +1,5 @@
 import { calculateMemberBalances, calculateSettlements } from '@/lib/calculations/balances'
-import type { ActionResult, MemberBalance, SettlementSuggestion } from '@/types'
+import type { ActionResult, MemberBalance, Settlement, SettlementSuggestion } from '@/types'
 import type { BackendServiceDeps } from './types'
 
 export function createSettlementService({ repositories, now }: BackendServiceDeps) {
@@ -10,9 +10,18 @@ export function createSettlementService({ repositories, now }: BackendServiceDep
     },
 
     async getSettlementSuggestions(groupId: number): Promise<SettlementSuggestion[]> {
-      const data = await repositories.expenses.getBalanceData(groupId)
+      const [data, paid] = await Promise.all([
+        repositories.expenses.getBalanceData(groupId),
+        repositories.settlements.findPaidForGroup(groupId),
+      ])
       const balances = calculateMemberBalances(data.members, data.expenses)
-      return calculateSettlements(balances)
+      const suggestions = calculateSettlements(balances)
+      const paidKeys = new Set(paid.map((s) => `${s.fromMemberId}-${s.toMemberId}`))
+      return suggestions.filter((s) => !paidKeys.has(`${s.fromMember.id}-${s.toMember.id}`))
+    },
+
+    async getPaidSettlements(groupId: number): Promise<Settlement[]> {
+      return repositories.settlements.findPaidForGroup(groupId)
     },
 
     async markSettlementPaid(
@@ -29,6 +38,11 @@ export function createSettlementService({ repositories, now }: BackendServiceDep
         paidAt: now(),
       })
 
+      return { success: true, data: undefined }
+    },
+
+    async undoSettlement(settlementId: number): Promise<ActionResult<void>> {
+      await repositories.settlements.undo(settlementId)
       return { success: true, data: undefined }
     },
   }

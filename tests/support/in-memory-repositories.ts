@@ -9,6 +9,7 @@ import type {
   UpdateExpenseRecord,
   UpdateGroupRecord,
   UpdateMemberRecord,
+  UpdatePersonalTransactionRecord,
 } from '@/lib/backend/ports'
 import type {
   Expense,
@@ -267,8 +268,25 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
         return tx
       },
 
+      async findById(id: number): Promise<PersonalTransaction | null> {
+        return state.personalTransactions.find((tx) => tx.id === id) ?? null
+      },
+
       async findAll(): Promise<PersonalTransaction[]> {
         return [...state.personalTransactions].sort(byNewestDate)
+      },
+
+      async update(id: number, input: UpdatePersonalTransactionRecord): Promise<PersonalTransaction> {
+        const tx = state.personalTransactions.find((t) => t.id === id)!
+        tx.type = input.type
+        tx.title = input.title
+        tx.amount = input.amount
+        tx.currency = input.currency
+        tx.date = input.date.getTime()
+        tx.category = input.category
+        tx.note = input.note
+        tx.accountLabel = input.accountLabel
+        return tx
       },
 
       async delete(id: number): Promise<void> {
@@ -287,6 +305,14 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
           isPaid: true,
           paidAt: input.paidAt.getTime(),
         })
+      },
+
+      async findPaidForGroup(groupId: number): Promise<Settlement[]> {
+        return state.settlements.filter((s) => s.groupId === groupId && s.isPaid)
+      },
+
+      async undo(settlementId: number): Promise<void> {
+        state.settlements = state.settlements.filter((s) => s.id !== settlementId)
       },
     },
   }
