@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import Link from 'next/link'
-import { Plus, ArrowRightLeft, Copy, Users } from 'lucide-react'
+import { Plus, ArrowRightLeft, Copy, Users, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -12,6 +12,7 @@ import { GroupSettingsDialog } from '@/components/groups/group-settings-dialog'
 import { MemberList } from '@/components/groups/member-list'
 import { ExpenseList } from '@/components/expenses/expense-list'
 import { saveRecentGroup } from '@/components/groups/recent-groups'
+import { generateGroupCSV } from '@/lib/calculations/export'
 import { useToast } from '@/components/ui/use-toast'
 import type { GroupWithMembers, ExpenseWithParticipants } from '@/types'
 import type {
@@ -54,6 +55,19 @@ export function GroupDashboard({
       currency: group.currency,
     })
   }, [group.token, group.name, group.currency])
+
+  function handleExportCSV() {
+    const csv = generateGroupCSV(expenses)
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${group.name.replace(/\s+/g, '-').toLowerCase()}-expenses-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
 
   function copyGroupLink() {
     const url = `${window.location.origin}/groups/${group.token}`
@@ -147,7 +161,19 @@ export function GroupDashboard({
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold">Expenses</h2>
-              <span className="text-sm text-muted-foreground">{expenses.length} total</span>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground">{expenses.length} total</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleExportCSV}
+                  disabled={expenses.length === 0}
+                  className="h-7 px-2 text-xs"
+                >
+                  <Download className="h-3.5 w-3.5 mr-1" />
+                  Export CSV
+                </Button>
+              </div>
             </div>
             <ExpenseList
               expenses={expenses}
