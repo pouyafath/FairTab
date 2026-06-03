@@ -2,9 +2,10 @@
 
 import { useEffect } from 'react'
 import Link from 'next/link'
-import { Plus, ArrowRightLeft, Copy } from 'lucide-react'
+import { Plus, ArrowRightLeft, Copy, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 import { BalanceSummary } from '@/components/groups/balance-summary'
 import { AddMemberDialog } from '@/components/groups/add-member-dialog'
 import { GroupSettingsDialog } from '@/components/groups/group-settings-dialog'
@@ -84,61 +85,79 @@ export function GroupDashboard({
             renameGroupAction={renameGroupAction}
             deleteGroupAction={deleteGroupAction}
           />
-          <AddMemberDialog groupId={group.id} addMemberAction={addMemberAction} />
+          {group.members.length > 0 && (
+            <AddMemberDialog groupId={group.id} addMemberAction={addMemberAction} />
+          )}
         </div>
       </div>
 
-      {/* Action buttons */}
-      <div className="flex gap-3 flex-wrap">
-        <Button asChild>
-          <Link href={`/groups/${group.token}/expenses/new`}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Expense
-          </Link>
-        </Button>
-        <Button variant="outline" asChild>
-          <Link href={`/groups/${group.token}/settlements`}>
-            <ArrowRightLeft className="h-4 w-4 mr-2" />
-            Settle Up
-          </Link>
-        </Button>
-      </div>
+      {group.members.length === 0 ? (
+        /* No-members onboarding */
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
+            <div className="rounded-full bg-muted p-4">
+              <Users className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="font-medium">Add members to get started</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Invite everyone in the group so you can track who paid what.
+              </p>
+            </div>
+            <AddMemberDialog groupId={group.id} addMemberAction={addMemberAction} />
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* Action buttons */}
+          <div className="flex gap-3 flex-wrap">
+            <Button asChild>
+              <Link href={`/groups/${group.token}/expenses/new`}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Expense
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href={`/groups/${group.token}/settlements`}>
+                <ArrowRightLeft className="h-4 w-4 mr-2" />
+                Settle Up
+              </Link>
+            </Button>
+          </div>
 
-      {/* Members list */}
-      {group.members.length > 0 && (
-        <div>
-          <h2 className="text-sm font-medium text-muted-foreground mb-2">Members</h2>
-          <MemberList
-            groupId={group.id}
+          {/* Members list */}
+          <div>
+            <h2 className="text-sm font-medium text-muted-foreground mb-2">Members</h2>
+            <MemberList
+              groupId={group.id}
+              members={group.members}
+              updateMemberAction={updateMemberAction}
+              removeMemberAction={removeMemberAction}
+            />
+          </div>
+
+          {/* Balance summary */}
+          <BalanceSummary
             members={group.members}
-            updateMemberAction={updateMemberAction}
-            removeMemberAction={removeMemberAction}
+            expenses={expenses}
+            currency={group.currency}
           />
-        </div>
-      )}
 
-      {/* Balance summary */}
-      {group.members.length > 0 && (
-        <BalanceSummary
-          members={group.members}
-          expenses={expenses}
-          currency={group.currency}
-        />
+          {/* Expense list */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold">Expenses</h2>
+              <span className="text-sm text-muted-foreground">{expenses.length} total</span>
+            </div>
+            <ExpenseList
+              expenses={expenses}
+              currency={group.currency}
+              groupToken={group.token}
+              deleteExpenseAction={deleteExpenseAction}
+            />
+          </div>
+        </>
       )}
-
-      {/* Expense list */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold">Expenses</h2>
-          <span className="text-sm text-muted-foreground">{expenses.length} total</span>
-        </div>
-        <ExpenseList
-          expenses={expenses}
-          currency={group.currency}
-          groupToken={group.token}
-          deleteExpenseAction={deleteExpenseAction}
-        />
-      </div>
     </div>
   )
 }
