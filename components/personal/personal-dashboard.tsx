@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select'
 import { SummaryCards } from './summary-cards'
 import { CategoryBreakdown } from './category-breakdown'
+import { SpendingTrend } from './spending-trend'
 import { TransactionList } from './transaction-list'
 import { calculatePersonalSummary } from '@/lib/calculations/personal'
 import { generateCSV } from '@/lib/calculations/export'
@@ -120,6 +121,13 @@ export function PersonalDashboard({
 
       {/* Summary cards */}
       <SummaryCards summary={summary} />
+
+      {/* Spending trend */}
+      <SpendingTrend
+        transactions={transactions}
+        selectedKey={selectedKey}
+        onSelect={setSelectedKey}
+      />
 
       {/* Category breakdown */}
       {summary.byCategory.length > 0 && <CategoryBreakdown byCategory={summary.byCategory} />}
