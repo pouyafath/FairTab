@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Badge } from '@/components/ui/badge'
 import {
   Select,
   SelectContent,
@@ -24,7 +25,7 @@ import {
   centsToInputString,
   timestampToDateInput,
 } from '@/lib/formatting'
-import { GROUP_CATEGORIES, SPLIT_METHODS, CURRENCIES } from '@/lib/constants'
+import { GROUP_CATEGORIES, SPLIT_METHODS } from '@/lib/constants'
 import type { GroupMember, SplitMethod, ExpenseWithParticipants } from '@/types'
 import type { AddExpenseAction, UpdateExpenseAction } from '@/types/actions'
 
@@ -61,7 +62,7 @@ export function ExpenseForm({
   const [amountStr, setAmountStr] = useState(
     expense ? centsToInputString(expense.amount) : ''
   )
-  const [currency, setCurrency] = useState(expense?.currency ?? defaultCurrency)
+  const currency = expense?.currency ?? defaultCurrency
   const [paidById, setPaidById] = useState<string>(
     expense ? String(expense.paidById) : ''
   )
@@ -240,18 +241,11 @@ export function ExpenseForm({
           </div>
           <div className="space-y-2">
             <Label>Currency</Label>
-            <Select value={currency} onValueChange={setCurrency}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CURRENCIES.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {c}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex h-9 items-center">
+              <Badge variant="secondary" className="text-sm font-medium">
+                {currency}
+              </Badge>
+            </div>
           </div>
         </div>
 
