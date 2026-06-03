@@ -2,8 +2,9 @@
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
-import { Plus, Download } from 'lucide-react'
+import { Plus, Download, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Select,
@@ -53,6 +54,7 @@ export function PersonalDashboard({
 }: Props) {
   const monthOptions = useMemo(() => getMonthOptions(), [])
   const [selectedKey, setSelectedKey] = useState(`${currentYear}-${currentMonth}`)
+  const [search, setSearch] = useState('')
 
   const isAllTime = selectedKey === 'all'
   const [selYear, selMonth] = isAllTime ? [0, 0] : selectedKey.split('-').map(Number)
@@ -67,7 +69,7 @@ export function PersonalDashboard({
     [isAllTime, selYear, selMonth, transactions, currentSummary, currentYear, currentMonth]
   )
 
-  const filteredTransactions = useMemo(
+  const monthTransactions = useMemo(
     () =>
       isAllTime
         ? transactions
@@ -77,6 +79,17 @@ export function PersonalDashboard({
           }),
     [isAllTime, transactions, selYear, selMonth]
   )
+
+  const filteredTransactions = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return monthTransactions
+    return monthTransactions.filter(
+      (t) =>
+        t.title.toLowerCase().includes(q) ||
+        (t.category ?? '').toLowerCase().includes(q) ||
+        (t.note ?? '').toLowerCase().includes(q)
+    )
+  }, [monthTransactions, search])
 
   function handleExport() {
     const csv = generateCSV(transactions)
@@ -97,7 +110,7 @@ export function PersonalDashboard({
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold">Personal Finance</h1>
-          <Select value={selectedKey} onValueChange={setSelectedKey}>
+          <Select value={selectedKey} onValueChange={(v) => { setSelectedKey(v); setSearch('') }}>
             <SelectTrigger className="w-44">
               <SelectValue />
             </SelectTrigger>
@@ -140,7 +153,31 @@ export function PersonalDashboard({
 
       {/* Transaction list */}
       <div>
-        <h2 className="font-semibold mb-3">Transactions</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-semibold">Transactions</h2>
+          {search && (
+            <span className="text-sm text-muted-foreground">
+              {filteredTransactions.length} of {monthTransactions.length}
+            </span>
+          )}
+        </div>
+        <div className="relative mb-3">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            placeholder="Search transactions…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 pr-9"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
         <Tabs defaultValue="all">
           <TabsList>
             <TabsTrigger value="all">All ({filteredTransactions.length})</TabsTrigger>
