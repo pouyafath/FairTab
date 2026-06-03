@@ -54,23 +54,28 @@ export function PersonalDashboard({
   const monthOptions = useMemo(() => getMonthOptions(), [])
   const [selectedKey, setSelectedKey] = useState(`${currentYear}-${currentMonth}`)
 
-  const [selYear, selMonth] = selectedKey.split('-').map(Number)
+  const isAllTime = selectedKey === 'all'
+  const [selYear, selMonth] = isAllTime ? [0, 0] : selectedKey.split('-').map(Number)
 
   const summary = useMemo(
     () =>
-      selYear === currentYear && selMonth === currentMonth
-        ? currentSummary
-        : calculatePersonalSummary(transactions, selYear, selMonth),
-    [selYear, selMonth, transactions, currentSummary, currentYear, currentMonth]
+      isAllTime
+        ? calculatePersonalSummary(transactions)
+        : selYear === currentYear && selMonth === currentMonth
+          ? currentSummary
+          : calculatePersonalSummary(transactions, selYear, selMonth),
+    [isAllTime, selYear, selMonth, transactions, currentSummary, currentYear, currentMonth]
   )
 
   const filteredTransactions = useMemo(
     () =>
-      transactions.filter((t) => {
-        const d = new Date(t.date)
-        return d.getFullYear() === selYear && d.getMonth() + 1 === selMonth
-      }),
-    [transactions, selYear, selMonth]
+      isAllTime
+        ? transactions
+        : transactions.filter((t) => {
+            const d = new Date(t.date)
+            return d.getFullYear() === selYear && d.getMonth() + 1 === selMonth
+          }),
+    [isAllTime, transactions, selYear, selMonth]
   )
 
   function handleExport() {
@@ -97,6 +102,7 @@ export function PersonalDashboard({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="all">All time</SelectItem>
               {monthOptions.map((o) => (
                 <SelectItem key={`${o.year}-${o.month}`} value={`${o.year}-${o.month}`}>
                   {o.label}
