@@ -1,12 +1,19 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useMemo, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ChevronDown, ChevronUp, Receipt, Pencil, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronUp, Receipt, Pencil, Trash2, X } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Dialog,
   DialogContent,
@@ -27,12 +34,43 @@ interface Props {
   deleteExpenseAction: DeleteExpenseAction
 }
 
+const ALL = 'all'
+
 export function ExpenseList({ expenses, currency, groupToken, deleteExpenseAction }: Props) {
   const router = useRouter()
   const { toast } = useToast()
   const [isPending, startTransition] = useTransition()
   const [deleteTarget, setDeleteTarget] = useState<ExpenseWithParticipants | null>(null)
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
+  const [filterPayer, setFilterPayer] = useState(ALL)
+  const [filterCategory, setFilterCategory] = useState(ALL)
+
+  const payers = useMemo(() => {
+    const seen = new Map<number, string>()
+    expenses.forEach((e) => seen.set(e.paidById, e.paidBy.name))
+    return [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1]))
+  }, [expenses])
+
+  const categories = useMemo(() => {
+    const seen = new Set<string>()
+    expenses.forEach((e) => { if (e.category) seen.add(e.category) })
+    return [...seen].sort()
+  }, [expenses])
+
+  const filtered = useMemo(() => {
+    return expenses.filter((e) => {
+      if (filterPayer !== ALL && e.paidById !== Number(filterPayer)) return false
+      if (filterCategory !== ALL && e.category !== filterCategory) return false
+      return true
+    })
+  }, [expenses, filterPayer, filterCategory])
+
+  const isFiltered = filterPayer !== ALL || filterCategory !== ALL
+
+  function clearFilters() {
+    setFilterPayer(ALL)
+    setFilterCategory(ALL)
+  }
 
   function confirmDelete() {
     if (!deleteTarget) return
@@ -63,11 +101,8 @@ export function ExpenseList({ expenses, currency, groupToken, deleteExpenseActio
   function toggle(id: number) {
     setExpanded((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
   }
@@ -79,9 +114,65 @@ export function ExpenseList({ expenses, currency, groupToken, deleteExpenseActio
     shares: 'By shares',
   }
 
+  const showPayerFilter = payers.length > 1
+  const showCategoryFilter = categories.length > 0
+
   return (
     <div className="space-y-3">
-      {expenses.map((expense) => {
+      {/* Filter row */}
+      {(showPayerFilter || showCategoryFilter) && (
+        <div className="flex items-center gap-2 flex-wrap">
+          {showPayerFilter && (
+            <Select value={filterPayer} onValueChange={setFilterPayer}>
+              <SelectTrigger className="h-8 w-36 text-xs">
+                <SelectValue placeholder="Paid by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All payers</SelectItem>
+                {payers.map(([id, name]) => (
+                  <SelectItem key={id} value={String(id)}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {showCategoryFilter && (
+            <Select value={filterCategory} onValueChange={setFilterCategory}>
+              <SelectTrigger className="h-8 w-36 text-xs">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All categories</SelectItem>
+                {categories.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {isFiltered && (
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 px-2 text-xs">
+              <X className="h-3 w-3 mr-1" />
+              Clear
+            </Button>
+          )}
+          {isFiltered && (
+            <span className="text-xs text-muted-foreground ml-auto">
+              {filtered.length} of {expenses.length}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Filtered empty state */}
+      {filtered.length === 0 && (
+        <div className="flex flex-col items-center gap-2 py-10 text-center">
+          <p className="text-muted-foreground text-sm">No expenses match the current filters.</p>
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="text-xs">
+            Clear filters
+          </Button>
+        </div>
+      )}
+
+      {filtered.map((expense) => {
         const isOpen = expanded.has(expense.id)
         return (
           <Card key={expense.id}>
