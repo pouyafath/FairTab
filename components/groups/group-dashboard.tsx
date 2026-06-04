@@ -11,6 +11,7 @@ import { AddMemberDialog } from '@/components/groups/add-member-dialog'
 import { GroupSettingsDialog } from '@/components/groups/group-settings-dialog'
 import { MemberList } from '@/components/groups/member-list'
 import { ExpenseList } from '@/components/expenses/expense-list'
+import { GroupSpendingTrend } from '@/components/groups/group-spending-trend'
 import { saveRecentGroup } from '@/components/groups/recent-groups'
 import { useToast } from '@/components/ui/use-toast'
 import type { GroupWithMembers, ExpenseWithParticipants } from '@/types'
@@ -142,6 +143,9 @@ export function GroupDashboard({
             expenses={expenses}
             currency={group.currency}
           />
+
+          {/* Spending trend */}
+          <GroupSpendingTrend expenses={expenses} currency={group.currency} />
 
           {/* Expense list */}
           <div>
