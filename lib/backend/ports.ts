@@ -8,6 +8,7 @@ import type {
   RawExpenseData,
   RecurringFrequency,
   RecurringRule,
+  SavingsGoal,
   Settlement,
   SplitMethod,
   TransactionType,
@@ -176,10 +177,35 @@ export interface RecurringRepository {
   delete(id: number): Promise<void>
 }
 
+export interface CreateSavingsGoalRecord {
+  name: string
+  targetAmount: number
+  currentAmount: number
+  currency: string
+  targetDate: Date | null
+  createdAt: Date
+}
+
+export interface UpdateSavingsGoalRecord {
+  name: string
+  targetAmount: number
+  currency: string
+  targetDate: Date | null
+}
+
+export interface SavingsGoalRepository {
+  create(input: CreateSavingsGoalRecord): Promise<SavingsGoal>
+  findAll(): Promise<SavingsGoal[]>
+  update(id: number, input: UpdateSavingsGoalRecord): Promise<SavingsGoal>
+  contribute(id: number, amount: number): Promise<SavingsGoal>
+  delete(id: number): Promise<void>
+}
+
 export interface AppRepositories {
   groups: GroupRepository
   expenses: ExpenseRepository
   personal: PersonalRepository
   settlements: SettlementRepository
   recurring: RecurringRepository
+  savings: SavingsGoalRepository
 }

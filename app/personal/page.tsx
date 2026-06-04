@@ -8,6 +8,12 @@ import {
   deleteRecurringRule,
   runRecurringAction,
 } from '@/lib/actions/recurring'
+import {
+  addSavingsGoal,
+  updateSavingsGoal,
+  contributeSavingsGoal,
+  deleteSavingsGoal,
+} from '@/lib/actions/savings'
 import { getBackend } from '@/lib/backend/runtime'
 import { calculatePersonalSummary } from '@/lib/calculations/personal'
 import { PersonalDashboard } from '@/components/personal/personal-dashboard'
@@ -16,9 +22,10 @@ import type { Metadata } from 'next'
 export const metadata: Metadata = { title: 'Personal Finance' }
 
 export default async function PersonalPage() {
-  const [transactions, rules] = await Promise.all([
+  const [transactions, rules, savingsGoals] = await Promise.all([
     getPersonalTransactions(),
     getBackend().recurring.getRecurringRules(),
+    getBackend().savings.getSavingsGoals(),
   ])
   const now = new Date()
   const year = now.getFullYear()
@@ -39,6 +46,11 @@ export default async function PersonalPage() {
         toggleRecurringRuleAction={toggleRecurringRule}
         deleteRecurringRuleAction={deleteRecurringRule}
         runRecurringAction={runRecurringAction}
+        savingsGoals={savingsGoals}
+        addSavingsGoalAction={addSavingsGoal}
+        updateSavingsGoalAction={updateSavingsGoal}
+        contributeSavingsGoalAction={contributeSavingsGoal}
+        deleteSavingsGoalAction={deleteSavingsGoal}
       />
     </div>
   )

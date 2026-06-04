@@ -89,6 +89,16 @@ export const recurringRules = sqliteTable('recurring_rules', {
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 })
 
+export const savingsGoals = sqliteTable('savings_goals', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  targetAmount: integer('target_amount').notNull(), // cents
+  currentAmount: integer('current_amount').notNull().default(0), // cents
+  currency: text('currency').notNull().default('CAD'),
+  targetDate: integer('target_date', { mode: 'timestamp_ms' }),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+})
+
 export const personalTransactions = sqliteTable('personal_transactions', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   type: text('type', { enum: ['income', 'expense'] }).notNull(),

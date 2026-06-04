@@ -5,6 +5,7 @@ import type {
   CreateGroupRecord,
   CreatePersonalTransactionRecord,
   CreateRecurringRuleRecord,
+  CreateSavingsGoalRecord,
   ExpenseParticipantRecord,
   RecordPaidSettlementInput,
   UpdateExpenseRecord,
@@ -12,6 +13,7 @@ import type {
   UpdateMemberRecord,
   UpdatePersonalTransactionRecord,
   UpdateRecurringRuleRecord,
+  UpdateSavingsGoalRecord,
 } from '@/lib/backend/ports'
 import type {
   Expense,
@@ -22,6 +24,7 @@ import type {
   GroupWithMembers,
   PersonalTransaction,
   RecurringRule,
+  SavingsGoal,
   Settlement,
 } from '@/types'
 
@@ -33,6 +36,7 @@ export interface InMemoryRepositoryState {
   personalTransactions: PersonalTransaction[]
   settlements: Settlement[]
   recurringRules: RecurringRule[]
+  savingsGoals: SavingsGoal[]
 }
 
 interface Counters {
@@ -43,6 +47,7 @@ interface Counters {
   personalTransactionId: number
   settlementId: number
   recurringRuleId: number
+  savingsGoalId: number
 }
 
 function byNewestDate<T extends { date: number }>(a: T, b: T) {
@@ -58,6 +63,7 @@ function createCounters(): Counters {
     personalTransactionId: 1,
     settlementId: 1,
     recurringRuleId: 1,
+    savingsGoalId: 1,
   }
 }
 
@@ -83,6 +89,7 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
     personalTransactions: initialState?.personalTransactions ?? [],
     settlements: initialState?.settlements ?? [],
     recurringRules: initialState?.recurringRules ?? [],
+    savingsGoals: initialState?.savingsGoals ?? [],
   }
   const counters = createCounters()
 
@@ -368,7 +375,8 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
       },
 
       async update(id: number, input: UpdateRecurringRuleRecord): Promise<RecurringRule> {
-        const rule = state.recurringRules.find((r) => r.id === id)!
+        const rule = state.recurringRules.find((r) => r.id === id)
+        if (!rule) throw new Error('Recurring rule not found')
         rule.type = input.type
         rule.title = input.title
         rule.amount = input.amount
@@ -383,19 +391,62 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
       },
 
       async toggle(id: number, active: boolean): Promise<RecurringRule> {
-        const rule = state.recurringRules.find((r) => r.id === id)!
+        const rule = state.recurringRules.find((r) => r.id === id)
+        if (!rule) throw new Error('Recurring rule not found')
         rule.active = active
         return rule
       },
 
       async advance(id: number, nextRunDate: Date, lastRunDate: Date): Promise<void> {
-        const rule = state.recurringRules.find((r) => r.id === id)!
+        const rule = state.recurringRules.find((r) => r.id === id)
+        if (!rule) throw new Error('Recurring rule not found')
         rule.nextRunDate = nextRunDate.getTime()
         rule.lastRunDate = lastRunDate.getTime()
       },
 
       async delete(id: number): Promise<void> {
         state.recurringRules = state.recurringRules.filter((r) => r.id !== id)
+      },
+    },
+
+    savings: {
+      async create(input: CreateSavingsGoalRecord): Promise<SavingsGoal> {
+        const goal: SavingsGoal = {
+          id: counters.savingsGoalId++,
+          name: input.name,
+          targetAmount: input.targetAmount,
+          currentAmount: input.currentAmount,
+          currency: input.currency,
+          targetDate: input.targetDate ? input.targetDate.getTime() : null,
+          createdAt: input.createdAt.getTime(),
+        }
+        state.savingsGoals.push(goal)
+        return goal
+      },
+
+      async findAll(): Promise<SavingsGoal[]> {
+        return [...state.savingsGoals].sort((a, b) => b.createdAt - a.createdAt)
+      },
+
+      async update(id: number, input: UpdateSavingsGoalRecord): Promise<SavingsGoal> {
+        const goal = state.savingsGoals.find((g) => g.id === id)
+        if (!goal) throw new Error('Savings goal not found')
+        goal.name = input.name
+        goal.targetAmount = input.targetAmount
+        goal.currency = input.currency
+        goal.targetDate = input.targetDate ? input.targetDate.getTime() : null
+        return goal
+      },
+
+      async contribute(id: number, amount: number): Promise<SavingsGoal> {
+        const goal = state.savingsGoals.find((g) => g.id === id)
+        if (!goal) throw new Error('Savings goal not found')
+        goal.currentAmount = Math.max(0, goal.currentAmount + amount)
+        return goal
+      },
+
+      async delete(id: number): Promise<void> {
+        state.savingsGoals = state.savingsGoals.filter((g) => g.id !== id)
       },
     },
   }

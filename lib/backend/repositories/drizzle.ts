@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { and, desc, eq, lte } from 'drizzle-orm'
+import { and, desc, eq, lte, sql } from 'drizzle-orm'
 import type { AppDb } from '@/lib/db'
 import {
   expenseParticipants,
@@ -9,6 +9,7 @@ import {
   groups,
   personalTransactions,
   recurringRules,
+  savingsGoals,
   settlements,
 } from '@/lib/db/schema'
 import type {
@@ -17,11 +18,13 @@ import type {
   CreateGroupRecord,
   CreatePersonalTransactionRecord,
   CreateRecurringRuleRecord,
+  CreateSavingsGoalRecord,
   UpdateExpenseRecord,
   UpdateGroupRecord,
   UpdateMemberRecord,
   UpdatePersonalTransactionRecord,
   UpdateRecurringRuleRecord,
+  UpdateSavingsGoalRecord,
 } from '@/lib/backend/ports'
 import type {
   Expense,
@@ -32,6 +35,7 @@ import type {
   GroupWithMembers,
   PersonalTransaction,
   RecurringRule,
+  SavingsGoal,
   Settlement,
 } from '@/types'
 
@@ -85,6 +89,14 @@ function serializeExpenseParticipant(
   row: typeof expenseParticipants.$inferSelect
 ): ExpenseParticipant {
   return row
+}
+
+function serializeSavingsGoal(row: typeof savingsGoals.$inferSelect): SavingsGoal {
+  return {
+    ...row,
+    targetDate: row.targetDate ? toEpochMs(row.targetDate) : null,
+    createdAt: toEpochMs(row.createdAt),
+  }
 }
 
 export function createDrizzleRepositories(db: AppDb): AppRepositories {
@@ -402,7 +414,7 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
           })
           .where(eq(recurringRules.id, id))
           .returning()
-        return serializeRecurringRule(rule)
+        return serializeRecurringRule(requireRow(rule, 'Recurring rule'))
       },
 
       async toggle(id: number, active: boolean): Promise<RecurringRule> {
@@ -411,7 +423,7 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
           .set({ active })
           .where(eq(recurringRules.id, id))
           .returning()
-        return serializeRecurringRule(rule)
+        return serializeRecurringRule(requireRow(rule, 'Recurring rule'))
       },
 
       async advance(id: number, nextRunDate: Date, lastRunDate: Date): Promise<void> {
@@ -423,6 +435,45 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
 
       async delete(id: number): Promise<void> {
         await db.delete(recurringRules).where(eq(recurringRules.id, id))
+      },
+    },
+
+    savings: {
+      async create(input: CreateSavingsGoalRecord): Promise<SavingsGoal> {
+        const [goal] = await db.insert(savingsGoals).values(input).returning()
+        return serializeSavingsGoal(goal)
+      },
+
+      async findAll(): Promise<SavingsGoal[]> {
+        const rows = await db.select().from(savingsGoals).orderBy(desc(savingsGoals.createdAt))
+        return rows.map(serializeSavingsGoal)
+      },
+
+      async update(id: number, input: UpdateSavingsGoalRecord): Promise<SavingsGoal> {
+        const [goal] = await db
+          .update(savingsGoals)
+          .set({
+            name: input.name,
+            targetAmount: input.targetAmount,
+            currency: input.currency,
+            targetDate: input.targetDate,
+          })
+          .where(eq(savingsGoals.id, id))
+          .returning()
+        return serializeSavingsGoal(requireRow(goal, 'Savings goal'))
+      },
+
+      async contribute(id: number, amount: number): Promise<SavingsGoal> {
+        const [goal] = await db
+          .update(savingsGoals)
+          .set({ currentAmount: sql`max(0, ${savingsGoals.currentAmount} + ${amount})` })
+          .where(eq(savingsGoals.id, id))
+          .returning()
+        return serializeSavingsGoal(requireRow(goal, 'Savings goal'))
+      },
+
+      async delete(id: number): Promise<void> {
+        await db.delete(savingsGoals).where(eq(savingsGoals.id, id))
       },
     },
   }

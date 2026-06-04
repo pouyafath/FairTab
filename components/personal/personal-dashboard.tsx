@@ -18,10 +18,11 @@ import { CategoryBreakdown } from './category-breakdown'
 import { SpendingTrend } from './spending-trend'
 import { TransactionList } from './transaction-list'
 import { RecurringRules } from './recurring-rules'
+import { SavingsGoals } from './savings-goals'
 import { calculatePersonalSummary } from '@/lib/calculations/personal'
 import { generateCSV } from '@/lib/calculations/export'
 import { formatMonth } from '@/lib/formatting'
-import type { PersonalTransaction, PersonalSummary, RecurringRule } from '@/types'
+import type { PersonalTransaction, PersonalSummary, RecurringRule, SavingsGoal } from '@/types'
 import type { DeletePersonalTransactionAction } from '@/types/actions'
 import type {
   addRecurringRule as AddRuleAction,
@@ -30,6 +31,12 @@ import type {
   deleteRecurringRule as DeleteRuleAction,
   runRecurringAction as RunRecurringAction,
 } from '@/lib/actions/recurring'
+import type {
+  addSavingsGoal as AddGoalAction,
+  updateSavingsGoal as UpdateGoalAction,
+  contributeSavingsGoal as ContributeAction,
+  deleteSavingsGoal as DeleteGoalAction,
+} from '@/lib/actions/savings'
 
 interface Props {
   transactions: PersonalTransaction[]
@@ -43,6 +50,11 @@ interface Props {
   toggleRecurringRuleAction: typeof ToggleRuleAction
   deleteRecurringRuleAction: typeof DeleteRuleAction
   runRecurringAction: typeof RunRecurringAction
+  savingsGoals: SavingsGoal[]
+  addSavingsGoalAction: typeof AddGoalAction
+  updateSavingsGoalAction: typeof UpdateGoalAction
+  contributeSavingsGoalAction: typeof ContributeAction
+  deleteSavingsGoalAction: typeof DeleteGoalAction
 }
 
 function getMonthOptions() {
@@ -71,6 +83,11 @@ export function PersonalDashboard({
   toggleRecurringRuleAction,
   deleteRecurringRuleAction,
   runRecurringAction,
+  savingsGoals,
+  addSavingsGoalAction,
+  updateSavingsGoalAction,
+  contributeSavingsGoalAction,
+  deleteSavingsGoalAction,
 }: Props) {
   const router = useRouter()
   const monthOptions = useMemo(() => getMonthOptions(), [])
@@ -170,6 +187,17 @@ export function PersonalDashboard({
           updateAction={updateRecurringRuleAction}
           toggleAction={toggleRecurringRuleAction}
           deleteAction={deleteRecurringRuleAction}
+        />
+      </div>
+
+      {/* Savings goals */}
+      <div className="rounded-lg border p-4 bg-card">
+        <SavingsGoals
+          goals={savingsGoals}
+          addAction={addSavingsGoalAction}
+          updateAction={updateSavingsGoalAction}
+          contributeAction={contributeSavingsGoalAction}
+          deleteAction={deleteSavingsGoalAction}
         />
       </div>
 
