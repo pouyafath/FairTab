@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select'
 import { SummaryCards } from './summary-cards'
 import { CategoryBreakdown } from './category-breakdown'
+import { BudgetGoals } from './budget-goals'
 import { SpendingTrend } from './spending-trend'
 import { TransactionList } from './transaction-list'
 import { calculatePersonalSummary } from '@/lib/calculations/personal'
@@ -131,6 +132,9 @@ export function PersonalDashboard({
 
       {/* Category breakdown */}
       {summary.byCategory.length > 0 && <CategoryBreakdown byCategory={summary.byCategory} />}
+
+      {/* Budget goals */}
+      <BudgetGoals byCategory={summary.byCategory} currency="CAD" />
 
       {/* Transaction list */}
       <div>
