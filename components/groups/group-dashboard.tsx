@@ -10,6 +10,7 @@ import { BalanceSummary } from '@/components/groups/balance-summary'
 import { AddMemberDialog } from '@/components/groups/add-member-dialog'
 import { GroupSettingsDialog } from '@/components/groups/group-settings-dialog'
 import { MemberList } from '@/components/groups/member-list'
+import { SettlementPreview } from '@/components/groups/settlement-preview'
 import { ExpenseList } from '@/components/expenses/expense-list'
 import { saveRecentGroup } from '@/components/groups/recent-groups'
 import { useToast } from '@/components/ui/use-toast'
@@ -141,6 +142,14 @@ export function GroupDashboard({
             members={group.members}
             expenses={expenses}
             currency={group.currency}
+          />
+
+          {/* Settlement suggestions */}
+          <SettlementPreview
+            members={group.members}
+            expenses={expenses}
+            currency={group.currency}
+            groupToken={group.token}
           />
 
           {/* Expense list */}
