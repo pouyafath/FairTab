@@ -41,6 +41,7 @@ export const mockExpenses: ExpenseWithParticipants[] = [
       amountCents: 3000,
       member,
     })),
+    attachments: [],
   },
 ]
 

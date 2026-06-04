@@ -18,6 +18,7 @@ import type { GroupWithMembers, ExpenseWithParticipants } from '@/types'
 import type {
   AddGroupMemberAction,
   ArchiveGroupAction,
+  DeleteAttachmentAction,
   DeleteExpenseAction,
   DeleteGroupAction,
   RemoveGroupMemberAction,
@@ -30,11 +31,13 @@ interface Props {
   expenses: ExpenseWithParticipants[]
   addMemberAction: AddGroupMemberAction
   deleteExpenseAction: DeleteExpenseAction
+  deleteAttachmentAction?: DeleteAttachmentAction
   renameGroupAction: RenameGroupAction
   deleteGroupAction: DeleteGroupAction
   archiveGroupAction: ArchiveGroupAction
   updateMemberAction: UpdateGroupMemberAction
   removeMemberAction: RemoveGroupMemberAction
+  storageEnabled?: boolean
 }
 
 export function GroupDashboard({
@@ -42,11 +45,13 @@ export function GroupDashboard({
   expenses,
   addMemberAction,
   deleteExpenseAction,
+  deleteAttachmentAction,
   renameGroupAction,
   deleteGroupAction,
   archiveGroupAction,
   updateMemberAction,
   removeMemberAction,
+  storageEnabled,
 }: Props) {
   const { toast } = useToast()
 
@@ -176,6 +181,8 @@ export function GroupDashboard({
               currency={group.currency}
               groupToken={group.token}
               deleteExpenseAction={deleteExpenseAction}
+              deleteAttachmentAction={deleteAttachmentAction}
+              storageEnabled={storageEnabled}
             />
           </div>
         </>

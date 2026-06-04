@@ -3,6 +3,7 @@ import 'server-only'
 import { and, desc, eq, lte, sql } from 'drizzle-orm'
 import type { AppDb } from '@/lib/db'
 import {
+  attachments,
   expenseParticipants,
   expenses,
   groupMembers,
@@ -14,6 +15,7 @@ import {
 } from '@/lib/db/schema'
 import type {
   AppRepositories,
+  CreateAttachmentRecord,
   CreateExpenseRecord,
   CreateGroupRecord,
   CreatePersonalTransactionRecord,
@@ -27,6 +29,7 @@ import type {
   UpdateSavingsGoalRecord,
 } from '@/lib/backend/ports'
 import type {
+  Attachment,
   Expense,
   ExpenseParticipant,
   ExpenseWithParticipants,
@@ -95,6 +98,14 @@ function serializeSavingsGoal(row: typeof savingsGoals.$inferSelect): SavingsGoa
   return {
     ...row,
     targetDate: row.targetDate ? toEpochMs(row.targetDate) : null,
+    createdAt: toEpochMs(row.createdAt),
+  }
+}
+
+function serializeAttachment(row: typeof attachments.$inferSelect): Attachment {
+  return {
+    ...row,
+    expenseId: row.expenseId ?? null,
     createdAt: toEpochMs(row.createdAt),
   }
 }
@@ -191,6 +202,7 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
           with: {
             participants: { with: { member: true } },
             paidBy: true,
+            attachments: true,
           },
           orderBy: [desc(expenses.date)],
         })
@@ -202,6 +214,7 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
             member: participant.member,
           })),
           paidBy: expense.paidBy,
+          attachments: expense.attachments.map(serializeAttachment),
         }))
       },
 
@@ -211,6 +224,7 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
           with: {
             participants: { with: { member: true } },
             paidBy: true,
+            attachments: true,
           },
         })
         if (!expense) return null
@@ -222,6 +236,7 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
             member: participant.member,
           })),
           paidBy: expense.paidBy,
+          attachments: expense.attachments.map(serializeAttachment),
         }
       },
 
@@ -343,6 +358,51 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
 
       async delete(id: number): Promise<void> {
         await db.delete(personalTransactions).where(eq(personalTransactions.id, id))
+      },
+    },
+
+    attachments: {
+      async create(input: CreateAttachmentRecord): Promise<Attachment> {
+        const [row] = await db
+          .insert(attachments)
+          .values({
+            groupId: input.groupId,
+            expenseId: input.expenseId,
+            storageKey: input.storageKey,
+            filename: input.filename,
+            contentType: input.contentType,
+            size: input.size,
+            createdAt: input.createdAt,
+          })
+          .returning()
+        return serializeAttachment(row)
+      },
+
+      async findById(id: number): Promise<Attachment | null> {
+        const row = await db.query.attachments.findFirst({
+          where: eq(attachments.id, id),
+        })
+        return row ? serializeAttachment(row) : null
+      },
+
+      async findByExpense(expenseId: number): Promise<Attachment[]> {
+        const rows = await db
+          .select()
+          .from(attachments)
+          .where(eq(attachments.expenseId, expenseId))
+        return rows.map(serializeAttachment)
+      },
+
+      async findByGroup(groupId: number): Promise<Attachment[]> {
+        const rows = await db
+          .select()
+          .from(attachments)
+          .where(eq(attachments.groupId, groupId))
+        return rows.map(serializeAttachment)
+      },
+
+      async delete(id: number): Promise<void> {
+        await db.delete(attachments).where(eq(attachments.id, id))
       },
     },
 

@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { createInMemoryRepositories } from '../support/in-memory-repositories'
+import { createInMemoryStorage } from '../support/in-memory-storage'
 import { createSavingsService } from '@/lib/backend/services/savings'
 
 function createService() {
   const { repositories, state } = createInMemoryRepositories()
   const service = createSavingsService({
     repositories,
+    storage: createInMemoryStorage(),
     createId: () => 'x',
     now: () => new Date('2026-06-04T12:00:00Z'),
   })

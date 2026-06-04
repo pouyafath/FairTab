@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { nextDate } from '@/lib/calculations/recurring'
 import { createInMemoryRepositories } from '../support/in-memory-repositories'
+import { createInMemoryStorage } from '../support/in-memory-storage'
 import { createRecurringService } from '@/lib/backend/services/recurring'
 
 function d(iso: string) {
@@ -54,7 +55,12 @@ describe('materializeDueRecurring', () => {
   it('generates missing transactions and advances nextRunDate', async () => {
     const { repositories, state } = createInMemoryRepositories()
     const now = () => new Date('2026-06-04T12:00:00Z')
-    const service = createRecurringService({ repositories, createId: () => 'x', now })
+    const service = createRecurringService({
+      repositories,
+      storage: createInMemoryStorage(),
+      createId: () => 'x',
+      now,
+    })
 
     // Rule set 2 months ago — should generate 2 transactions (Apr + May)
     await service.addRecurringRule({
@@ -85,7 +91,12 @@ describe('materializeDueRecurring', () => {
 
   it('does not generate for inactive rules', async () => {
     const { repositories, state } = createInMemoryRepositories()
-    const service = createRecurringService({ repositories, createId: () => 'x', now: () => new Date() })
+    const service = createRecurringService({
+      repositories,
+      storage: createInMemoryStorage(),
+      createId: () => 'x',
+      now: () => new Date(),
+    })
 
     await service.addRecurringRule({
       type: 'income',

@@ -108,9 +108,21 @@ export interface SettlementSuggestion {
   amount: number // cents
 }
 
+export interface Attachment {
+  id: number
+  groupId: number
+  expenseId: number | null
+  storageKey: string
+  filename: string
+  contentType: string
+  size: number
+  createdAt: number
+}
+
 export interface ExpenseWithParticipants extends Expense {
   participants: (ExpenseParticipant & { member: GroupMember })[]
   paidBy: GroupMember
+  attachments: Attachment[]
 }
 
 export interface GroupWithMembers extends Group {

@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ChevronDown, ChevronUp, Receipt, Pencil, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronUp, Receipt, Pencil, Trash2, Paperclip, X } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -17,22 +17,32 @@ import {
 } from '@/components/ui/dialog'
 import { useToast } from '@/components/ui/use-toast'
 import { formatCurrency, formatDate } from '@/lib/formatting'
-import type { ExpenseWithParticipants } from '@/types'
-import type { DeleteExpenseAction } from '@/types/actions'
+import type { Attachment, ExpenseWithParticipants } from '@/types'
+import type { DeleteAttachmentAction, DeleteExpenseAction } from '@/types/actions'
 
 interface Props {
   expenses: ExpenseWithParticipants[]
   currency: string
   groupToken: string
   deleteExpenseAction: DeleteExpenseAction
+  deleteAttachmentAction?: DeleteAttachmentAction
+  storageEnabled?: boolean
 }
 
-export function ExpenseList({ expenses, currency, groupToken, deleteExpenseAction }: Props) {
+export function ExpenseList({
+  expenses,
+  currency,
+  groupToken,
+  deleteExpenseAction,
+  deleteAttachmentAction,
+  storageEnabled,
+}: Props) {
   const router = useRouter()
   const { toast } = useToast()
   const [isPending, startTransition] = useTransition()
   const [deleteTarget, setDeleteTarget] = useState<ExpenseWithParticipants | null>(null)
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
+  const [deletingAttachment, setDeletingAttachment] = useState<number | null>(null)
 
   function confirmDelete() {
     if (!deleteTarget) return
@@ -45,6 +55,20 @@ export function ExpenseList({ expenses, currency, groupToken, deleteExpenseActio
         router.refresh()
       } else {
         toast({ title: 'Could not delete', description: result.error, variant: 'destructive' })
+      }
+    })
+  }
+
+  function handleDeleteAttachment(attachment: Attachment) {
+    if (!deleteAttachmentAction) return
+    setDeletingAttachment(attachment.id)
+    startTransition(async () => {
+      const result = await deleteAttachmentAction(attachment.id)
+      setDeletingAttachment(null)
+      if (result.success) {
+        router.refresh()
+      } else {
+        toast({ title: 'Could not delete receipt', description: result.error, variant: 'destructive' })
       }
     })
   }
@@ -99,6 +123,9 @@ export function ExpenseList({ expenses, currency, groupToken, deleteExpenseActio
                           {expense.category}
                         </Badge>
                       )}
+                      {expense.attachments.length > 0 && (
+                        <Paperclip className="h-3.5 w-3.5 text-muted-foreground" aria-label="Has attachments" />
+                      )}
                     </div>
                     <p className="text-sm text-muted-foreground mt-0.5">
                       Paid by {expense.paidBy.name} · {formatDate(expense.date)}
@@ -116,7 +143,7 @@ export function ExpenseList({ expenses, currency, groupToken, deleteExpenseActio
               </button>
 
               {isOpen && (
-                <div className="border-t px-4 pb-4 pt-3 space-y-2">
+                <div className="border-t px-4 pb-4 pt-3 space-y-3">
                   <p className="text-xs text-muted-foreground font-medium">
                     {splitMethodLabel[expense.splitMethod]}
                   </p>
@@ -131,9 +158,40 @@ export function ExpenseList({ expenses, currency, groupToken, deleteExpenseActio
                     ))}
                   </div>
                   {expense.notes && (
-                    <p className="text-xs text-muted-foreground mt-2 italic">{expense.notes}</p>
+                    <p className="text-xs text-muted-foreground italic">{expense.notes}</p>
                   )}
-                  <div className="flex gap-2 pt-2">
+
+                  {/* Attachments */}
+                  {storageEnabled && expense.attachments.length > 0 && (
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-medium text-muted-foreground">Receipts</p>
+                      {expense.attachments.map((a) => (
+                        <div key={a.id} className="flex items-center gap-2 text-sm">
+                          <Paperclip className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                          <a
+                            href={`/api/groups/${groupToken}/attachments/${a.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary underline truncate flex-1"
+                          >
+                            {a.filename}
+                          </a>
+                          {deleteAttachmentAction && (
+                            <button
+                              onClick={() => handleDeleteAttachment(a)}
+                              disabled={isPending && deletingAttachment === a.id}
+                              className="text-muted-foreground hover:text-destructive flex-shrink-0"
+                              aria-label="Remove receipt"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 pt-1">
                     <Button variant="outline" size="sm" asChild>
                       <Link href={`/groups/${groupToken}/expenses/${expense.id}/edit`}>
                         <Pencil className="h-3.5 w-3.5 mr-1.5" />

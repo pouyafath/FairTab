@@ -112,3 +112,16 @@ export const personalTransactions = sqliteTable('personal_transactions', {
   sourceRuleId: integer('source_rule_id'),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 })
+
+export const attachments = sqliteTable('attachments', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  groupId: integer('group_id')
+    .notNull()
+    .references(() => groups.id, { onDelete: 'cascade' }),
+  expenseId: integer('expense_id').references(() => expenses.id, { onDelete: 'cascade' }),
+  storageKey: text('storage_key').notNull().unique(),
+  filename: text('filename').notNull(),
+  contentType: text('content_type').notNull(),
+  size: integer('size').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+})

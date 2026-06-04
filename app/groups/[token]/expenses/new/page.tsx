@@ -38,6 +38,8 @@ export default async function NewExpensePage({ params }: Props) {
     )
   }
 
+  const storageEnabled = getBackend().storage.isEnabled()
+
   return (
     <div className="container py-12 max-w-lg">
       <Card>
@@ -51,6 +53,7 @@ export default async function NewExpensePage({ params }: Props) {
             members={group.members}
             defaultCurrency={group.currency}
             addExpenseAction={addExpense}
+            storageEnabled={storageEnabled}
           />
         </CardContent>
       </Card>

@@ -1,3 +1,4 @@
+import { createAttachmentService } from './attachments'
 import { createExpenseService } from './expenses'
 import { createGroupService } from './groups'
 import { createPersonalService } from './personal'
@@ -14,6 +15,8 @@ export function createBackendServices(deps: BackendServiceDeps) {
     settlements: createSettlementService(deps),
     recurring: createRecurringService(deps),
     savings: createSavingsService(deps),
+    attachments: createAttachmentService(deps),
+    storage: deps.storage,
   }
 }
 
