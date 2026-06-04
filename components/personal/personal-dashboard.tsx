@@ -16,11 +16,18 @@ import { SummaryCards } from './summary-cards'
 import { CategoryBreakdown } from './category-breakdown'
 import { SpendingTrend } from './spending-trend'
 import { TransactionList } from './transaction-list'
+import { SavingsGoals } from './savings-goals'
 import { calculatePersonalSummary } from '@/lib/calculations/personal'
 import { generateCSV } from '@/lib/calculations/export'
 import { formatMonth } from '@/lib/formatting'
-import type { PersonalTransaction, PersonalSummary } from '@/types'
+import type { PersonalTransaction, PersonalSummary, SavingsGoal } from '@/types'
 import type { DeletePersonalTransactionAction } from '@/types/actions'
+import type {
+  addSavingsGoal as AddGoalAction,
+  updateSavingsGoal as UpdateGoalAction,
+  contributeSavingsGoal as ContributeAction,
+  deleteSavingsGoal as DeleteGoalAction,
+} from '@/lib/actions/savings'
 
 interface Props {
   transactions: PersonalTransaction[]
@@ -28,6 +35,11 @@ interface Props {
   currentYear: number
   currentMonth: number
   deleteTransactionAction: DeletePersonalTransactionAction
+  savingsGoals: SavingsGoal[]
+  addSavingsGoalAction: typeof AddGoalAction
+  updateSavingsGoalAction: typeof UpdateGoalAction
+  contributeSavingsGoalAction: typeof ContributeAction
+  deleteSavingsGoalAction: typeof DeleteGoalAction
 }
 
 function getMonthOptions() {
@@ -50,6 +62,11 @@ export function PersonalDashboard({
   currentYear,
   currentMonth,
   deleteTransactionAction,
+  savingsGoals,
+  addSavingsGoalAction,
+  updateSavingsGoalAction,
+  contributeSavingsGoalAction,
+  deleteSavingsGoalAction,
 }: Props) {
   const monthOptions = useMemo(() => getMonthOptions(), [])
   const [selectedKey, setSelectedKey] = useState(`${currentYear}-${currentMonth}`)
@@ -131,6 +148,17 @@ export function PersonalDashboard({
 
       {/* Category breakdown */}
       {summary.byCategory.length > 0 && <CategoryBreakdown byCategory={summary.byCategory} />}
+
+      {/* Savings goals */}
+      <div className="rounded-lg border p-4 bg-card">
+        <SavingsGoals
+          goals={savingsGoals}
+          addAction={addSavingsGoalAction}
+          updateAction={updateSavingsGoalAction}
+          contributeAction={contributeSavingsGoalAction}
+          deleteAction={deleteSavingsGoalAction}
+        />
+      </div>
 
       {/* Transaction list */}
       <div>

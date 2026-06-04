@@ -4,12 +4,14 @@ import type {
   CreateExpenseRecord,
   CreateGroupRecord,
   CreatePersonalTransactionRecord,
+  CreateSavingsGoalRecord,
   ExpenseParticipantRecord,
   RecordPaidSettlementInput,
   UpdateExpenseRecord,
   UpdateGroupRecord,
   UpdateMemberRecord,
   UpdatePersonalTransactionRecord,
+  UpdateSavingsGoalRecord,
 } from '@/lib/backend/ports'
 import type {
   Expense,
@@ -19,6 +21,7 @@ import type {
   GroupMember,
   GroupWithMembers,
   PersonalTransaction,
+  SavingsGoal,
   Settlement,
 } from '@/types'
 
@@ -29,6 +32,7 @@ export interface InMemoryRepositoryState {
   expenseParticipants: ExpenseParticipant[]
   personalTransactions: PersonalTransaction[]
   settlements: Settlement[]
+  savingsGoals: SavingsGoal[]
 }
 
 interface Counters {
@@ -38,6 +42,7 @@ interface Counters {
   expenseParticipantId: number
   personalTransactionId: number
   settlementId: number
+  savingsGoalId: number
 }
 
 function byNewestDate<T extends { date: number }>(a: T, b: T) {
@@ -52,6 +57,7 @@ function createCounters(): Counters {
     expenseParticipantId: 1,
     personalTransactionId: 1,
     settlementId: 1,
+    savingsGoalId: 1,
   }
 }
 
@@ -76,6 +82,7 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
     expenseParticipants: initialState?.expenseParticipants ?? [],
     personalTransactions: initialState?.personalTransactions ?? [],
     settlements: initialState?.settlements ?? [],
+    savingsGoals: initialState?.savingsGoals ?? [],
   }
   const counters = createCounters()
 
@@ -313,6 +320,45 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
 
       async undo(settlementId: number): Promise<void> {
         state.settlements = state.settlements.filter((s) => s.id !== settlementId)
+      },
+    },
+
+    savings: {
+      async create(input: CreateSavingsGoalRecord): Promise<SavingsGoal> {
+        const goal: SavingsGoal = {
+          id: counters.savingsGoalId++,
+          name: input.name,
+          targetAmount: input.targetAmount,
+          currentAmount: input.currentAmount,
+          currency: input.currency,
+          targetDate: input.targetDate ? input.targetDate.getTime() : null,
+          createdAt: input.createdAt.getTime(),
+        }
+        state.savingsGoals.push(goal)
+        return goal
+      },
+
+      async findAll(): Promise<SavingsGoal[]> {
+        return [...state.savingsGoals].sort((a, b) => b.createdAt - a.createdAt)
+      },
+
+      async update(id: number, input: UpdateSavingsGoalRecord): Promise<SavingsGoal> {
+        const goal = state.savingsGoals.find((g) => g.id === id)!
+        goal.name = input.name
+        goal.targetAmount = input.targetAmount
+        goal.currency = input.currency
+        goal.targetDate = input.targetDate ? input.targetDate.getTime() : null
+        return goal
+      },
+
+      async contribute(id: number, amount: number): Promise<SavingsGoal> {
+        const goal = state.savingsGoals.find((g) => g.id === id)!
+        goal.currentAmount = Math.max(0, goal.currentAmount + amount)
+        return goal
+      },
+
+      async delete(id: number): Promise<void> {
+        state.savingsGoals = state.savingsGoals.filter((g) => g.id !== id)
       },
     },
   }

@@ -2,6 +2,16 @@ export type SplitMethod = 'equal' | 'exact' | 'percentage' | 'shares'
 
 export type TransactionType = 'income' | 'expense'
 
+export interface SavingsGoal {
+  id: number
+  name: string
+  targetAmount: number // cents
+  currentAmount: number // cents
+  currency: string
+  targetDate: number | null // epoch ms
+  createdAt: number
+}
+
 export interface Group {
   id: number
   name: string

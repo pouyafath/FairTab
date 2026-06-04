@@ -6,6 +6,7 @@ import type {
   GroupWithMembers,
   PersonalTransaction,
   RawExpenseData,
+  SavingsGoal,
   Settlement,
   SplitMethod,
   TransactionType,
@@ -135,9 +136,34 @@ export interface SettlementRepository {
   undo(settlementId: number): Promise<void>
 }
 
+export interface CreateSavingsGoalRecord {
+  name: string
+  targetAmount: number
+  currentAmount: number
+  currency: string
+  targetDate: Date | null
+  createdAt: Date
+}
+
+export interface UpdateSavingsGoalRecord {
+  name: string
+  targetAmount: number
+  currency: string
+  targetDate: Date | null
+}
+
+export interface SavingsGoalRepository {
+  create(input: CreateSavingsGoalRecord): Promise<SavingsGoal>
+  findAll(): Promise<SavingsGoal[]>
+  update(id: number, input: UpdateSavingsGoalRecord): Promise<SavingsGoal>
+  contribute(id: number, amount: number): Promise<SavingsGoal>
+  delete(id: number): Promise<void>
+}
+
 export interface AppRepositories {
   groups: GroupRepository
   expenses: ExpenseRepository
   personal: PersonalRepository
   settlements: SettlementRepository
+  savings: SavingsGoalRepository
 }

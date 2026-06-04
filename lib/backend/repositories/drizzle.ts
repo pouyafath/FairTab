@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { desc, eq } from 'drizzle-orm'
+import { desc, eq, sql } from 'drizzle-orm'
 import type { AppDb } from '@/lib/db'
 import {
   expenseParticipants,
@@ -8,6 +8,7 @@ import {
   groupMembers,
   groups,
   personalTransactions,
+  savingsGoals,
   settlements,
 } from '@/lib/db/schema'
 import type {
@@ -15,10 +16,12 @@ import type {
   CreateExpenseRecord,
   CreateGroupRecord,
   CreatePersonalTransactionRecord,
+  CreateSavingsGoalRecord,
   UpdateExpenseRecord,
   UpdateGroupRecord,
   UpdateMemberRecord,
   UpdatePersonalTransactionRecord,
+  UpdateSavingsGoalRecord,
 } from '@/lib/backend/ports'
 import type {
   Expense,
@@ -28,6 +31,7 @@ import type {
   GroupMember,
   GroupWithMembers,
   PersonalTransaction,
+  SavingsGoal,
   Settlement,
 } from '@/types'
 
@@ -64,6 +68,14 @@ function serializeExpenseParticipant(
   row: typeof expenseParticipants.$inferSelect
 ): ExpenseParticipant {
   return row
+}
+
+function serializeSavingsGoal(row: typeof savingsGoals.$inferSelect): SavingsGoal {
+  return {
+    ...row,
+    targetDate: row.targetDate ? toEpochMs(row.targetDate) : null,
+    createdAt: toEpochMs(row.createdAt),
+  }
 }
 
 export function createDrizzleRepositories(db: AppDb): AppRepositories {
@@ -335,6 +347,45 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
 
       async undo(settlementId: number): Promise<void> {
         await db.delete(settlements).where(eq(settlements.id, settlementId))
+      },
+    },
+
+    savings: {
+      async create(input: CreateSavingsGoalRecord): Promise<SavingsGoal> {
+        const [goal] = await db.insert(savingsGoals).values(input).returning()
+        return serializeSavingsGoal(goal)
+      },
+
+      async findAll(): Promise<SavingsGoal[]> {
+        const rows = await db.select().from(savingsGoals).orderBy(desc(savingsGoals.createdAt))
+        return rows.map(serializeSavingsGoal)
+      },
+
+      async update(id: number, input: UpdateSavingsGoalRecord): Promise<SavingsGoal> {
+        const [goal] = await db
+          .update(savingsGoals)
+          .set({
+            name: input.name,
+            targetAmount: input.targetAmount,
+            currency: input.currency,
+            targetDate: input.targetDate,
+          })
+          .where(eq(savingsGoals.id, id))
+          .returning()
+        return serializeSavingsGoal(goal)
+      },
+
+      async contribute(id: number, amount: number): Promise<SavingsGoal> {
+        const [goal] = await db
+          .update(savingsGoals)
+          .set({ currentAmount: sql`max(0, ${savingsGoals.currentAmount} + ${amount})` })
+          .where(eq(savingsGoals.id, id))
+          .returning()
+        return serializeSavingsGoal(goal)
+      },
+
+      async delete(id: number): Promise<void> {
+        await db.delete(savingsGoals).where(eq(savingsGoals.id, id))
       },
     },
   }
