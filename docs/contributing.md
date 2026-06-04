@@ -72,7 +72,7 @@ Examples:
 ```
 feat: add recurring expense support
 fix: settlement rounding off by 1 cent when splitting 3 ways
-docs: add self-hosting guide for Raspberry Pi
+docs: clarify Docker deployment requirements
 chore: upgrade drizzle-orm to 0.46
 ```
 
