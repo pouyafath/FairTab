@@ -3,7 +3,7 @@ import type { ActionResult, Group, GroupMember, GroupWithMembers } from '@/types
 import type { BackendServiceDeps } from './types'
 import { validationError } from './result'
 
-export function createGroupService({ repositories, createId, now }: BackendServiceDeps) {
+export function createGroupService({ repositories, createId, now, storage }: BackendServiceDeps) {
   return {
     async createGroup(formData: unknown): Promise<ActionResult<Group>> {
       const parsed = createGroupSchema.safeParse(formData)
@@ -32,6 +32,11 @@ export function createGroupService({ repositories, createId, now }: BackendServi
     },
 
     async deleteGroup(groupId: number): Promise<ActionResult<void>> {
+      const attachments = await repositories.attachments.findByGroup(groupId)
+      for (const attachment of attachments) {
+        await storage.delete(attachment.storageKey)
+      }
+
       await repositories.groups.delete(groupId)
       return { success: true, data: undefined }
     },

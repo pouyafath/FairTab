@@ -4,7 +4,7 @@ import type { ActionResult, Expense, ExpenseWithParticipants } from '@/types'
 import type { BackendServiceDeps } from './types'
 import { failure, validationError } from './result'
 
-export function createExpenseService({ repositories, now }: BackendServiceDeps) {
+export function createExpenseService({ repositories, now, storage }: BackendServiceDeps) {
   return {
     async addExpense(
       groupId: number,
@@ -82,6 +82,10 @@ export function createExpenseService({ repositories, now }: BackendServiceDeps) 
     async deleteExpense(expenseId: number): Promise<ActionResult<void>> {
       const existing = await repositories.expenses.findById(expenseId)
       if (!existing) return failure<void>('Expense not found')
+
+      for (const attachment of existing.attachments) {
+        await storage.delete(attachment.storageKey)
+      }
 
       await repositories.expenses.delete(expenseId)
       return { success: true, data: undefined }

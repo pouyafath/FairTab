@@ -4,6 +4,8 @@ import { nanoid } from 'nanoid'
 import { getDb } from '@/lib/db'
 import { createDrizzleRepositories } from '@/lib/backend/repositories/drizzle'
 import { createBackendServices } from '@/lib/backend/services'
+import { createNullStorage } from '@/lib/backend/storage/null-storage'
+import { createLocalFsStorage } from '@/lib/backend/storage/local-fs'
 import type { BackendServices } from '@/lib/backend/services'
 
 // Cached for Node.js runtimes (local dev + Docker). On Cloudflare Pages the D1
@@ -20,6 +22,7 @@ export function getBackend(): BackendServices {
       repositories: createDrizzleRepositories(getDb()),
       createId: () => nanoid(8),
       now: () => new Date(),
+      storage: createNullStorage(),
     })
   }
 
@@ -28,6 +31,7 @@ export function getBackend(): BackendServices {
       repositories: createDrizzleRepositories(getDb()),
       createId: () => nanoid(8),
       now: () => new Date(),
+      storage: createLocalFsStorage(process.env.UPLOADS_DIR ?? '/data/uploads'),
     })
   }
   return _backend

@@ -1,6 +1,7 @@
 import type {
   AppRepositories,
   BalanceData,
+  CreateAttachmentRecord,
   CreateExpenseRecord,
   CreateGroupRecord,
   CreatePersonalTransactionRecord,
@@ -12,6 +13,7 @@ import type {
   UpdatePersonalTransactionRecord,
 } from '@/lib/backend/ports'
 import type {
+  Attachment,
   Expense,
   ExpenseParticipant,
   ExpenseWithParticipants,
@@ -29,6 +31,7 @@ export interface InMemoryRepositoryState {
   expenseParticipants: ExpenseParticipant[]
   personalTransactions: PersonalTransaction[]
   settlements: Settlement[]
+  attachments: Attachment[]
 }
 
 interface Counters {
@@ -38,6 +41,7 @@ interface Counters {
   expenseParticipantId: number
   personalTransactionId: number
   settlementId: number
+  attachmentId: number
 }
 
 function byNewestDate<T extends { date: number }>(a: T, b: T) {
@@ -52,6 +56,7 @@ function createCounters(): Counters {
     expenseParticipantId: 1,
     personalTransactionId: 1,
     settlementId: 1,
+    attachmentId: 1,
   }
 }
 
@@ -76,6 +81,7 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
     expenseParticipants: initialState?.expenseParticipants ?? [],
     personalTransactions: initialState?.personalTransactions ?? [],
     settlements: initialState?.settlements ?? [],
+    attachments: initialState?.attachments ?? [],
   }
   const counters = createCounters()
 
@@ -89,6 +95,7 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
           ...participant,
           member: state.members.find((member) => member.id === participant.memberId)!,
         })),
+      attachments: state.attachments.filter((a) => a.expenseId === expense.id),
     }
   }
 
@@ -127,6 +134,7 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
         state.expenseParticipants = state.expenseParticipants.filter(
           (p) => !expenseIds.includes(p.expenseId)
         )
+        state.attachments = state.attachments.filter((a) => a.groupId !== groupId)
         state.settlements = state.settlements.filter((s) => s.groupId !== groupId)
         state.expenses = state.expenses.filter((e) => e.groupId !== groupId)
         state.members = state.members.filter((m) => m.groupId !== groupId)
@@ -224,6 +232,7 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
         state.expenseParticipants = state.expenseParticipants.filter(
           (participant) => participant.expenseId !== expenseId
         )
+        state.attachments = state.attachments.filter((a) => a.expenseId !== expenseId)
       },
 
       async memberHasExpenses(memberId: number): Promise<boolean> {
@@ -291,6 +300,39 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
 
       async delete(id: number): Promise<void> {
         state.personalTransactions = state.personalTransactions.filter((tx) => tx.id !== id)
+      },
+    },
+
+    attachments: {
+      async create(input: CreateAttachmentRecord): Promise<Attachment> {
+        const attachment: Attachment = {
+          id: counters.attachmentId++,
+          groupId: input.groupId,
+          expenseId: input.expenseId,
+          storageKey: input.storageKey,
+          filename: input.filename,
+          contentType: input.contentType,
+          size: input.size,
+          createdAt: input.createdAt.getTime(),
+        }
+        state.attachments.push(attachment)
+        return attachment
+      },
+
+      async findById(id: number): Promise<Attachment | null> {
+        return state.attachments.find((a) => a.id === id) ?? null
+      },
+
+      async findByExpense(expenseId: number): Promise<Attachment[]> {
+        return state.attachments.filter((a) => a.expenseId === expenseId)
+      },
+
+      async findByGroup(groupId: number): Promise<Attachment[]> {
+        return state.attachments.filter((a) => a.groupId === groupId)
+      },
+
+      async delete(id: number): Promise<void> {
+        state.attachments = state.attachments.filter((a) => a.id !== id)
       },
     },
 

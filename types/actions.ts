@@ -1,5 +1,6 @@
 import type {
   ActionResult,
+  Attachment,
   Expense,
   Group,
   GroupMember,
@@ -61,3 +62,7 @@ export type MarkSettlementPaidAction = (
   toMemberId: number,
   amount: number
 ) => Promise<ActionResult<void>>
+
+export type DeleteAttachmentAction = (attachmentId: number) => Promise<ActionResult<void>>
+
+export type UploadAttachmentResult = { attachment: Attachment } | { error: string }

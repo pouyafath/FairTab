@@ -5,6 +5,7 @@ import { getGroupByToken } from '@/lib/actions/groups'
 import { addExpense } from '@/lib/actions/expenses'
 import { ExpenseForm } from '@/components/expenses/expense-form'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { getBackend } from '@/lib/backend/runtime'
 import type { Metadata } from 'next'
 
 interface Props {
@@ -38,6 +39,8 @@ export default async function NewExpensePage({ params }: Props) {
     )
   }
 
+  const storageEnabled = getBackend().storage.isEnabled()
+
   return (
     <div className="container py-12 max-w-lg">
       <Card>
@@ -52,6 +55,7 @@ export default async function NewExpensePage({ params }: Props) {
             members={group.members}
             defaultCurrency={group.currency}
             addExpenseAction={addExpense}
+            storageEnabled={storageEnabled}
           />
         </CardContent>
       </Card>

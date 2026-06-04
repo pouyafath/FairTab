@@ -1,4 +1,5 @@
 import type {
+  Attachment,
   Expense,
   ExpenseWithParticipants,
   Group,
@@ -135,9 +136,28 @@ export interface SettlementRepository {
   undo(settlementId: number): Promise<void>
 }
 
+export interface CreateAttachmentRecord {
+  groupId: number
+  expenseId: number | null
+  storageKey: string
+  filename: string
+  contentType: string
+  size: number
+  createdAt: Date
+}
+
+export interface AttachmentRepository {
+  create(input: CreateAttachmentRecord): Promise<Attachment>
+  findById(id: number): Promise<Attachment | null>
+  findByExpense(expenseId: number): Promise<Attachment[]>
+  findByGroup(groupId: number): Promise<Attachment[]>
+  delete(id: number): Promise<void>
+}
+
 export interface AppRepositories {
   groups: GroupRepository
   expenses: ExpenseRepository
   personal: PersonalRepository
   settlements: SettlementRepository
+  attachments: AttachmentRepository
 }

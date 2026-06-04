@@ -10,7 +10,9 @@ import {
   updateGroupMember,
 } from '@/lib/actions/groups'
 import { deleteExpense, getGroupExpenses } from '@/lib/actions/expenses'
+import { deleteAttachment } from '@/lib/actions/attachments'
 import { GroupDashboard } from '@/components/groups/group-dashboard'
+import { getBackend } from '@/lib/backend/runtime'
 import type { Metadata } from 'next'
 
 interface Props {
@@ -28,7 +30,8 @@ export default async function GroupPage({ params }: Props) {
   const group = await getGroupByToken(token)
   if (!group) notFound()
 
-  const expenses = await getGroupExpenses(group.id)
+  const [expenses] = await Promise.all([getGroupExpenses(group.id)])
+  const storageEnabled = getBackend().storage.isEnabled()
 
   return (
     <GroupDashboard
@@ -36,10 +39,12 @@ export default async function GroupPage({ params }: Props) {
       expenses={expenses}
       addMemberAction={addGroupMember}
       deleteExpenseAction={deleteExpense}
+      deleteAttachmentAction={deleteAttachment.bind(null, token)}
       renameGroupAction={renameGroup}
       deleteGroupAction={deleteGroup}
       updateMemberAction={updateGroupMember}
       removeMemberAction={removeGroupMember}
+      storageEnabled={storageEnabled}
     />
   )
 }

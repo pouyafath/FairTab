@@ -4,6 +4,7 @@ import { createBackendServices } from '@/lib/backend/services'
 import type { BackendServices } from '@/lib/backend/services'
 import type { GroupMember } from '@/types'
 import { createInMemoryRepositories } from '../support/in-memory-repositories'
+import { createInMemoryStorage } from '../support/in-memory-storage'
 
 const fixedNow = new Date('2026-05-29T10:00:00.000Z')
 
@@ -13,6 +14,7 @@ function createTestBackend() {
     repositories,
     createId: () => 'group123',
     now: () => fixedNow,
+    storage: createInMemoryStorage(),
   })
 
   return { backend, state }
