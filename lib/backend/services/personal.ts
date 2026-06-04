@@ -21,6 +21,7 @@ export function createPersonalService({ repositories, now }: BackendServiceDeps)
         category: data.category ?? null,
         note: data.note ?? null,
         accountLabel: data.accountLabel ?? null,
+        sourceRuleId: null,
         createdAt: now(),
       })
 

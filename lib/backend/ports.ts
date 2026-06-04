@@ -6,6 +6,8 @@ import type {
   GroupWithMembers,
   PersonalTransaction,
   RawExpenseData,
+  RecurringFrequency,
+  RecurringRule,
   Settlement,
   SplitMethod,
   TransactionType,
@@ -70,6 +72,7 @@ export interface CreatePersonalTransactionRecord {
   category: string | null
   note: string | null
   accountLabel: string | null
+  sourceRuleId: number | null
   createdAt: Date
 }
 
@@ -100,6 +103,33 @@ export interface RecordPaidSettlementInput {
   toMemberId: number
   amount: number
   paidAt: Date
+}
+
+export interface CreateRecurringRuleRecord {
+  type: TransactionType
+  title: string
+  amount: number
+  currency: string
+  category: string | null
+  note: string | null
+  accountLabel: string | null
+  frequency: RecurringFrequency
+  intervalCount: number
+  nextRunDate: Date
+  createdAt: Date
+}
+
+export interface UpdateRecurringRuleRecord {
+  type: TransactionType
+  title: string
+  amount: number
+  currency: string
+  category: string | null
+  note: string | null
+  accountLabel: string | null
+  frequency: RecurringFrequency
+  intervalCount: number
+  nextRunDate: Date
 }
 
 export interface GroupRepository {
@@ -136,9 +166,20 @@ export interface SettlementRepository {
   undo(settlementId: number): Promise<void>
 }
 
+export interface RecurringRepository {
+  create(input: CreateRecurringRuleRecord): Promise<RecurringRule>
+  findAll(): Promise<RecurringRule[]>
+  findDue(asOf: Date): Promise<RecurringRule[]>
+  update(id: number, input: UpdateRecurringRuleRecord): Promise<RecurringRule>
+  toggle(id: number, active: boolean): Promise<RecurringRule>
+  advance(id: number, nextRunDate: Date, lastRunDate: Date): Promise<void>
+  delete(id: number): Promise<void>
+}
+
 export interface AppRepositories {
   groups: GroupRepository
   expenses: ExpenseRepository
   personal: PersonalRepository
   settlements: SettlementRepository
+  recurring: RecurringRepository
 }

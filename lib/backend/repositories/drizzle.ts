@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, lte } from 'drizzle-orm'
 import type { AppDb } from '@/lib/db'
 import {
   expenseParticipants,
@@ -8,6 +8,7 @@ import {
   groupMembers,
   groups,
   personalTransactions,
+  recurringRules,
   settlements,
 } from '@/lib/db/schema'
 import type {
@@ -15,10 +16,12 @@ import type {
   CreateExpenseRecord,
   CreateGroupRecord,
   CreatePersonalTransactionRecord,
+  CreateRecurringRuleRecord,
   UpdateExpenseRecord,
   UpdateGroupRecord,
   UpdateMemberRecord,
   UpdatePersonalTransactionRecord,
+  UpdateRecurringRuleRecord,
 } from '@/lib/backend/ports'
 import type {
   Expense,
@@ -28,6 +31,7 @@ import type {
   GroupMember,
   GroupWithMembers,
   PersonalTransaction,
+  RecurringRule,
   Settlement,
 } from '@/types'
 
@@ -62,7 +66,17 @@ function serializePersonalTransaction(
 ): PersonalTransaction {
   return {
     ...row,
+    sourceRuleId: row.sourceRuleId ?? null,
     date: toEpochMs(row.date),
+    createdAt: toEpochMs(row.createdAt),
+  }
+}
+
+function serializeRecurringRule(row: typeof recurringRules.$inferSelect): RecurringRule {
+  return {
+    ...row,
+    nextRunDate: toEpochMs(row.nextRunDate),
+    lastRunDate: row.lastRunDate ? toEpochMs(row.lastRunDate) : null,
     createdAt: toEpochMs(row.createdAt),
   }
 }
@@ -346,6 +360,69 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
 
       async undo(settlementId: number): Promise<void> {
         await db.delete(settlements).where(eq(settlements.id, settlementId))
+      },
+    },
+
+    recurring: {
+      async create(input: CreateRecurringRuleRecord): Promise<RecurringRule> {
+        const [rule] = await db.insert(recurringRules).values(input).returning()
+        return serializeRecurringRule(rule)
+      },
+
+      async findAll(): Promise<RecurringRule[]> {
+        const rows = await db
+          .select()
+          .from(recurringRules)
+          .orderBy(desc(recurringRules.createdAt))
+        return rows.map(serializeRecurringRule)
+      },
+
+      async findDue(asOf: Date): Promise<RecurringRule[]> {
+        const rows = await db
+          .select()
+          .from(recurringRules)
+          .where(and(eq(recurringRules.active, true), lte(recurringRules.nextRunDate, asOf)))
+        return rows.map(serializeRecurringRule)
+      },
+
+      async update(id: number, input: UpdateRecurringRuleRecord): Promise<RecurringRule> {
+        const [rule] = await db
+          .update(recurringRules)
+          .set({
+            type: input.type,
+            title: input.title,
+            amount: input.amount,
+            currency: input.currency,
+            category: input.category,
+            note: input.note,
+            accountLabel: input.accountLabel,
+            frequency: input.frequency,
+            intervalCount: input.intervalCount,
+            nextRunDate: input.nextRunDate,
+          })
+          .where(eq(recurringRules.id, id))
+          .returning()
+        return serializeRecurringRule(rule)
+      },
+
+      async toggle(id: number, active: boolean): Promise<RecurringRule> {
+        const [rule] = await db
+          .update(recurringRules)
+          .set({ active })
+          .where(eq(recurringRules.id, id))
+          .returning()
+        return serializeRecurringRule(rule)
+      },
+
+      async advance(id: number, nextRunDate: Date, lastRunDate: Date): Promise<void> {
+        await db
+          .update(recurringRules)
+          .set({ nextRunDate, lastRunDate })
+          .where(eq(recurringRules.id, id))
+      },
+
+      async delete(id: number): Promise<void> {
+        await db.delete(recurringRules).where(eq(recurringRules.id, id))
       },
     },
   }

@@ -2,7 +2,7 @@
 
 import { useTransition } from 'react'
 import Link from 'next/link'
-import { Pencil, Trash2, TrendingUp, TrendingDown } from 'lucide-react'
+import { Pencil, Trash2, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency, formatDate } from '@/lib/formatting'
@@ -57,8 +57,14 @@ export function TransactionList({ transactions, deleteTransactionAction }: Props
             </div>
             <div className="min-w-0">
               <p className="font-medium text-sm truncate">{t.title}</p>
-              <div className="flex items-center gap-2 mt-0.5">
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                 <span className="text-xs text-muted-foreground">{formatDate(t.date)}</span>
+                {t.sourceRuleId !== null && (
+                  <Badge variant="secondary" className="text-xs py-0 gap-1">
+                    <RefreshCw className="h-2.5 w-2.5" />
+                    recurring
+                  </Badge>
+                )}
                 {t.category && (
                   <Badge variant="outline" className="text-xs py-0">
                     {t.category}

@@ -4,12 +4,14 @@ import type {
   CreateExpenseRecord,
   CreateGroupRecord,
   CreatePersonalTransactionRecord,
+  CreateRecurringRuleRecord,
   ExpenseParticipantRecord,
   RecordPaidSettlementInput,
   UpdateExpenseRecord,
   UpdateGroupRecord,
   UpdateMemberRecord,
   UpdatePersonalTransactionRecord,
+  UpdateRecurringRuleRecord,
 } from '@/lib/backend/ports'
 import type {
   Expense,
@@ -19,6 +21,7 @@ import type {
   GroupMember,
   GroupWithMembers,
   PersonalTransaction,
+  RecurringRule,
   Settlement,
 } from '@/types'
 
@@ -29,6 +32,7 @@ export interface InMemoryRepositoryState {
   expenseParticipants: ExpenseParticipant[]
   personalTransactions: PersonalTransaction[]
   settlements: Settlement[]
+  recurringRules: RecurringRule[]
 }
 
 interface Counters {
@@ -38,6 +42,7 @@ interface Counters {
   expenseParticipantId: number
   personalTransactionId: number
   settlementId: number
+  recurringRuleId: number
 }
 
 function byNewestDate<T extends { date: number }>(a: T, b: T) {
@@ -52,6 +57,7 @@ function createCounters(): Counters {
     expenseParticipantId: 1,
     personalTransactionId: 1,
     settlementId: 1,
+    recurringRuleId: 1,
   }
 }
 
@@ -76,6 +82,7 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
     expenseParticipants: initialState?.expenseParticipants ?? [],
     personalTransactions: initialState?.personalTransactions ?? [],
     settlements: initialState?.settlements ?? [],
+    recurringRules: initialState?.recurringRules ?? [],
   }
   const counters = createCounters()
 
@@ -271,6 +278,7 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
           category: input.category,
           note: input.note,
           accountLabel: input.accountLabel,
+          sourceRuleId: input.sourceRuleId,
           createdAt: input.createdAt.getTime(),
         }
         state.personalTransactions.push(tx)
@@ -325,6 +333,69 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
 
       async undo(settlementId: number): Promise<void> {
         state.settlements = state.settlements.filter((s) => s.id !== settlementId)
+      },
+    },
+
+    recurring: {
+      async create(input: CreateRecurringRuleRecord): Promise<RecurringRule> {
+        const rule: RecurringRule = {
+          id: counters.recurringRuleId++,
+          type: input.type,
+          title: input.title,
+          amount: input.amount,
+          currency: input.currency,
+          category: input.category,
+          note: input.note,
+          accountLabel: input.accountLabel,
+          frequency: input.frequency,
+          intervalCount: input.intervalCount,
+          nextRunDate: input.nextRunDate.getTime(),
+          lastRunDate: null,
+          active: true,
+          createdAt: input.createdAt.getTime(),
+        }
+        state.recurringRules.push(rule)
+        return rule
+      },
+
+      async findAll(): Promise<RecurringRule[]> {
+        return [...state.recurringRules].sort((a, b) => b.createdAt - a.createdAt)
+      },
+
+      async findDue(asOf: Date): Promise<RecurringRule[]> {
+        const asOfMs = asOf.getTime()
+        return state.recurringRules.filter((r) => r.active && r.nextRunDate <= asOfMs)
+      },
+
+      async update(id: number, input: UpdateRecurringRuleRecord): Promise<RecurringRule> {
+        const rule = state.recurringRules.find((r) => r.id === id)!
+        rule.type = input.type
+        rule.title = input.title
+        rule.amount = input.amount
+        rule.currency = input.currency
+        rule.category = input.category
+        rule.note = input.note
+        rule.accountLabel = input.accountLabel
+        rule.frequency = input.frequency
+        rule.intervalCount = input.intervalCount
+        rule.nextRunDate = input.nextRunDate.getTime()
+        return rule
+      },
+
+      async toggle(id: number, active: boolean): Promise<RecurringRule> {
+        const rule = state.recurringRules.find((r) => r.id === id)!
+        rule.active = active
+        return rule
+      },
+
+      async advance(id: number, nextRunDate: Date, lastRunDate: Date): Promise<void> {
+        const rule = state.recurringRules.find((r) => r.id === id)!
+        rule.nextRunDate = nextRunDate.getTime()
+        rule.lastRunDate = lastRunDate.getTime()
+      },
+
+      async delete(id: number): Promise<void> {
+        state.recurringRules = state.recurringRules.filter((r) => r.id !== id)
       },
     },
   }

@@ -2,6 +2,8 @@ export type SplitMethod = 'equal' | 'exact' | 'percentage' | 'shares'
 
 export type TransactionType = 'income' | 'expense'
 
+export type RecurringFrequency = 'weekly' | 'biweekly' | 'monthly' | 'yearly'
+
 export interface Group {
   id: number
   name: string
@@ -60,6 +62,24 @@ export interface PersonalTransaction {
   category: string | null
   note: string | null
   accountLabel: string | null
+  sourceRuleId: number | null
+  createdAt: number
+}
+
+export interface RecurringRule {
+  id: number
+  type: TransactionType
+  title: string
+  amount: number // cents
+  currency: string
+  category: string | null
+  note: string | null
+  accountLabel: string | null
+  frequency: RecurringFrequency
+  intervalCount: number
+  nextRunDate: number // epoch ms
+  lastRunDate: number | null // epoch ms
+  active: boolean
   createdAt: number
 }
 

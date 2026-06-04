@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Plus, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -16,11 +17,19 @@ import { SummaryCards } from './summary-cards'
 import { CategoryBreakdown } from './category-breakdown'
 import { SpendingTrend } from './spending-trend'
 import { TransactionList } from './transaction-list'
+import { RecurringRules } from './recurring-rules'
 import { calculatePersonalSummary } from '@/lib/calculations/personal'
 import { generateCSV } from '@/lib/calculations/export'
 import { formatMonth } from '@/lib/formatting'
-import type { PersonalTransaction, PersonalSummary } from '@/types'
+import type { PersonalTransaction, PersonalSummary, RecurringRule } from '@/types'
 import type { DeletePersonalTransactionAction } from '@/types/actions'
+import type {
+  addRecurringRule as AddRuleAction,
+  updateRecurringRule as UpdateRuleAction,
+  toggleRecurringRule as ToggleRuleAction,
+  deleteRecurringRule as DeleteRuleAction,
+  runRecurringAction as RunRecurringAction,
+} from '@/lib/actions/recurring'
 
 interface Props {
   transactions: PersonalTransaction[]
@@ -28,6 +37,12 @@ interface Props {
   currentYear: number
   currentMonth: number
   deleteTransactionAction: DeletePersonalTransactionAction
+  rules: RecurringRule[]
+  addRecurringRuleAction: typeof AddRuleAction
+  updateRecurringRuleAction: typeof UpdateRuleAction
+  toggleRecurringRuleAction: typeof ToggleRuleAction
+  deleteRecurringRuleAction: typeof DeleteRuleAction
+  runRecurringAction: typeof RunRecurringAction
 }
 
 function getMonthOptions() {
@@ -50,11 +65,26 @@ export function PersonalDashboard({
   currentYear,
   currentMonth,
   deleteTransactionAction,
+  rules,
+  addRecurringRuleAction,
+  updateRecurringRuleAction,
+  toggleRecurringRuleAction,
+  deleteRecurringRuleAction,
+  runRecurringAction,
 }: Props) {
+  const router = useRouter()
   const monthOptions = useMemo(() => getMonthOptions(), [])
   const [selectedKey, setSelectedKey] = useState(`${currentYear}-${currentMonth}`)
 
   const [selYear, selMonth] = selectedKey.split('-').map(Number)
+
+  // Materialize any overdue recurring transactions on first mount
+  useEffect(() => {
+    runRecurringAction().then((count) => {
+      if (count > 0) router.refresh()
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const summary = useMemo(
     () =>
@@ -131,6 +161,17 @@ export function PersonalDashboard({
 
       {/* Category breakdown */}
       {summary.byCategory.length > 0 && <CategoryBreakdown byCategory={summary.byCategory} />}
+
+      {/* Recurring rules */}
+      <div className="rounded-lg border p-4 bg-card">
+        <RecurringRules
+          rules={rules}
+          addAction={addRecurringRuleAction}
+          updateAction={updateRecurringRuleAction}
+          toggleAction={toggleRecurringRuleAction}
+          deleteAction={deleteRecurringRuleAction}
+        />
+      </div>
 
       {/* Transaction list */}
       <div>
