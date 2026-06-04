@@ -2,15 +2,12 @@
 'use strict'
 
 /**
- * Applies migrations/0001_initial.sql to the SQLite database.
- * Run this once after first deploy or after pulling a fresh clone:
- *   node scripts/migrate.js
- * or via npm:
- *   npm run db:migrate
+ * Applies all migrations/*.sql files in lexical order, skipping any that have
+ * already been recorded in the _migrations tracking table. Safe to run on every
+ * boot — already-applied files are no-ops.
  *
- * Safe to call on an existing database — if the table already exists
- * SQLite returns an error; wrap in a try/catch if running manually on
- * an existing DB (use npm run db:push for dev instead).
+ *   node scripts/migrate.js
+ *   npm run db:migrate
  */
 
 const Database = require('better-sqlite3')
@@ -18,7 +15,7 @@ const fs = require('fs')
 const path = require('path')
 
 const dbPath = process.env.DATABASE_URL ?? './fairtab.db'
-const sqlPath = path.join(__dirname, '..', 'migrations', '0001_initial.sql')
+const migrationsDir = path.join(__dirname, '..', 'migrations')
 
 console.log(`[fairtab] migrate: ${dbPath}`)
 
@@ -26,8 +23,43 @@ const db = new Database(dbPath)
 db.pragma('journal_mode = WAL')
 db.pragma('foreign_keys = ON')
 
-const sql = fs.readFileSync(sqlPath, 'utf8')
-db.exec(sql)
-db.close()
+// Bootstrap the tracking table (runs once ever, idempotent thereafter).
+db.exec(`
+  CREATE TABLE IF NOT EXISTS _migrations (
+    name       TEXT PRIMARY KEY,
+    applied_at INTEGER NOT NULL
+  )
+`)
 
-console.log('[fairtab] migration complete')
+const applied = new Set(
+  db.prepare('SELECT name FROM _migrations').all().map(r => r.name)
+)
+
+const files = fs
+  .readdirSync(migrationsDir)
+  .filter(f => f.endsWith('.sql'))
+  .sort()
+
+const insertMigration = db.prepare(
+  'INSERT INTO _migrations (name, applied_at) VALUES (?, ?)'
+)
+
+const runMigration = db.transaction((name, sql) => {
+  db.exec(sql)
+  insertMigration.run(name, Date.now())
+})
+
+let count = 0
+for (const file of files) {
+  if (applied.has(file)) {
+    console.log(`[fairtab]   skip  ${file}`)
+    continue
+  }
+  console.log(`[fairtab]   apply ${file}`)
+  const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8')
+  runMigration(file, sql)
+  count++
+}
+
+db.close()
+console.log(`[fairtab] migration complete (${count} applied, ${applied.size} skipped)`)
