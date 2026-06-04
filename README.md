@@ -61,7 +61,8 @@ docker compose up -d
 
 App is live at **http://localhost:3000**. Data is in `./data/fairtab.db`.
 
-→ Full Ubuntu Server setup with Nginx + SSL + backups: [docs/self-hosting.md](docs/self-hosting.md)  
+→ Home-server setup, VPN, security, and backups: [pouyafath/Phomeserver](https://github.com/pouyafath/Phomeserver)
+
 → Docker details: [docs/docker.md](docs/docker.md)
 
 ---
@@ -71,12 +72,12 @@ App is live at **http://localhost:3000**. Data is in `./data/fairtab.db`.
 | Doc | Contents |
 |---|---|
 | [docs/development.md](docs/development.md) | Local setup, env vars, available scripts, dev workflow |
-| [docs/self-hosting.md](docs/self-hosting.md) | **Complete Ubuntu Server guide** — exact copy-paste commands |
 | [docs/docker.md](docs/docker.md) | Dockerfile, Compose, volumes, updating |
 | [docs/cloudflare.md](docs/cloudflare.md) | Cloudflare Pages + D1 deployment |
 | [docs/architecture.md](docs/architecture.md) | Tech stack, file structure, data flow, algorithms |
 | [docs/database.md](docs/database.md) | Schema, migrations, backup and restore |
 | [docs/contributing.md](docs/contributing.md) | How to contribute, commit style, PR process |
+| [pouyafath/Phomeserver](https://github.com/pouyafath/Phomeserver) | Home-server OS, VPN, security, monitoring, and host operations |
 
 ---
 

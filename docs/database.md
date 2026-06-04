@@ -137,9 +137,10 @@ cp ./data/fairtab.db ./data/fairtab-backup-$(date +%Y%m%d).db
 0 3 * * * cp ~/FairTab/data/fairtab.db ~/FairTab/data/backup-$(date +\%Y\%m\%d).db
 ```
 
-### Laptop sync (rsync)
+### Home-server backups
 
-See [docs/self-hosting.md — Step 9](self-hosting.md#step-9--laptop-backup-replica) for the full rsync + cron setup.
+Host-level backup schedules, off-site copies, and restore drills belong in the
+[Phomeserver backup guide](https://github.com/pouyafath/Phomeserver/blob/main/docs/backups.md).
 
 ---
 

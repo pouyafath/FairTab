@@ -170,21 +170,11 @@ docker compose up -d
 
 ---
 
-## Running Behind Nginx (Recommended for HTTPS)
+## Home-Server Operation
 
-See [docs/self-hosting.md](self-hosting.md#step-8--nginx-reverse-proxy--https-ssl) for the complete Nginx + Certbot + Let's Encrypt setup.
-
-Nginx config summary:
-
-```nginx
-location / {
-    proxy_pass         http://localhost:3000;
-    proxy_http_version 1.1;
-    proxy_set_header   Host $host;
-    proxy_set_header   X-Real-IP $remote_addr;
-    proxy_set_header   X-Forwarded-Proto $scheme;
-}
-```
+Host-level VPN, firewall, reverse proxy, TLS, monitoring, and backup configuration belongs in
+[pouyafath/Phomeserver](https://github.com/pouyafath/Phomeserver). This repository documents the
+FairTab container and application behavior only.
 
 ---
 
