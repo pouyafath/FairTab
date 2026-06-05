@@ -6,6 +6,21 @@ The same Drizzle schema works for both. No code changes needed between environme
 
 ---
 
+## Ownership and Access
+
+The current schema has no users, sessions, owners, or authorization tables.
+
+- A group is accessed by its random token.
+- Anyone with a group token can read and manage that group's data.
+- Personal transactions are shared across the entire deployment.
+- Browser-only settings such as recently visited groups and default currency are not stored in
+  this database.
+
+Use a private or trusted deployment for personal finance data. See
+[project-overview.md](project-overview.md#data-and-trust-model) for details.
+
+---
+
 ## Schema
 
 All monetary amounts are stored as **integer cents** (e.g. $24.50 → `2450`).
@@ -100,6 +115,10 @@ npm run db:push
 ### Production migration
 
 `migrations/0001_initial.sql` is the canonical SQLite-compatible schema. It is applied automatically on the first Docker container start by `scripts/migrate.js`.
+
+The current Docker entrypoint initializes a missing database only. It does not automatically
+apply later migrations to an existing database, so schema changes need an explicit migration
+plan before deployment.
 
 For Cloudflare D1:
 ```bash

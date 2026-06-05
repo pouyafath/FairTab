@@ -4,6 +4,17 @@ FairTab ships with a multi-stage `Dockerfile` and a `docker-compose.yml` for eas
 
 ---
 
+## Before You Deploy
+
+FairTab currently has no authentication or authorization. Anyone who can reach the instance can
+open the shared personal dashboard, and anyone with a group token can manage that group. Restrict
+network access or place FairTab behind an access-control layer when the deployment is not limited
+to trusted users.
+
+See [project-overview.md](project-overview.md#data-and-trust-model) for details.
+
+---
+
 ## Quick Start
 
 ```bash

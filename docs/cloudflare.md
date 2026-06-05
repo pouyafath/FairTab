@@ -1,6 +1,12 @@
 # Cloudflare Pages + D1 Deployment
 
-Deploy FairTab to Cloudflare Pages for free, zero-maintenance cloud hosting. Uses Cloudflare D1 (serverless SQLite) as the database.
+Deploy FairTab to Cloudflare Pages for managed cloud hosting. FairTab uses Cloudflare D1
+(serverless SQLite) as the database.
+
+> **Access warning:** FairTab currently has no authentication or per-user data isolation. Anyone
+> with a group token can manage that group, and anyone who can access `/personal` can view the
+> instance's personal transactions. Do not use a public deployment for sensitive personal data.
+> See [project-overview.md](project-overview.md#data-and-trust-model).
 
 ---
 
@@ -9,9 +15,9 @@ Deploy FairTab to Cloudflare Pages for free, zero-maintenance cloud hosting. Use
 | | |
 |---|---|
 | **Platform** | Cloudflare Pages (free tier) |
-| **Database** | Cloudflare D1 (serverless SQLite, free tier: 100k reads/day, 100k writes/day) |
+| **Database** | Cloudflare D1 (serverless SQLite) |
 | **Runtime** | Cloudflare Workers (Edge, Node.js compat) |
-| **CI/CD** | GitHub Actions (automated deploy on push to `main`) |
+| **CI/CD** | GitHub Actions deploys on pushes to `main` |
 
 ---
 
@@ -19,6 +25,7 @@ Deploy FairTab to Cloudflare Pages for free, zero-maintenance cloud hosting. Use
 
 - A Cloudflare account ([cloudflare.com](https://cloudflare.com)) — free
 - Cloudflare API token with Pages and D1 permissions
+- `wrangler` logged in locally for one-time setup
 - `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as GitHub Actions secrets
 
 ---
@@ -69,7 +76,7 @@ wrangler pages deploy .vercel/output/static --project-name=fairtab
 
 ### 5. Add GitHub Secrets
 
-In your GitHub repository → Settings → Secrets and variables → Actions:
+The deployment workflow uses GitHub repository secrets. Create these under Settings → Secrets and variables → Actions:
 
 | Secret | Value |
 |---|---|
@@ -81,9 +88,9 @@ In your GitHub repository → Settings → Secrets and variables → Actions:
 ## Automated Deployment
 
 After setup, every push to `main` automatically:
-1. Builds the app with `npm run pages:build`
-2. Applies D1 migrations
-3. Deploys to Cloudflare Pages
+1. Build the app with `npm run pages:build`
+2. Apply D1 migrations
+3. Deploy to Cloudflare Pages
 
 This is handled by `.github/workflows/deploy.yml`.
 
@@ -122,15 +129,14 @@ This starts the app at `http://localhost:8788` with a local D1 database. The loc
 
 ---
 
-## D1 Limits (Free Tier)
+## Platform Limits
 
-| Metric | Free limit |
-|---|---|
-| Reads per day | 5 million |
-| Writes per day | 100,000 |
-| Storage | 5 GB |
+Cloudflare limits and pricing can change. Check the official documentation before choosing this
+deployment model:
 
-These limits are very generous for a personal or small-team app.
+- [Cloudflare D1 limits](https://developers.cloudflare.com/d1/platform/limits/)
+- [Cloudflare Pages limits](https://developers.cloudflare.com/pages/platform/limits/)
+- [Cloudflare Pages Functions pricing](https://developers.cloudflare.com/pages/functions/pricing/)
 
 ---
 

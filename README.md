@@ -4,7 +4,23 @@
 
 FairTab is a free, open-source expense-splitting and personal finance app. Built for Canadians — CAD default, Interac e-Transfer messages built in. No subscriptions, no ads, no data selling, ever.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
+
+---
+
+## What FairTab Does
+
+FairTab combines two simple workflows in one application:
+
+- **Shared groups** for recording expenses, calculating balances, and suggesting who should pay whom
+- **Personal finance** for manually recording income and expenses, reviewing monthly summaries, and exporting transactions
+
+It does not connect to banks or process payments. FairTab is best suited to trusted groups and
+private or self-hosted personal use.
+
+> **Current access model:** FairTab has no authentication or user accounts. Anyone with a group
+> link can manage that group, and the personal dashboard is shared across the entire deployment.
+> Read [docs/project-overview.md](docs/project-overview.md) before using a public instance.
 
 ---
 
@@ -13,13 +29,29 @@ FairTab is a free, open-source expense-splitting and personal finance app. Built
 | Feature | Details |
 |---|---|
 | **Group expense splitting** | 4 split methods: equal, exact amounts, percentage, shares |
-| **Smart settlements** | Greedy minimum-transfer algorithm eliminates redundant payments |
-| **Interac e-Transfer** | One-click copy of a ready-to-send Interac message per settlement |
-| **Personal finance** | Log income and expenses, monthly summaries, category breakdowns |
+| **Group management** | Rename or delete groups, and edit or remove members without referenced expenses |
+| **Expense management** | Edit or delete group expenses after they are created |
+| **Smart settlements** | Inline suggestions, payment history, and undo support |
+| **Interac e-Transfer** | One-click copy of a ready-to-send settlement message |
+| **Personal finance** | Add, edit, and delete transactions; review monthly summaries and spending trends |
 | **CSV export** | Download all personal transactions at any time |
-| **No account needed** | Groups use a shareable token URL — no sign-up, no passwords |
+| **Default currency setting** | Pick a device-local default currency for new groups and transactions |
+| **No account needed** | Groups use a shareable token URL; recently visited groups stay in browser storage |
 | **Privacy-first** | No bank connections, no analytics, no data selling |
 | **PWA** | Installable on iOS and Android like a native app |
+
+---
+
+## How Group Splitting Works
+
+1. Create a group and choose its currency.
+2. Add members and share the group link or token.
+3. Record expenses, who paid, and how each expense should be split.
+4. Review balances and settlement suggestions.
+5. Settle outside FairTab using Interac e-Transfer, cash, or another payment method.
+
+All amounts are stored as integer cents. FairTab supports CAD, USD, EUR, and GBP, but does not
+perform currency conversion.
 
 ---
 
@@ -46,6 +78,8 @@ npm run db:push      # creates fairtab.db
 npm run dev          # http://localhost:3000
 ```
 
+FairTab targets Node.js 20+ and npm 10+. The repo includes `.nvmrc` for Node version managers.
+
 → Full guide: [docs/development.md](docs/development.md)
 
 ---
@@ -71,6 +105,7 @@ App is live at **http://localhost:3000**. Data is in `./data/fairtab.db`.
 
 | Doc | Contents |
 |---|---|
+| [docs/project-overview.md](docs/project-overview.md) | Product scope, supported workflows, data model, trust model, and constraints |
 | [docs/development.md](docs/development.md) | Local setup, env vars, available scripts, dev workflow |
 | [docs/docker.md](docs/docker.md) | Dockerfile, Compose, volumes, updating |
 | [docs/cloudflare.md](docs/cloudflare.md) | Cloudflare Pages + D1 deployment |
@@ -101,14 +136,14 @@ App is live at **http://localhost:3000**. Data is in `./data/fairtab.db`.
 ```
 app/                        Next.js App Router
   api/health/               Health-check endpoint (used by Docker HEALTHCHECK)
-  groups/[token]/           Group dashboard, add expense, settle up
-  personal/                 Personal finance dashboard
-  privacy/ settings/        Static pages
+  groups/[token]/           Group dashboard, group settings, expenses, settle up
+  personal/                 Personal dashboard and transaction forms
+  privacy/ settings/        Privacy policy and device-local settings
 components/
   ui/                       shadcn/ui base components
   layout/                   Site header and footer
-  groups/                   Group splitting components
-  expenses/                 Expense form with live split preview
+  groups/                   Dashboard, member list, group settings, settlements
+  expenses/                 Expense form/list with edit and delete flows
   personal/                 Personal finance components
 lib/
   actions/                  Thin Next.js Server Action adapters
@@ -165,7 +200,12 @@ npm run pages:build   # Build for Cloudflare Pages (next build + @cloudflare/nex
 
 ## Privacy
 
-FairTab never connects to your bank. Settlement is manual — we generate the Interac message, you send the money. No analytics, no ads, no data sold. See the [privacy page](/privacy) for the full policy.
+FairTab never connects to your bank. Settlement is manual — we generate the message, you send
+the money. No analytics, no ads, no data sold.
+
+Privacy does not mean access control in the current version: group links are shared secrets, and
+personal transactions are instance-wide until authentication is added. See
+[docs/project-overview.md](docs/project-overview.md#data-and-trust-model) for details.
 
 ---
 
@@ -177,7 +217,7 @@ Contributions are welcome! Please read [docs/contributing.md](docs/contributing.
 
 ## Roadmap
 
-- [ ] Group management (rename, archive, delete)
+- [ ] Group archiving
 - [ ] Receipt image attachments
 - [ ] Recurring expenses
 - [ ] PWA install prompt
@@ -189,7 +229,7 @@ Contributions are welcome! Please read [docs/contributing.md](docs/contributing.
 
 ## License
 
-[MIT](LICENSE) — free to use, modify, and self-host.
+MIT — free to use, modify, and self-host.
 
 ---
 

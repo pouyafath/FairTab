@@ -8,7 +8,8 @@ Thank you for considering a contribution! FairTab is a small, focused project â€
 
 - **Open an issue first** for any significant feature or architectural change. This saves time if the direction doesn't fit the project.
 - Bug fixes and small improvements can go straight to a PR.
-- The code style is enforced by TypeScript strict mode and ESLint. Run `npm run typecheck && npm run lint` before pushing.
+- Use Node.js 20+ and npm 10+. If you use a Node version manager, run `nvm use` from the repo root.
+- The code style is enforced by TypeScript strict mode and ESLint. Run `npm run typecheck`, `npm run lint`, `npm run test`, and `npm run build` before pushing.
 
 ---
 
@@ -19,6 +20,7 @@ See [docs/development.md](development.md) for the full setup guide.
 ```bash
 git clone https://github.com/pouyafath/FairTab.git
 cd FairTab
+nvm use   # optional, if you use nvm
 npm install
 cp .env.example .env.local
 npm run db:push
@@ -38,10 +40,10 @@ npm run dev
 3. **Make your changes** â€” keep them focused on one thing
 4. **Verify** everything still works:
    ```bash
-   npm run test        # must pass
    npm run typecheck   # must pass (zero errors)
-   npm run build       # must pass
    npm run lint        # fix any warnings
+   npm run test        # must pass
+   npm run build       # must pass
    ```
 5. **Commit** with a clear message (see style below)
 6. **Push** and open a Pull Request against `main`
