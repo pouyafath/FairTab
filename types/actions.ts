@@ -22,6 +22,11 @@ export type RenameGroupAction = (
 
 export type DeleteGroupAction = (groupId: number) => Promise<ActionResult<void>>
 
+export type ArchiveGroupAction = (
+  groupId: number,
+  archive: boolean
+) => Promise<ActionResult<Group>>
+
 export type AddGroupMemberAction = (
   groupId: number,
   formData: unknown

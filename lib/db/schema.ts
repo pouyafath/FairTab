@@ -5,6 +5,7 @@ export const groups = sqliteTable('groups', {
   name: text('name').notNull(),
   token: text('token').notNull().unique(),
   currency: text('currency').notNull().default('CAD'),
+  isArchived: integer('is_archived', { mode: 'boolean' }).notNull().default(false),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 })
 

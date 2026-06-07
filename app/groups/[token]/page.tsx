@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { notFound } from 'next/navigation'
 import {
   addGroupMember,
+  archiveGroup,
   deleteGroup,
   getGroupByToken,
   removeGroupMember,
@@ -38,6 +39,7 @@ export default async function GroupPage({ params }: Props) {
       deleteExpenseAction={deleteExpense}
       renameGroupAction={renameGroup}
       deleteGroupAction={deleteGroup}
+      archiveGroupAction={archiveGroup}
       updateMemberAction={updateGroupMember}
       removeMemberAction={removeGroupMember}
     />

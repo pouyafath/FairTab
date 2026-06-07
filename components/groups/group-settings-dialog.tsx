@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Settings } from 'lucide-react'
+import { Settings, Archive, ArchiveRestore } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -17,15 +17,16 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/components/ui/use-toast'
 import type { GroupWithMembers } from '@/types'
-import type { DeleteGroupAction, RenameGroupAction } from '@/types/actions'
+import type { ArchiveGroupAction, DeleteGroupAction, RenameGroupAction } from '@/types/actions'
 
 interface Props {
   group: GroupWithMembers
   renameGroupAction: RenameGroupAction
   deleteGroupAction: DeleteGroupAction
+  archiveGroupAction: ArchiveGroupAction
 }
 
-export function GroupSettingsDialog({ group, renameGroupAction, deleteGroupAction }: Props) {
+export function GroupSettingsDialog({ group, renameGroupAction, deleteGroupAction, archiveGroupAction }: Props) {
   const router = useRouter()
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
@@ -51,6 +52,25 @@ export function GroupSettingsDialog({ group, renameGroupAction, deleteGroupActio
         router.refresh()
       } else {
         toast({ title: 'Could not rename', description: result.error, variant: 'destructive' })
+      }
+    })
+  }
+
+  function handleArchiveToggle() {
+    startTransition(async () => {
+      const newState = !group.isArchived
+      const result = await archiveGroupAction(group.id, newState)
+      if (result.success) {
+        toast({
+          title: newState ? 'Group archived' : 'Group unarchived',
+          description: newState
+            ? 'This group has been moved to your archive.'
+            : 'This group is now active again.',
+        })
+        setOpen(false)
+        router.refresh()
+      } else {
+        toast({ title: 'Could not update', description: result.error, variant: 'destructive' })
       }
     })
   }
@@ -98,6 +118,36 @@ export function GroupSettingsDialog({ group, renameGroupAction, deleteGroupActio
                   {isPending ? 'Saving…' : 'Save name'}
                 </Button>
               </form>
+
+              <Separator />
+
+              {/* Archive section */}
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Archive</p>
+                <p className="text-sm text-muted-foreground">
+                  {group.isArchived
+                    ? 'This group is archived. Unarchive it to add new expenses.'
+                    : 'Archive this group to hide it from your recent groups list. You can unarchive it later.'}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleArchiveToggle}
+                  disabled={isPending}
+                >
+                  {group.isArchived ? (
+                    <>
+                      <ArchiveRestore className="h-4 w-4 mr-2" />
+                      {isPending ? 'Unarchiving…' : 'Unarchive group'}
+                    </>
+                  ) : (
+                    <>
+                      <Archive className="h-4 w-4 mr-2" />
+                      {isPending ? 'Archiving…' : 'Archive group'}
+                    </>
+                  )}
+                </Button>
+              </div>
 
               <Separator />
 

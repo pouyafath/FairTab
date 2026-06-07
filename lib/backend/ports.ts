@@ -74,7 +74,8 @@ export interface CreatePersonalTransactionRecord {
 }
 
 export interface UpdateGroupRecord {
-  name: string
+  name?: string
+  isArchived?: boolean
 }
 
 export interface UpdateMemberRecord {

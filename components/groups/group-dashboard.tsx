@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import Link from 'next/link'
-import { Plus, ArrowRightLeft, Copy, Users } from 'lucide-react'
+import { Plus, ArrowRightLeft, Copy, Users, Archive } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -17,6 +17,7 @@ import { useToast } from '@/components/ui/use-toast'
 import type { GroupWithMembers, ExpenseWithParticipants } from '@/types'
 import type {
   AddGroupMemberAction,
+  ArchiveGroupAction,
   DeleteExpenseAction,
   DeleteGroupAction,
   RemoveGroupMemberAction,
@@ -31,6 +32,7 @@ interface Props {
   deleteExpenseAction: DeleteExpenseAction
   renameGroupAction: RenameGroupAction
   deleteGroupAction: DeleteGroupAction
+  archiveGroupAction: ArchiveGroupAction
   updateMemberAction: UpdateGroupMemberAction
   removeMemberAction: RemoveGroupMemberAction
 }
@@ -42,6 +44,7 @@ export function GroupDashboard({
   deleteExpenseAction,
   renameGroupAction,
   deleteGroupAction,
+  archiveGroupAction,
   updateMemberAction,
   removeMemberAction,
 }: Props) {
@@ -53,8 +56,9 @@ export function GroupDashboard({
       name: group.name,
       visitedAt: Date.now(),
       currency: group.currency,
+      isArchived: group.isArchived,
     })
-  }, [group.token, group.name, group.currency])
+  }, [group.token, group.name, group.currency, group.isArchived])
 
   function copyGroupLink() {
     const url = `${window.location.origin}/groups/${group.token}`
@@ -71,6 +75,12 @@ export function GroupDashboard({
           <h1 className="text-2xl font-bold">{group.name}</h1>
           <div className="flex items-center gap-2 mt-1">
             <Badge variant="secondary">{group.currency}</Badge>
+            {group.isArchived && (
+              <Badge variant="outline" className="text-muted-foreground">
+                <Archive className="h-3 w-3 mr-1" />
+                Archived
+              </Badge>
+            )}
             <span className="text-sm text-muted-foreground">
               {group.members.length} member{group.members.length !== 1 ? 's' : ''}
             </span>
@@ -85,6 +95,7 @@ export function GroupDashboard({
             group={group}
             renameGroupAction={renameGroupAction}
             deleteGroupAction={deleteGroupAction}
+            archiveGroupAction={archiveGroupAction}
           />
           {group.members.length > 0 && (
             <AddMemberDialog groupId={group.id} addMemberAction={addMemberAction} />
@@ -111,20 +122,22 @@ export function GroupDashboard({
       ) : (
         <>
           {/* Action buttons */}
-          <div className="flex gap-3 flex-wrap">
-            <Button asChild>
-              <Link href={`/groups/${group.token}/expenses/new`}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Expense
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href={`/groups/${group.token}/settlements`}>
-                <ArrowRightLeft className="h-4 w-4 mr-2" />
-                Settle Up
-              </Link>
-            </Button>
-          </div>
+          {!group.isArchived && (
+            <div className="flex gap-3 flex-wrap">
+              <Button asChild>
+                <Link href={`/groups/${group.token}/expenses/new`}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Expense
+                </Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href={`/groups/${group.token}/settlements`}>
+                  <ArrowRightLeft className="h-4 w-4 mr-2" />
+                  Settle Up
+                </Link>
+              </Button>
+            </div>
+          )}
 
           {/* Members list */}
           <div>

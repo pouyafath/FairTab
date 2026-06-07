@@ -55,3 +55,12 @@ export async function removeGroupMember(
   if (result.success) revalidatePath('/groups')
   return result
 }
+
+export async function archiveGroup(
+  groupId: number,
+  archive: boolean
+): Promise<ActionResult<Group>> {
+  const result = await getBackend().groups.archiveGroup(groupId, archive)
+  if (result.success) revalidatePath('/groups')
+  return result
+}

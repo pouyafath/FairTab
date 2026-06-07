@@ -74,5 +74,10 @@ export function createGroupService({ repositories, createId, now }: BackendServi
       await repositories.groups.removeMember(memberId)
       return { success: true, data: undefined }
     },
+
+    async archiveGroup(groupId: number, archive: boolean): Promise<ActionResult<Group>> {
+      const group = await repositories.groups.update(groupId, { isArchived: archive })
+      return { success: true, data: group }
+    },
   }
 }
