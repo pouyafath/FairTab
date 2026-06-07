@@ -41,3 +41,5 @@ fairtab.db-wal
 
 # Docker data volume (self-hosted)
 data/
+
+.open-next

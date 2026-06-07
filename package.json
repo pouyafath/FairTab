@@ -17,10 +17,10 @@
     "db:studio": "drizzle-kit studio",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node scripts/migrate.js",
-    "pages:build": "next build && npx @cloudflare/next-on-pages@1"
+    "pages:build": "opennextjs-cloudflare build"
   },
   "dependencies": {
-    "@cloudflare/next-on-pages": "^1.13.16",
+    "@opennextjs/cloudflare": "latest",
     "better-sqlite3": "^12.10.0",
     "@radix-ui/react-alert-dialog": "^1.1.6",
     "@radix-ui/react-checkbox": "^1.1.4",
