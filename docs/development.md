@@ -39,8 +39,6 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-The repo includes `.npmrc` with `legacy-peer-deps=true` because `@cloudflare/next-on-pages@1.13.16` has not updated its peer range for Next.js 16 yet. Keep that install behavior until the Cloudflare adapter is upgraded or replaced during server/deployment work.
-
 Use a normal system Node.js/npm install for builds. Embedded Node runtimes without `npm` on `PATH` can run some direct binaries, but `next build` may still need npm while resolving the native SWC package.
 
 ---
@@ -59,7 +57,7 @@ Use a normal system Node.js/npm install for builds. Embedded Node runtimes witho
 | `npm run db:studio` | Open Drizzle Studio at [http://localhost:4983](http://localhost:4983) |
 | `npm run db:generate` | Generate SQL migration files from schema changes |
 | `npm run db:migrate` | Apply `migrations/0001_initial.sql` (used by Docker, not needed for dev) |
-| `npm run pages:build` | Build for Cloudflare Pages (`next build` + `@cloudflare/next-on-pages`) |
+| `npm run pages:build` | Build for Cloudflare Workers (`@opennextjs/cloudflare`) |
 
 ---
 
