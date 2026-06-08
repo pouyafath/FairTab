@@ -9,6 +9,7 @@ export const mockGroup: GroupWithMembers = {
   id: 1,
   name: 'Montreal Trip',
   token: 'trip1234',
+  isArchived: false,
   currency: 'CAD',
   createdAt: Date.UTC(2026, 4, 1, 12),
   members: [
