@@ -119,7 +119,12 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
 
       async update(groupId: number, input: UpdateGroupRecord): Promise<Group> {
         const group = state.groups.find((g) => g.id === groupId)!
-        group.name = input.name
+        if (input.name !== undefined) {
+          group.name = input.name
+        }
+        if (input.isArchived !== undefined) {
+          group.isArchived = input.isArchived
+        }
         return group
       },
 
