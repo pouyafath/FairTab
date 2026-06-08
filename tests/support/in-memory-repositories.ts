@@ -99,6 +99,7 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
           id: counters.groupId++,
           name: input.name,
           token: input.token,
+          isArchived: false,
           currency: input.currency,
           createdAt: input.createdAt.getTime(),
         }
