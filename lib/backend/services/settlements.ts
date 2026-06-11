@@ -1,6 +1,7 @@
 import { calculateMemberBalances, calculateSettlements } from '@/lib/calculations/balances'
 import type { ActionResult, MemberBalance, Settlement, SettlementSuggestion } from '@/types'
 import type { BackendServiceDeps } from './types'
+import { failure } from './result'
 
 export function createSettlementService({ repositories, now }: BackendServiceDeps) {
   return {
@@ -30,6 +31,13 @@ export function createSettlementService({ repositories, now }: BackendServiceDep
       toMemberId: number,
       amount: number
     ): Promise<ActionResult<void>> {
+      if (!Number.isInteger(amount) || amount <= 0) {
+        return failure<void>('Settlement amount must be a positive amount in cents')
+      }
+      if (fromMemberId === toMemberId) {
+        return failure<void>('A member cannot settle with themselves')
+      }
+
       await repositories.settlements.recordPaid({
         groupId,
         fromMemberId,

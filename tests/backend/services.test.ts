@@ -55,6 +55,7 @@ describe('backend services', () => {
         token: 'group123',
         currency: 'CAD',
         createdAt: fixedNow.getTime(),
+        isArchived: false,
       },
     })
 
@@ -507,6 +508,97 @@ describe('backend services', () => {
     await backend.settlements.undoSettlement(paid[0].id)
     const restored = await backend.settlements.getSettlementSuggestions(groupId)
     assert.equal(restored.length, 1)
+    assert.equal(state.settlements.length, 0)
+  })
+
+  it('archives and unarchives a group', async () => {
+    const { backend } = createTestBackend()
+    const { groupId } = await createGroupWithMembers(backend, ['Sarah'])
+
+    const archived = await backend.groups.archiveGroup(groupId, true)
+    assert.equal(archived.success, true)
+    if (archived.success) assert.equal(archived.data.isArchived, true)
+
+    const fetched = await backend.groups.getGroupByToken('group123')
+    assert.equal(fetched?.isArchived, true)
+
+    const unarchived = await backend.groups.archiveGroup(groupId, false)
+    assert.equal(unarchived.success, true)
+    if (unarchived.success) assert.equal(unarchived.data.isArchived, false)
+  })
+
+  it('rejects expenses with zero or negative amounts', async () => {
+    const { backend } = createTestBackend()
+    const { groupId, members } = await createGroupWithMembers(backend, ['Sarah', 'Mike'])
+
+    for (const amount of [0, -5000]) {
+      const result = await backend.expenses.addExpense(groupId, {
+        title: 'Bad amount',
+        amount,
+        currency: 'CAD',
+        paidById: members[0].id,
+        date: fixedNow.getTime(),
+        splitMethod: 'equal',
+        participants: members.map((member) => ({ memberId: member.id, shareValue: 1 })),
+      })
+      assert.equal(result.success, false)
+      if (!result.success) assert.match(result.error, /positive|greater than/i)
+    }
+  })
+
+  it('rejects personal transactions with zero or negative amounts', async () => {
+    const { backend } = createTestBackend()
+
+    for (const amount of [0, -100]) {
+      const result = await backend.personal.addPersonalTransaction({
+        type: 'expense',
+        title: 'Bad amount',
+        amount,
+        currency: 'CAD',
+        date: fixedNow.getTime(),
+      })
+      assert.equal(result.success, false)
+      if (!result.success) assert.match(result.error, /positive|greater than/i)
+    }
+  })
+
+  it('rejects invalid settlement payments', async () => {
+    const { backend, state } = createTestBackend()
+    const { members } = await createGroupWithMembers(backend, ['Sarah', 'Mike'])
+    const groupId = 1
+
+    const zero = await backend.settlements.markSettlementPaid(
+      groupId,
+      members[0].id,
+      members[1].id,
+      0
+    )
+    assert.equal(zero.success, false)
+
+    const negative = await backend.settlements.markSettlementPaid(
+      groupId,
+      members[0].id,
+      members[1].id,
+      -500
+    )
+    assert.equal(negative.success, false)
+
+    const fractional = await backend.settlements.markSettlementPaid(
+      groupId,
+      members[0].id,
+      members[1].id,
+      12.5
+    )
+    assert.equal(fractional.success, false)
+
+    const selfPay = await backend.settlements.markSettlementPaid(
+      groupId,
+      members[0].id,
+      members[0].id,
+      1000
+    )
+    assert.equal(selfPay.success, false)
+
     assert.equal(state.settlements.length, 0)
   })
 })

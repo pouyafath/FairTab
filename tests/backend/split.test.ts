@@ -16,6 +16,25 @@ describe('split calculations', () => {
     )
   })
 
+  it('distributes multiple remainder cents to the earliest participants', () => {
+    const four = [
+      { memberId: 1, shareValue: 1 },
+      { memberId: 2, shareValue: 1 },
+      { memberId: 3, shareValue: 1 },
+      { memberId: 4, shareValue: 1 },
+    ]
+
+    const shares = calculateSplits(10003, 'equal', four)
+    assert.deepEqual(
+      shares.map((share) => share.amountCents),
+      [2501, 2501, 2501, 2500]
+    )
+    assert.equal(
+      shares.reduce((sum, share) => sum + share.amountCents, 0),
+      10003
+    )
+  })
+
   it('accepts exact splits only when participant amounts match the total', () => {
     const shares = calculateSplits(7500, 'exact', [
       { memberId: 1, shareValue: 2500 },
@@ -52,6 +71,14 @@ describe('split calculations', () => {
         calculateSplits(10000, 'percentage', [
           { memberId: 1, shareValue: 60 },
           { memberId: 2, shareValue: 30 },
+        ]),
+      /Percentages must sum to 100/
+    )
+    assert.throws(
+      () =>
+        calculateSplits(10000, 'percentage', [
+          { memberId: 1, shareValue: 60 },
+          { memberId: 2, shareValue: 41 },
         ]),
       /Percentages must sum to 100/
     )

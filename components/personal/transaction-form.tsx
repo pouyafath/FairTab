@@ -19,7 +19,7 @@ import {
   PERSONAL_INCOME_CATEGORIES,
   PERSONAL_EXPENSE_CATEGORIES,
 } from '@/lib/constants'
-import { readDefaultCurrency } from '@/lib/settings'
+import { useDefaultCurrency } from '@/lib/settings'
 import type { PersonalTransaction, TransactionType } from '@/types'
 import type { AddPersonalTransactionAction, UpdatePersonalTransactionAction } from '@/types/actions'
 
@@ -40,7 +40,11 @@ export function TransactionForm({ addTransactionAction, updateTransactionAction,
   const [amountStr, setAmountStr] = useState(
     transaction ? (transaction.amount / 100).toFixed(2) : ''
   )
-  const [currency, setCurrency] = useState(transaction?.currency ?? readDefaultCurrency())
+  const defaultCurrency = useDefaultCurrency()
+  // null = user has not picked one; follow the transaction's currency when
+  // editing, otherwise the stored default
+  const [currencyOverride, setCurrencyOverride] = useState<string | null>(null)
+  const currency = currencyOverride ?? transaction?.currency ?? defaultCurrency
   const [date, setDate] = useState(
     transaction
       ? new Date(transaction.date).toISOString().split('T')[0]
@@ -139,7 +143,7 @@ export function TransactionForm({ addTransactionAction, updateTransactionAction,
         </div>
         <div className="space-y-2">
           <Label>Currency</Label>
-          <Select value={currency} onValueChange={setCurrency}>
+          <Select value={currency} onValueChange={setCurrencyOverride}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>

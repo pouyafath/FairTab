@@ -6,16 +6,18 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/use-toast'
 import { CURRENCIES } from '@/lib/constants'
-import { DEFAULT_CURRENCY_KEY, readDefaultCurrency } from '@/lib/settings'
+import { useDefaultCurrency, writeDefaultCurrency } from '@/lib/settings'
 
 export default function SettingsPage() {
   const { toast } = useToast()
-  const [currency, setCurrency] = useState(readDefaultCurrency)
-  const [saved, setSaved] = useState(readDefaultCurrency)
+  const saved = useDefaultCurrency()
+  // null = no unsaved selection; the stored value is the source of truth
+  const [selection, setSelection] = useState<string | null>(null)
+  const currency = selection ?? saved
 
   function handleSave() {
-    localStorage.setItem(DEFAULT_CURRENCY_KEY, currency)
-    setSaved(currency)
+    writeDefaultCurrency(currency)
+    setSelection(null)
     toast({ title: 'Settings saved', description: `Default currency set to ${currency}` })
   }
 
@@ -36,7 +38,7 @@ export default function SettingsPage() {
               <button
                 key={c}
                 type="button"
-                onClick={() => setCurrency(c)}
+                onClick={() => setSelection(c)}
                 className={`flex items-center justify-between rounded-md border px-4 py-3 text-sm font-medium transition-colors ${
                   currency === c
                     ? 'border-primary bg-primary/5 text-primary'
