@@ -6,10 +6,25 @@ FairTab ships with a multi-stage `Dockerfile` and a `docker-compose.yml` for eas
 
 ## Before You Deploy
 
-FairTab currently has no authentication or authorization. Anyone who can reach the instance can
-open the shared personal dashboard, and anyone with a group token can manage that group. Restrict
-network access or place FairTab behind an access-control layer when the deployment is not limited
-to trusted users.
+FairTab has no user accounts. Anyone who can reach the instance can open the shared personal
+dashboard, and anyone with a group token can manage that group. For trusted-LAN use that is the
+point; for anything else, enable the built-in access gate and/or restrict network access.
+
+### Access gate (optional)
+
+Set `APP_ACCESS_PIN` (in `.env` next to `docker-compose.yml`, or directly in the compose file)
+to require a PIN once per browser:
+
+```bash
+echo 'APP_ACCESS_PIN=a-long-passphrase-not-1234' >> .env
+docker compose up -d
+```
+
+- Every page and API route redirects to `/unlock` (or returns 401) until the PIN is entered;
+  the resulting cookie lasts 30 days.
+- `/api/health` stays open so Docker healthchecks and uptime monitors keep working.
+- Changing the PIN invalidates all existing sessions. Unsetting it disables the gate.
+- Enable this **before** exposing the instance to the internet, and serve it over HTTPS.
 
 See [project-overview.md](project-overview.md#data-and-trust-model) for details.
 
