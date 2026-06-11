@@ -19,12 +19,12 @@ import { useToast } from '@/components/ui/use-toast'
 import type { AddGroupMemberAction } from '@/types/actions'
 
 interface Props {
-  groupId: number
+  groupToken: string
   addMemberAction: AddGroupMemberAction
   onMemberAdded?: () => void
 }
 
-export function AddMemberDialog({ groupId, addMemberAction, onMemberAdded }: Props) {
+export function AddMemberDialog({ groupToken, addMemberAction, onMemberAdded }: Props) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -34,24 +34,23 @@ export function AddMemberDialog({ groupId, addMemberAction, onMemberAdded }: Pro
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (isPending) return
     setError(null)
     setIsPending(true)
     const memberName = name
-    const memberEmail = email
-    setOpen(false)
 
     try {
-      const result = await addMemberAction(groupId, {
+      const result = await addMemberAction(groupToken, {
         name: memberName,
-        email: memberEmail || undefined,
+        email: email || undefined,
       })
       if (result.success) {
         setName('')
         setEmail('')
+        setOpen(false)
         toast({ title: `${memberName} added to group` })
         onMemberAdded?.()
       } else {
-        setOpen(true)
         setError(result.error)
       }
     } finally {

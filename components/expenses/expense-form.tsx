@@ -30,7 +30,6 @@ import type { GroupMember, SplitMethod, ExpenseWithParticipants } from '@/types'
 import type { AddExpenseAction, UpdateExpenseAction } from '@/types/actions'
 
 interface Props {
-  groupId: number
   groupToken: string
   members: GroupMember[]
   defaultCurrency: string
@@ -44,7 +43,6 @@ function initialShareValue(p: { shareValue: number }, method: SplitMethod): stri
 }
 
 export function ExpenseForm({
-  groupId,
   groupToken,
   members,
   defaultCurrency,
@@ -184,9 +182,9 @@ export function ExpenseForm({
     startTransition(async () => {
       const result =
         isEdit && expense && updateExpenseAction
-          ? await updateExpenseAction(expense.id, payload)
+          ? await updateExpenseAction(groupToken, expense.id, payload)
           : addExpenseAction
-            ? await addExpenseAction(groupId, payload)
+            ? await addExpenseAction(groupToken, payload)
             : null
 
       if (!result) {

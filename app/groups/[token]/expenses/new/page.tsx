@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { notFound } from 'next/navigation'
-import { getGroupByToken } from '@/lib/actions/groups'
+import { getBackend } from '@/lib/backend/runtime'
 import { addExpense } from '@/lib/actions/expenses'
 import { ExpenseForm } from '@/components/expenses/expense-form'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -15,7 +15,7 @@ export const metadata: Metadata = { title: 'Add Expense' }
 
 export default async function NewExpensePage({ params }: Props) {
   const { token } = await params
-  const group = await getGroupByToken(token)
+  const group = await getBackend().groups.getGroupByToken(token)
   if (!group) notFound()
 
   if (group.members.length === 0) {
@@ -47,7 +47,6 @@ export default async function NewExpensePage({ params }: Props) {
         </CardHeader>
         <CardContent>
           <ExpenseForm
-            groupId={group.id}
             groupToken={group.token}
             members={group.members}
             defaultCurrency={group.currency}

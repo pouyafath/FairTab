@@ -2,7 +2,16 @@
 
 import { revalidatePath } from 'next/cache'
 import { getBackend } from '@/lib/backend/runtime'
-import type { ActionResult, Group, GroupMember, GroupWithMembers } from '@/types'
+import { findGroupForToken } from '@/lib/actions/authorize'
+import type { ActionResult, Group, GroupMember } from '@/types'
+
+const GROUP_NOT_FOUND = { success: false as const, error: 'Group not found' }
+const MEMBER_NOT_FOUND = { success: false as const, error: 'Member not found in this group' }
+
+function revalidateGroup(token: string) {
+  revalidatePath('/groups')
+  revalidatePath(`/groups/${token}`)
+}
 
 export async function createGroup(formData: unknown): Promise<ActionResult<Group>> {
   const result = await getBackend().groups.createGroup(formData)
@@ -10,57 +19,74 @@ export async function createGroup(formData: unknown): Promise<ActionResult<Group
   return result
 }
 
-export async function getGroupByToken(token: string): Promise<GroupWithMembers | null> {
-  return getBackend().groups.getGroupByToken(token)
-}
-
 export async function renameGroup(
-  groupId: number,
+  token: string,
   formData: unknown
 ): Promise<ActionResult<Group>> {
-  const result = await getBackend().groups.renameGroup(groupId, formData)
-  if (result.success) revalidatePath('/groups')
+  const group = await findGroupForToken(token)
+  if (!group) return GROUP_NOT_FOUND
+
+  const result = await getBackend().groups.renameGroup(group.id, formData)
+  if (result.success) revalidateGroup(token)
   return result
 }
 
-export async function deleteGroup(groupId: number): Promise<ActionResult<void>> {
-  const result = await getBackend().groups.deleteGroup(groupId)
-  if (result.success) revalidatePath('/groups')
+export async function deleteGroup(token: string): Promise<ActionResult<void>> {
+  const group = await findGroupForToken(token)
+  if (!group) return GROUP_NOT_FOUND
+
+  const result = await getBackend().groups.deleteGroup(group.id)
+  if (result.success) revalidateGroup(token)
   return result
 }
 
 export async function addGroupMember(
-  groupId: number,
+  token: string,
   formData: unknown
 ): Promise<ActionResult<GroupMember>> {
-  const result = await getBackend().groups.addGroupMember(groupId, formData)
-  if (result.success) revalidatePath('/groups')
+  const group = await findGroupForToken(token)
+  if (!group) return GROUP_NOT_FOUND
+
+  const result = await getBackend().groups.addGroupMember(group.id, formData)
+  if (result.success) revalidateGroup(token)
   return result
 }
 
 export async function updateGroupMember(
+  token: string,
   memberId: number,
   formData: unknown
 ): Promise<ActionResult<GroupMember>> {
+  const group = await findGroupForToken(token)
+  if (!group) return GROUP_NOT_FOUND
+  if (!group.members.some((member) => member.id === memberId)) return MEMBER_NOT_FOUND
+
   const result = await getBackend().groups.updateMember(memberId, formData)
-  if (result.success) revalidatePath('/groups')
+  if (result.success) revalidateGroup(token)
   return result
 }
 
 export async function removeGroupMember(
-  groupId: number,
+  token: string,
   memberId: number
 ): Promise<ActionResult<void>> {
-  const result = await getBackend().groups.removeMember(groupId, memberId)
-  if (result.success) revalidatePath('/groups')
+  const group = await findGroupForToken(token)
+  if (!group) return GROUP_NOT_FOUND
+  if (!group.members.some((member) => member.id === memberId)) return MEMBER_NOT_FOUND
+
+  const result = await getBackend().groups.removeMember(group.id, memberId)
+  if (result.success) revalidateGroup(token)
   return result
 }
 
 export async function archiveGroup(
-  groupId: number,
+  token: string,
   archive: boolean
 ): Promise<ActionResult<Group>> {
-  const result = await getBackend().groups.archiveGroup(groupId, archive)
-  if (result.success) revalidatePath('/groups')
+  const group = await findGroupForToken(token)
+  if (!group) return GROUP_NOT_FOUND
+
+  const result = await getBackend().groups.archiveGroup(group.id, archive)
+  if (result.success) revalidateGroup(token)
   return result
 }
