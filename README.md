@@ -217,10 +217,13 @@ Contributions are welcome! Please read [docs/contributing.md](docs/contributing.
 
 ## Roadmap
 
-- [ ] Group archiving
-- [ ] Receipt image attachments
-- [ ] Recurring expenses
-- [ ] PWA install prompt
+- [x] Group archiving
+- [x] Receipt image attachments (self-hosted/Docker; disabled on Cloudflare)
+- [x] Recurring transactions (rent, salary, subscriptions)
+- [x] Savings goals
+- [x] Backup & restore (portable JSON export from Settings)
+- [x] PWA install prompt
+- [x] Optional access gate (`APP_ACCESS_PIN` — site-wide PIN before going internet-facing)
 - [ ] Optional authentication (magic link)
 - [ ] Multi-currency conversion
 - [ ] PostgreSQL / Supabase support

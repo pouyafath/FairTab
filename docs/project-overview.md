@@ -84,6 +84,11 @@ Important consequences:
   authentication and access control are implemented.
 - FairTab never connects to a bank and never initiates payments.
 
+An optional **site-wide access gate** can lock the whole instance behind a shared PIN: set
+`APP_ACCESS_PIN` in the environment (see [docker.md](docker.md#access-gate-optional)). It gates
+every page and API route for the entire instance — it is not per-user authentication, but it is
+the recommended minimum before making a deployment reachable from the internet.
+
 ---
 
 ## Supported Currencies

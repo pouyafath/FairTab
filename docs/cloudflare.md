@@ -19,6 +19,14 @@ Deploy FairTab to Cloudflare Pages for managed cloud hosting. FairTab uses Cloud
 | **Runtime** | Cloudflare Workers (Edge, Node.js compat) |
 | **CI/CD** | GitHub Actions deploys on pushes to `main` |
 
+### Feature differences vs Docker self-hosting
+
+- **Receipt attachments are disabled** — there is no local filesystem on Workers; the upload
+  UI is hidden and the API returns `501`. Use the Docker deployment if you need receipts.
+- **Backup & restore work**, but D1 has no interactive transactions, so a mid-restore failure
+  can leave partial data — simply re-run the restore.
+- **Access gate works** — set `APP_ACCESS_PIN` in the Pages project's environment variables.
+
 ---
 
 ## Prerequisites
