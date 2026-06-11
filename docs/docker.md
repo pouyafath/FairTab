@@ -43,24 +43,25 @@ Stage 2 (runner):   node:20-alpine
   ├─ .next/standalone/      (minimal server + node_modules)
   ├─ .next/static/          (hashed CSS/JS assets)
   ├─ public/                (PWA icons, manifest, service worker)
-  ├─ migrations/            (SQL used on first start)
-  └─ scripts/migrate.js     (runs the SQL via better-sqlite3)
+  ├─ migrations/            (SQL applied by the migration runner)
+  └─ scripts/migrate.js     (idempotent runner via better-sqlite3)
 ```
 
 The final image is ~200 MB. `better-sqlite3` (a native module) is built inside the Alpine container so it works without any extra libraries in the runner stage.
 
-### First-Start Database Init
+### Database Migrations
 
-`docker-entrypoint.sh` runs before `node server.js`:
+`docker-entrypoint.sh` runs `node /app/scripts/migrate.js` on **every** container
+start, before `node server.js`. The runner is idempotent:
 
-```sh
-if [ ! -f "$DATABASE_URL" ]; then
-  node /app/scripts/migrate.js   # creates tables from migrations/0001_initial.sql
-fi
-exec node server.js
-```
+- Applied files are recorded in a `_migrations` table inside the database.
+- On each boot, every `migrations/*.sql` file is applied in lexical order,
+  skipping any already recorded — so upgrading the image automatically applies
+  new migrations exactly once.
+- Databases created before the `_migrations` table existed are detected and
+  baselined: the initial schema is recorded as applied without being re-run.
 
-On subsequent starts the database file exists, so the check is skipped instantly.
+No manual steps are needed when upgrading — pull the new image and restart.
 
 ### Database Location
 

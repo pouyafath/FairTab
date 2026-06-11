@@ -114,15 +114,15 @@ npm run db:push
 
 ### Production migration
 
-`migrations/0001_initial.sql` is the canonical SQLite-compatible schema. It is applied automatically on the first Docker container start by `scripts/migrate.js`.
+`migrations/*.sql` are the canonical SQLite-compatible schema files. On Docker,
+`scripts/migrate.js` runs on every container start: it records applied files in
+a `_migrations` table and applies any new ones in lexical order, so upgrades
+are automatic and idempotent. Pre-existing databases without migration history
+are baselined (the initial schema is recorded without being re-run).
 
-The current Docker entrypoint initializes a missing database only. It does not automatically
-apply later migrations to an existing database, so schema changes need an explicit migration
-plan before deployment.
-
-For Cloudflare D1:
+For Cloudflare D1, `wrangler` tracks applied migrations itself:
 ```bash
-wrangler d1 execute fairtab --remote --file=migrations/0001_initial.sql
+wrangler d1 migrations apply fairtab --remote
 ```
 
 ### Adding a new migration
@@ -130,9 +130,10 @@ wrangler d1 execute fairtab --remote --file=migrations/0001_initial.sql
 1. Edit `lib/db/schema.ts`
 2. Run `npm run db:generate` — creates a new file in `lib/db/migrations/`
 3. Convert it to a plain SQL file (replace `-->statement-breakpoint` with `;`)
-4. Add it as `migrations/0002_*.sql`
-5. Update `scripts/migrate.js` to also run the new file
-6. Update `.github/workflows/deploy.yml` to execute it against D1
+4. Add it as `migrations/000X_*.sql` (next free number; lexical order is the apply order)
+
+Nothing else: both the Docker entrypoint and `wrangler d1 migrations apply`
+discover new files automatically.
 
 ---
 

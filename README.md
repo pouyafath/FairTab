@@ -155,9 +155,9 @@ lib/
 types/                      Shared TypeScript types
 tests/                      Server-independent backend tests with in-memory repositories
 scripts/
-  migrate.js                Applies SQL migration (used by Docker entrypoint)
+  migrate.js                Idempotent migration runner (applies all migrations/*.sql once each)
 migrations/
-  0001_initial.sql          SQLite-compatible schema creation SQL
+  *.sql                     SQLite-compatible migrations, applied in lexical order
 public/
   manifest.json             PWA manifest
   sw.js                     Service worker
@@ -192,8 +192,8 @@ npm run lint          # ESLint
 npm run db:push       # Sync Drizzle schema → SQLite (dev only)
 npm run db:studio     # Open Drizzle Studio database browser
 npm run db:generate   # Generate Drizzle migration files
-npm run db:migrate    # Apply migrations/0001_initial.sql (used by Docker)
-npm run pages:build   # Build for Cloudflare Pages (next build + @cloudflare/next-on-pages)
+npm run db:migrate    # Apply pending migrations (idempotent; runs on every Docker boot)
+npm run pages:build   # Build for Cloudflare Workers (opennextjs-cloudflare)
 ```
 
 ---

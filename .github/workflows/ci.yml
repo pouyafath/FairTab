@@ -16,7 +16,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'npm'
 
       - name: Install dependencies
@@ -33,3 +33,15 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Catches Docker-only breakage (npm ci sync, native module compilation,
+      # standalone output copying) that the plain Node job cannot see.
+      - name: Build Docker image
+        run: docker build -t fairtab:ci .
