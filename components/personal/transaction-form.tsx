@@ -13,28 +13,42 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { addPersonalTransaction } from '@/lib/actions/personal'
-import { dollarsToCentsString } from '@/lib/formatting'
+import { dateInputToTimestamp, dollarsToCentsString } from '@/lib/formatting'
 import {
   CURRENCIES,
   PERSONAL_INCOME_CATEGORIES,
   PERSONAL_EXPENSE_CATEGORIES,
 } from '@/lib/constants'
-import type { TransactionType } from '@/types'
+import { readDefaultCurrency } from '@/lib/settings'
+import type { PersonalTransaction, TransactionType } from '@/types'
+import type { AddPersonalTransactionAction, UpdatePersonalTransactionAction } from '@/types/actions'
 
-export function TransactionForm() {
+interface Props {
+  addTransactionAction?: AddPersonalTransactionAction
+  updateTransactionAction?: UpdatePersonalTransactionAction
+  transaction?: PersonalTransaction
+}
+
+export function TransactionForm({ addTransactionAction, updateTransactionAction, transaction }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const isEdit = Boolean(transaction)
 
-  const [type, setType] = useState<TransactionType>('expense')
-  const [title, setTitle] = useState('')
-  const [amountStr, setAmountStr] = useState('')
-  const [currency, setCurrency] = useState('CAD')
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
-  const [category, setCategory] = useState('')
-  const [note, setNote] = useState('')
-  const [accountLabel, setAccountLabel] = useState('')
+  const [type, setType] = useState<TransactionType>(transaction?.type ?? 'expense')
+  const [title, setTitle] = useState(transaction?.title ?? '')
+  const [amountStr, setAmountStr] = useState(
+    transaction ? (transaction.amount / 100).toFixed(2) : ''
+  )
+  const [currency, setCurrency] = useState(transaction?.currency ?? readDefaultCurrency())
+  const [date, setDate] = useState(
+    transaction
+      ? new Date(transaction.date).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0]
+  )
+  const [category, setCategory] = useState(transaction?.category ?? '')
+  const [note, setNote] = useState(transaction?.note ?? '')
+  const [accountLabel, setAccountLabel] = useState(transaction?.accountLabel ?? '')
 
   const categories = type === 'income' ? PERSONAL_INCOME_CATEGORIES : PERSONAL_EXPENSE_CATEGORIES
 
@@ -48,17 +62,21 @@ export function TransactionForm() {
       return
     }
 
+    const payload = {
+      type,
+      title,
+      amount,
+      currency,
+      date: dateInputToTimestamp(date),
+      category: category || undefined,
+      note: note || undefined,
+      accountLabel: accountLabel || undefined,
+    }
+
     startTransition(async () => {
-      const result = await addPersonalTransaction({
-        type,
-        title,
-        amount,
-        currency,
-        date: new Date(date).getTime(),
-        category: category || undefined,
-        note: note || undefined,
-        accountLabel: accountLabel || undefined,
-      })
+      const result = isEdit && transaction && updateTransactionAction
+        ? await updateTransactionAction(transaction.id, payload)
+        : await addTransactionAction!(payload)
 
       if (result.success) {
         router.push('/personal')
@@ -193,7 +211,7 @@ export function TransactionForm() {
           Cancel
         </Button>
         <Button type="submit" disabled={isPending || !title || !amountStr} className="flex-1">
-          {isPending ? 'Saving…' : `Add ${type === 'income' ? 'Income' : 'Expense'}`}
+          {isPending ? 'Saving…' : isEdit ? 'Save Changes' : `Add ${type === 'income' ? 'Income' : 'Expense'}`}
         </Button>
       </div>
     </form>

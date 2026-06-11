@@ -5,6 +5,7 @@ import { Toaster } from '@/components/ui/toaster'
 import { SiteHeader } from '@/components/layout/site-header'
 import { SiteFooter } from '@/components/layout/site-footer'
 import { PWARegister } from '@/components/pwa-register'
+import { PWAInstallBanner } from '@/components/pwa-install-banner'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -50,6 +51,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </div>
         <Toaster />
         <PWARegister />
+        <PWAInstallBanner />
       </body>
     </html>
   )

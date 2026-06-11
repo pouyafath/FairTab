@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
+import { CheckCircle2 } from 'lucide-react'
 import { calculateMemberBalances } from '@/lib/calculations/balances'
 import { formatCurrency } from '@/lib/formatting'
 import type { GroupMember, ExpenseWithParticipants } from '@/types'
@@ -27,6 +28,7 @@ export function BalanceSummary({ members, expenses, currency = 'CAD' }: Props) {
   }, [members, expenses])
 
   const totalSpending = expenses.reduce((sum, e) => sum + e.amount, 0)
+  const allSettled = expenses.length > 0 && balances.every((b) => b.netBalance === 0)
 
   return (
     <Card>
@@ -39,6 +41,14 @@ export function BalanceSummary({ members, expenses, currency = 'CAD' }: Props) {
       <CardContent className="p-0">
         {balances.length === 0 ? (
           <p className="text-sm text-muted-foreground px-6 pb-4">No members yet.</p>
+        ) : allSettled ? (
+          <div className="flex items-center gap-3 px-6 py-4 text-green-600">
+            <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
+            <div>
+              <p className="font-medium text-sm">All settled up!</p>
+              <p className="text-xs text-muted-foreground">Everyone is even.</p>
+            </div>
+          </div>
         ) : (
           <div className="divide-y">
             {balances.map((b) => (

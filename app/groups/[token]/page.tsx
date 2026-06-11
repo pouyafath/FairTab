@@ -1,8 +1,16 @@
 export const dynamic = 'force-dynamic'
 
 import { notFound } from 'next/navigation'
-import { getGroupByToken } from '@/lib/actions/groups'
-import { getGroupExpenses } from '@/lib/actions/expenses'
+import {
+  addGroupMember,
+  archiveGroup,
+  deleteGroup,
+  getGroupByToken,
+  removeGroupMember,
+  renameGroup,
+  updateGroupMember,
+} from '@/lib/actions/groups'
+import { deleteExpense, getGroupExpenses } from '@/lib/actions/expenses'
 import { GroupDashboard } from '@/components/groups/group-dashboard'
 import type { Metadata } from 'next'
 
@@ -23,5 +31,17 @@ export default async function GroupPage({ params }: Props) {
 
   const expenses = await getGroupExpenses(group.id)
 
-  return <GroupDashboard group={group} expenses={expenses} />
+  return (
+    <GroupDashboard
+      group={group}
+      expenses={expenses}
+      addMemberAction={addGroupMember}
+      deleteExpenseAction={deleteExpense}
+      renameGroupAction={renameGroup}
+      deleteGroupAction={deleteGroup}
+      archiveGroupAction={archiveGroup}
+      updateMemberAction={updateGroupMember}
+      removeMemberAction={removeGroupMember}
+    />
+  )
 }

@@ -19,6 +19,11 @@ export function formatDate(value: Date | number): string {
   }).format(date)
 }
 
+export function dateInputToTimestamp(value: string): number {
+  const [year, month, day] = value.split('-').map(Number)
+  return new Date(year, month - 1, day, 12).getTime()
+}
+
 export function formatMonth(year: number, month: number): string {
   return new Intl.DateTimeFormat('en-CA', {
     year: 'numeric',
@@ -44,4 +49,16 @@ export function dollarsToCentsString(value: string): number {
   const n = parseFloat(value)
   if (isNaN(n)) return 0
   return Math.round(n * 100)
+}
+
+export function centsToInputString(cents: number): string {
+  return (cents / 100).toFixed(2)
+}
+
+export function timestampToDateInput(value: number): string {
+  const d = new Date(value)
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }

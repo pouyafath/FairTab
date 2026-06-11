@@ -3,7 +3,12 @@ export const dynamic = 'force-dynamic'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getGroupByToken } from '@/lib/actions/groups'
-import { getSettlementSuggestions } from '@/lib/actions/settlements'
+import {
+  getSettlementSuggestions,
+  getPaidSettlements,
+  markSettlementPaid,
+  undoSettlement,
+} from '@/lib/actions/settlements'
 import { SettlementsView } from '@/components/groups/settlements-view'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
@@ -20,7 +25,12 @@ export default async function SettlementsPage({ params }: Props) {
   const group = await getGroupByToken(token)
   if (!group) notFound()
 
-  const settlements = await getSettlementSuggestions(group.id)
+  const [suggestions, paidSettlements] = await Promise.all([
+    getSettlementSuggestions(group.id),
+    getPaidSettlements(group.id),
+  ])
+
+  const memberNames = Object.fromEntries(group.members.map((m) => [m.id, m.name]))
 
   return (
     <div className="container py-8 max-w-2xl">
@@ -37,10 +47,14 @@ export default async function SettlementsPage({ params }: Props) {
         Suggested settlements to balance the group. Use Interac e-Transfer or cash to pay.
       </p>
       <SettlementsView
-        settlements={settlements}
+        suggestions={suggestions}
+        paidSettlements={paidSettlements}
+        memberNames={memberNames}
         groupId={group.id}
         groupName={group.name}
         currency={group.currency}
+        markSettlementPaidAction={markSettlementPaid}
+        undoSettlementAction={undoSettlement}
       />
     </div>
   )

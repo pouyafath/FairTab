@@ -1,69 +1,66 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { getDb } from '@/lib/db'
-import { groups, groupMembers } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
-import { nanoid } from 'nanoid'
-import { createGroupSchema, addMemberSchema } from '@/lib/validations/group'
+import { getBackend } from '@/lib/backend/runtime'
 import type { ActionResult, Group, GroupMember, GroupWithMembers } from '@/types'
 
 export async function createGroup(formData: unknown): Promise<ActionResult<Group>> {
-  const db = getDb()
-  const parsed = createGroupSchema.safeParse(formData)
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input' }
-  }
-
-  const token = nanoid(8)
-  const now = new Date()
-
-  const [group] = await db
-    .insert(groups)
-    .values({ name: parsed.data.name, currency: parsed.data.currency, token, createdAt: now })
-    .returning()
-
-  revalidatePath('/groups')
-  return {
-    success: true,
-    data: { ...group, createdAt: group.createdAt.getTime() },
-  }
+  const result = await getBackend().groups.createGroup(formData)
+  if (result.success) revalidatePath('/groups')
+  return result
 }
 
 export async function getGroupByToken(token: string): Promise<GroupWithMembers | null> {
-  const db = getDb()
-  const group = await db.query.groups.findFirst({
-    where: eq(groups.token, token),
-    with: { members: true },
-  })
-  if (!group) return null
+  return getBackend().groups.getGroupByToken(token)
+}
 
-  return {
-    ...group,
-    createdAt: group.createdAt.getTime(),
-    members: group.members,
-  }
+export async function renameGroup(
+  groupId: number,
+  formData: unknown
+): Promise<ActionResult<Group>> {
+  const result = await getBackend().groups.renameGroup(groupId, formData)
+  if (result.success) revalidatePath('/groups')
+  return result
+}
+
+export async function deleteGroup(groupId: number): Promise<ActionResult<void>> {
+  const result = await getBackend().groups.deleteGroup(groupId)
+  if (result.success) revalidatePath('/groups')
+  return result
 }
 
 export async function addGroupMember(
   groupId: number,
   formData: unknown
 ): Promise<ActionResult<GroupMember>> {
-  const db = getDb()
-  const parsed = addMemberSchema.safeParse(formData)
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input' }
-  }
+  const result = await getBackend().groups.addGroupMember(groupId, formData)
+  if (result.success) revalidatePath('/groups')
+  return result
+}
 
-  const [member] = await db
-    .insert(groupMembers)
-    .values({
-      groupId,
-      name: parsed.data.name,
-      email: parsed.data.email || null,
-    })
-    .returning()
+export async function updateGroupMember(
+  memberId: number,
+  formData: unknown
+): Promise<ActionResult<GroupMember>> {
+  const result = await getBackend().groups.updateMember(memberId, formData)
+  if (result.success) revalidatePath('/groups')
+  return result
+}
 
-  revalidatePath(`/groups`)
-  return { success: true, data: member }
+export async function removeGroupMember(
+  groupId: number,
+  memberId: number
+): Promise<ActionResult<void>> {
+  const result = await getBackend().groups.removeMember(groupId, memberId)
+  if (result.success) revalidatePath('/groups')
+  return result
+}
+
+export async function archiveGroup(
+  groupId: number,
+  archive: boolean
+): Promise<ActionResult<Group>> {
+  const result = await getBackend().groups.archiveGroup(groupId, archive)
+  if (result.success) revalidatePath('/groups')
+  return result
 }

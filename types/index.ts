@@ -7,6 +7,7 @@ export interface Group {
   name: string
   token: string
   currency: string
+  isArchived: boolean
   createdAt: number
 }
 
@@ -96,3 +97,9 @@ export interface PersonalSummary {
 export type ActionResult<T> =
   | { success: true; data: T }
   | { success: false; error: string }
+
+export interface RawExpenseData {
+  paidById: number
+  totalAmount: number // cents
+  participantShares: { memberId: number; amountCents: number }[]
+}

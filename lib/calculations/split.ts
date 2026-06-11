@@ -78,7 +78,7 @@ function splitPercentage(totalCents: number, participants: ParticipantInput[]): 
   }))
 
   const sumBases = bases.reduce((a, b) => a + b, 0)
-  let remainder = totalCents - sumBases
+  const remainder = totalCents - sumBases
 
   rems.sort((a, b) => b.rem - a.rem)
   const adjustments = new Array(participants.length).fill(0)
@@ -108,7 +108,7 @@ function splitByShares(totalCents: number, participants: ParticipantInput[]): Pa
   }))
 
   const sumBases = bases.reduce((a, b) => a + b, 0)
-  let remainder = totalCents - sumBases
+  const remainder = totalCents - sumBases
 
   rems.sort((a, b) => b.rem - a.rem)
   const adjustments = new Array(participants.length).fill(0)

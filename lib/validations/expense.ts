@@ -11,7 +11,7 @@ export const addExpenseSchema = z.object({
   currency: z.enum(['CAD', 'USD', 'EUR', 'GBP']).default('CAD'),
   paidById: z.number().int().positive('Please select who paid'),
   date: z.number().int(),
-  category: z.string().optional(),
+  category: z.string().max(50).optional(),
   notes: z.string().max(500).optional(),
   splitMethod: z.enum(['equal', 'exact', 'percentage', 'shares']),
   participants: z.array(participantInputSchema).min(1, 'At least one participant required'),

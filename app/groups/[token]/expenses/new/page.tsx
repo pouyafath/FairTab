@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { notFound } from 'next/navigation'
 import { getGroupByToken } from '@/lib/actions/groups'
+import { addExpense } from '@/lib/actions/expenses'
 import { ExpenseForm } from '@/components/expenses/expense-form'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import type { Metadata } from 'next'
@@ -50,6 +51,7 @@ export default async function NewExpensePage({ params }: Props) {
             groupToken={group.token}
             members={group.members}
             defaultCurrency={group.currency}
+            addExpenseAction={addExpense}
           />
         </CardContent>
       </Card>

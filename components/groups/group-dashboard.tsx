@@ -2,22 +2,52 @@
 
 import { useEffect } from 'react'
 import Link from 'next/link'
-import { Plus, ArrowRightLeft, Share2, Copy } from 'lucide-react'
+import { Plus, ArrowRightLeft, Copy, Users, Archive } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 import { BalanceSummary } from '@/components/groups/balance-summary'
 import { AddMemberDialog } from '@/components/groups/add-member-dialog'
+import { GroupSettingsDialog } from '@/components/groups/group-settings-dialog'
+import { MemberList } from '@/components/groups/member-list'
+import { SettlementPreview } from '@/components/groups/settlement-preview'
 import { ExpenseList } from '@/components/expenses/expense-list'
 import { saveRecentGroup } from '@/components/groups/recent-groups'
 import { useToast } from '@/components/ui/use-toast'
 import type { GroupWithMembers, ExpenseWithParticipants } from '@/types'
+import type {
+  AddGroupMemberAction,
+  ArchiveGroupAction,
+  DeleteExpenseAction,
+  DeleteGroupAction,
+  RemoveGroupMemberAction,
+  RenameGroupAction,
+  UpdateGroupMemberAction,
+} from '@/types/actions'
 
 interface Props {
   group: GroupWithMembers
   expenses: ExpenseWithParticipants[]
+  addMemberAction: AddGroupMemberAction
+  deleteExpenseAction: DeleteExpenseAction
+  renameGroupAction: RenameGroupAction
+  deleteGroupAction: DeleteGroupAction
+  archiveGroupAction: ArchiveGroupAction
+  updateMemberAction: UpdateGroupMemberAction
+  removeMemberAction: RemoveGroupMemberAction
 }
 
-export function GroupDashboard({ group, expenses }: Props) {
+export function GroupDashboard({
+  group,
+  expenses,
+  addMemberAction,
+  deleteExpenseAction,
+  renameGroupAction,
+  deleteGroupAction,
+  archiveGroupAction,
+  updateMemberAction,
+  removeMemberAction,
+}: Props) {
   const { toast } = useToast()
 
   useEffect(() => {
@@ -26,8 +56,9 @@ export function GroupDashboard({ group, expenses }: Props) {
       name: group.name,
       visitedAt: Date.now(),
       currency: group.currency,
+      isArchived: group.isArchived,
     })
-  }, [group.token, group.name, group.currency])
+  }, [group.token, group.name, group.currency, group.isArchived])
 
   function copyGroupLink() {
     const url = `${window.location.origin}/groups/${group.token}`
@@ -44,6 +75,12 @@ export function GroupDashboard({ group, expenses }: Props) {
           <h1 className="text-2xl font-bold">{group.name}</h1>
           <div className="flex items-center gap-2 mt-1">
             <Badge variant="secondary">{group.currency}</Badge>
+            {group.isArchived && (
+              <Badge variant="outline" className="text-muted-foreground">
+                <Archive className="h-3 w-3 mr-1" />
+                Archived
+              </Badge>
+            )}
             <span className="text-sm text-muted-foreground">
               {group.members.length} member{group.members.length !== 1 ? 's' : ''}
             </span>
@@ -54,57 +91,95 @@ export function GroupDashboard({ group, expenses }: Props) {
             <Copy className="h-4 w-4 mr-2" />
             Copy Link
           </Button>
-          <AddMemberDialog groupId={group.id} />
+          <GroupSettingsDialog
+            group={group}
+            renameGroupAction={renameGroupAction}
+            deleteGroupAction={deleteGroupAction}
+            archiveGroupAction={archiveGroupAction}
+          />
+          {group.members.length > 0 && (
+            <AddMemberDialog groupId={group.id} addMemberAction={addMemberAction} />
+          )}
         </div>
       </div>
 
-      {/* Action buttons */}
-      <div className="flex gap-3 flex-wrap">
-        <Button asChild>
-          <Link href={`/groups/${group.token}/expenses/new`}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Expense
-          </Link>
-        </Button>
-        <Button variant="outline" asChild>
-          <Link href={`/groups/${group.token}/settlements`}>
-            <ArrowRightLeft className="h-4 w-4 mr-2" />
-            Settle Up
-          </Link>
-        </Button>
-      </div>
+      {group.members.length === 0 ? (
+        /* No-members onboarding */
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
+            <div className="rounded-full bg-muted p-4">
+              <Users className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="font-medium">Add members to get started</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Invite everyone in the group so you can track who paid what.
+              </p>
+            </div>
+            <AddMemberDialog groupId={group.id} addMemberAction={addMemberAction} />
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* Action buttons */}
+          {!group.isArchived && (
+            <div className="flex gap-3 flex-wrap">
+              <Button asChild>
+                <Link href={`/groups/${group.token}/expenses/new`}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Expense
+                </Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href={`/groups/${group.token}/settlements`}>
+                  <ArrowRightLeft className="h-4 w-4 mr-2" />
+                  Settle Up
+                </Link>
+              </Button>
+            </div>
+          )}
 
-      {/* Members list */}
-      {group.members.length > 0 && (
-        <div>
-          <h2 className="text-sm font-medium text-muted-foreground mb-2">Members</h2>
-          <div className="flex flex-wrap gap-2">
-            {group.members.map((m) => (
-              <Badge key={m.id} variant="outline">
-                {m.name}
-              </Badge>
-            ))}
+          {/* Members list */}
+          <div>
+            <h2 className="text-sm font-medium text-muted-foreground mb-2">Members</h2>
+            <MemberList
+              groupId={group.id}
+              members={group.members}
+              updateMemberAction={updateMemberAction}
+              removeMemberAction={removeMemberAction}
+            />
           </div>
-        </div>
-      )}
 
-      {/* Balance summary */}
-      {group.members.length > 0 && (
-        <BalanceSummary
-          members={group.members}
-          expenses={expenses}
-          currency={group.currency}
-        />
-      )}
+          {/* Balance summary */}
+          <BalanceSummary
+            members={group.members}
+            expenses={expenses}
+            currency={group.currency}
+          />
 
-      {/* Expense list */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold">Expenses</h2>
-          <span className="text-sm text-muted-foreground">{expenses.length} total</span>
-        </div>
-        <ExpenseList expenses={expenses} members={group.members} currency={group.currency} />
-      </div>
+          {/* Settlement suggestions */}
+          <SettlementPreview
+            members={group.members}
+            expenses={expenses}
+            currency={group.currency}
+            groupToken={group.token}
+          />
+
+          {/* Expense list */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold">Expenses</h2>
+              <span className="text-sm text-muted-foreground">{expenses.length} total</span>
+            </div>
+            <ExpenseList
+              expenses={expenses}
+              currency={group.currency}
+              groupToken={group.token}
+              deleteExpenseAction={deleteExpenseAction}
+            />
+          </div>
+        </>
+      )}
     </div>
   )
 }

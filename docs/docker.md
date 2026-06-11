@@ -4,6 +4,17 @@ FairTab ships with a multi-stage `Dockerfile` and a `docker-compose.yml` for eas
 
 ---
 
+## Before You Deploy
+
+FairTab currently has no authentication or authorization. Anyone who can reach the instance can
+open the shared personal dashboard, and anyone with a group token can manage that group. Restrict
+network access or place FairTab behind an access-control layer when the deployment is not limited
+to trusted users.
+
+See [project-overview.md](project-overview.md#data-and-trust-model) for details.
+
+---
+
 ## Quick Start
 
 ```bash
@@ -170,21 +181,11 @@ docker compose up -d
 
 ---
 
-## Running Behind Nginx (Recommended for HTTPS)
+## Home-Server Operation
 
-See [docs/self-hosting.md](self-hosting.md#step-8--nginx-reverse-proxy--https-ssl) for the complete Nginx + Certbot + Let's Encrypt setup.
-
-Nginx config summary:
-
-```nginx
-location / {
-    proxy_pass         http://localhost:3000;
-    proxy_http_version 1.1;
-    proxy_set_header   Host $host;
-    proxy_set_header   X-Real-IP $remote_addr;
-    proxy_set_header   X-Forwarded-Proto $scheme;
-}
-```
+Host-level VPN, firewall, reverse proxy, TLS, monitoring, and backup configuration belongs in
+[pouyafath/Phomeserver](https://github.com/pouyafath/Phomeserver). This repository documents the
+FairTab container and application behavior only.
 
 ---
 

@@ -6,6 +6,21 @@ The same Drizzle schema works for both. No code changes needed between environme
 
 ---
 
+## Ownership and Access
+
+The current schema has no users, sessions, owners, or authorization tables.
+
+- A group is accessed by its random token.
+- Anyone with a group token can read and manage that group's data.
+- Personal transactions are shared across the entire deployment.
+- Browser-only settings such as recently visited groups and default currency are not stored in
+  this database.
+
+Use a private or trusted deployment for personal finance data. See
+[project-overview.md](project-overview.md#data-and-trust-model) for details.
+
+---
+
 ## Schema
 
 All monetary amounts are stored as **integer cents** (e.g. $24.50 → `2450`).
@@ -101,6 +116,10 @@ npm run db:push
 
 `migrations/0001_initial.sql` is the canonical SQLite-compatible schema. It is applied automatically on the first Docker container start by `scripts/migrate.js`.
 
+The current Docker entrypoint initializes a missing database only. It does not automatically
+apply later migrations to an existing database, so schema changes need an explicit migration
+plan before deployment.
+
 For Cloudflare D1:
 ```bash
 wrangler d1 execute fairtab --remote --file=migrations/0001_initial.sql
@@ -137,9 +156,10 @@ cp ./data/fairtab.db ./data/fairtab-backup-$(date +%Y%m%d).db
 0 3 * * * cp ~/FairTab/data/fairtab.db ~/FairTab/data/backup-$(date +\%Y\%m\%d).db
 ```
 
-### Laptop sync (rsync)
+### Home-server backups
 
-See [docs/self-hosting.md — Step 9](self-hosting.md#step-9--laptop-backup-replica) for the full rsync + cron setup.
+Host-level backup schedules, off-site copies, and restore drills belong in the
+[Phomeserver backup guide](https://github.com/pouyafath/Phomeserver/blob/main/docs/backups.md).
 
 ---
 

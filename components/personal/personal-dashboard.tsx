@@ -14,17 +14,20 @@ import {
 } from '@/components/ui/select'
 import { SummaryCards } from './summary-cards'
 import { CategoryBreakdown } from './category-breakdown'
+import { SpendingTrend } from './spending-trend'
 import { TransactionList } from './transaction-list'
 import { calculatePersonalSummary } from '@/lib/calculations/personal'
 import { generateCSV } from '@/lib/calculations/export'
 import { formatMonth } from '@/lib/formatting'
 import type { PersonalTransaction, PersonalSummary } from '@/types'
+import type { DeletePersonalTransactionAction } from '@/types/actions'
 
 interface Props {
   transactions: PersonalTransaction[]
   currentSummary: PersonalSummary
   currentYear: number
   currentMonth: number
+  deleteTransactionAction: DeletePersonalTransactionAction
 }
 
 function getMonthOptions() {
@@ -46,6 +49,7 @@ export function PersonalDashboard({
   currentSummary,
   currentYear,
   currentMonth,
+  deleteTransactionAction,
 }: Props) {
   const monthOptions = useMemo(() => getMonthOptions(), [])
   const [selectedKey, setSelectedKey] = useState(`${currentYear}-${currentMonth}`)
@@ -57,7 +61,7 @@ export function PersonalDashboard({
       selYear === currentYear && selMonth === currentMonth
         ? currentSummary
         : calculatePersonalSummary(transactions, selYear, selMonth),
-    [selectedKey, transactions, currentSummary, currentYear, currentMonth]
+    [selYear, selMonth, transactions, currentSummary, currentYear, currentMonth]
   )
 
   const filteredTransactions = useMemo(
@@ -118,6 +122,13 @@ export function PersonalDashboard({
       {/* Summary cards */}
       <SummaryCards summary={summary} />
 
+      {/* Spending trend */}
+      <SpendingTrend
+        transactions={transactions}
+        selectedKey={selectedKey}
+        onSelect={setSelectedKey}
+      />
+
       {/* Category breakdown */}
       {summary.byCategory.length > 0 && <CategoryBreakdown byCategory={summary.byCategory} />}
 
@@ -135,13 +146,22 @@ export function PersonalDashboard({
             </TabsTrigger>
           </TabsList>
           <TabsContent value="all">
-            <TransactionList transactions={filteredTransactions} />
+            <TransactionList
+              transactions={filteredTransactions}
+              deleteTransactionAction={deleteTransactionAction}
+            />
           </TabsContent>
           <TabsContent value="income">
-            <TransactionList transactions={filteredTransactions.filter((t) => t.type === 'income')} />
+            <TransactionList
+              transactions={filteredTransactions.filter((t) => t.type === 'income')}
+              deleteTransactionAction={deleteTransactionAction}
+            />
           </TabsContent>
           <TabsContent value="expenses">
-            <TransactionList transactions={filteredTransactions.filter((t) => t.type === 'expense')} />
+            <TransactionList
+              transactions={filteredTransactions.filter((t) => t.type === 'expense')}
+              deleteTransactionAction={deleteTransactionAction}
+            />
           </TabsContent>
         </Tabs>
       </div>
