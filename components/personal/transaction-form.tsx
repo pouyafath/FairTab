@@ -23,6 +23,9 @@ import { useDefaultCurrency } from '@/lib/settings'
 import type { PersonalTransaction, TransactionType } from '@/types'
 import type { AddPersonalTransactionAction, UpdatePersonalTransactionAction } from '@/types/actions'
 
+// Sentinel for the "Custom…" select entry; never stored
+const CUSTOM_CATEGORY = '__custom__'
+
 interface Props {
   addTransactionAction?: AddPersonalTransactionAction
   updateTransactionAction?: UpdatePersonalTransactionAction
@@ -50,11 +53,18 @@ export function TransactionForm({ addTransactionAction, updateTransactionAction,
       ? new Date(transaction.date).toISOString().split('T')[0]
       : new Date().toISOString().split('T')[0]
   )
-  const [category, setCategory] = useState(transaction?.category ?? '')
+  const categories = type === 'income' ? PERSONAL_INCOME_CATEGORIES : PERSONAL_EXPENSE_CATEGORIES
+
+  const initialCategory = transaction?.category ?? ''
+  const initialIsCustom =
+    initialCategory !== '' && !(categories as readonly string[]).includes(initialCategory)
+  const [categoryChoice, setCategoryChoice] = useState(
+    initialIsCustom ? CUSTOM_CATEGORY : initialCategory
+  )
+  const [customCategory, setCustomCategory] = useState(initialIsCustom ? initialCategory : '')
+  const category = categoryChoice === CUSTOM_CATEGORY ? customCategory.trim() : categoryChoice
   const [note, setNote] = useState(transaction?.note ?? '')
   const [accountLabel, setAccountLabel] = useState(transaction?.accountLabel ?? '')
-
-  const categories = type === 'income' ? PERSONAL_INCOME_CATEGORIES : PERSONAL_EXPENSE_CATEGORIES
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -101,7 +111,7 @@ export function TransactionForm({ addTransactionAction, updateTransactionAction,
             <button
               key={t}
               type="button"
-              onClick={() => { setType(t); setCategory('') }}
+              onClick={() => { setType(t); setCategoryChoice(''); setCustomCategory('') }}
               className={`rounded-md border py-2.5 text-sm font-medium transition-colors capitalize ${
                 type === t
                   ? t === 'income'
@@ -170,7 +180,7 @@ export function TransactionForm({ addTransactionAction, updateTransactionAction,
 
       <div className="space-y-2">
         <Label>Category</Label>
-        <Select value={category} onValueChange={setCategory}>
+        <Select value={categoryChoice} onValueChange={setCategoryChoice}>
           <SelectTrigger>
             <SelectValue placeholder="Select category (optional)" />
           </SelectTrigger>
@@ -180,8 +190,18 @@ export function TransactionForm({ addTransactionAction, updateTransactionAction,
                 {c}
               </SelectItem>
             ))}
+            <SelectItem value={CUSTOM_CATEGORY}>Custom…</SelectItem>
           </SelectContent>
         </Select>
+        {categoryChoice === CUSTOM_CATEGORY && (
+          <Input
+            placeholder="Your category"
+            maxLength={50}
+            value={customCategory}
+            onChange={(e) => setCustomCategory(e.target.value)}
+            autoFocus
+          />
+        )}
       </div>
 
       <div className="space-y-2">

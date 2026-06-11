@@ -145,6 +145,9 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
         if (input.name !== undefined) {
           group.name = input.name
         }
+        if (input.currency !== undefined) {
+          group.currency = input.currency
+        }
         if (input.isArchived !== undefined) {
           group.isArchived = input.isArchived
         }

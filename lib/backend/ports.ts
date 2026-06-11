@@ -81,6 +81,7 @@ export interface CreatePersonalTransactionRecord {
 
 export interface UpdateGroupRecord {
   name?: string
+  currency?: string
   isArchived?: boolean
 }
 

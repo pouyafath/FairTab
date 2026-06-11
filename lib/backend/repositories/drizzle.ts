@@ -135,6 +135,7 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
       async update(groupId: number, input: UpdateGroupRecord): Promise<Group> {
         const setFields: Record<string, unknown> = {}
         if (input.name !== undefined) setFields.name = input.name
+        if (input.currency !== undefined) setFields.currency = input.currency
         if (input.isArchived !== undefined) setFields.isArchived = input.isArchived
         const [group] = await db
           .update(groups)

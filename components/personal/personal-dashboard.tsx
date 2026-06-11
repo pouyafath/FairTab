@@ -166,6 +166,23 @@ export function PersonalDashboard({
         </div>
       </div>
 
+      {/* First-run empty state */}
+      {transactions.length === 0 && (
+        <div className="rounded-lg border border-dashed p-8 text-center space-y-3">
+          <p className="font-medium">No transactions yet</p>
+          <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+            Add your first income or expense, or set up a recurring rule below so rent, salary,
+            and subscriptions record themselves every month.
+          </p>
+          <Button asChild size="sm">
+            <Link href="/personal/transactions/new">
+              <Plus className="h-4 w-4 mr-2" />
+              Add your first transaction
+            </Link>
+          </Button>
+        </div>
+      )}
+
       {/* Summary cards */}
       <SummaryCards summary={summary} />
 

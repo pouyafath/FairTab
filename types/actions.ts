@@ -19,7 +19,7 @@ export type UndoSettlementAction = (
 
 export type CreateGroupAction = (formData: unknown) => Promise<ActionResult<Group>>
 
-export type RenameGroupAction = (
+export type UpdateGroupAction = (
   token: string,
   formData: unknown
 ) => Promise<ActionResult<Group>>

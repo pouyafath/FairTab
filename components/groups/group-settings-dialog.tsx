@@ -14,44 +14,54 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/components/ui/use-toast'
+import { CURRENCIES } from '@/lib/constants'
 import type { GroupWithMembers } from '@/types'
-import type { ArchiveGroupAction, DeleteGroupAction, RenameGroupAction } from '@/types/actions'
+import type { ArchiveGroupAction, DeleteGroupAction, UpdateGroupAction } from '@/types/actions'
 
 interface Props {
   group: GroupWithMembers
-  renameGroupAction: RenameGroupAction
+  updateGroupAction: UpdateGroupAction
   deleteGroupAction: DeleteGroupAction
   archiveGroupAction: ArchiveGroupAction
 }
 
-export function GroupSettingsDialog({ group, renameGroupAction, deleteGroupAction, archiveGroupAction }: Props) {
+export function GroupSettingsDialog({ group, updateGroupAction, deleteGroupAction, archiveGroupAction }: Props) {
   const router = useRouter()
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
   const [view, setView] = useState<'settings' | 'confirmDelete'>('settings')
   const [name, setName] = useState(group.name)
+  const [currency, setCurrency] = useState(group.currency)
   const [isPending, startTransition] = useTransition()
 
   function handleOpenChange(next: boolean) {
     if (!next) {
       setView('settings')
       setName(group.name)
+      setCurrency(group.currency)
     }
     setOpen(next)
   }
 
-  function handleRename(e: React.FormEvent) {
+  function handleSaveSettings(e: React.FormEvent) {
     e.preventDefault()
     startTransition(async () => {
-      const result = await renameGroupAction(group.token, { name })
+      const result = await updateGroupAction(group.token, { name, currency })
       if (result.success) {
-        toast({ title: 'Group renamed', description: result.data.name })
+        toast({ title: 'Group updated', description: result.data.name })
         setOpen(false)
         router.refresh()
       } else {
-        toast({ title: 'Could not rename', description: result.error, variant: 'destructive' })
+        toast({ title: 'Could not update', description: result.error, variant: 'destructive' })
       }
     })
   }
@@ -104,7 +114,7 @@ export function GroupSettingsDialog({ group, renameGroupAction, deleteGroupActio
                 <DialogDescription>{group.name}</DialogDescription>
               </DialogHeader>
 
-              <form onSubmit={handleRename} className="space-y-3">
+              <form onSubmit={handleSaveSettings} className="space-y-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="group-name">Group name</Label>
                   <Input
@@ -114,8 +124,32 @@ export function GroupSettingsDialog({ group, renameGroupAction, deleteGroupActio
                     disabled={isPending}
                   />
                 </div>
-                <Button type="submit" disabled={isPending || name === group.name}>
-                  {isPending ? 'Saving…' : 'Save name'}
+                <div className="space-y-1.5">
+                  <Label>Currency</Label>
+                  <Select value={currency} onValueChange={setCurrency} disabled={isPending}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CURRENCIES.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {currency !== group.currency && (
+                    <p className="text-xs text-amber-600 dark:text-amber-500">
+                      Existing expense amounts are not converted — only the display currency
+                      changes.
+                    </p>
+                  )}
+                </div>
+                <Button
+                  type="submit"
+                  disabled={isPending || (name === group.name && currency === group.currency)}
+                >
+                  {isPending ? 'Saving…' : 'Save changes'}
                 </Button>
               </form>
 

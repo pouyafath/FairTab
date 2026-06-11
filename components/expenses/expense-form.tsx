@@ -47,6 +47,9 @@ function initialShareValue(p: { shareValue: number }, method: SplitMethod): stri
 
 const ACCEPT_TYPES = '.jpg,.jpeg,.png,.webp,.heic,.pdf'
 
+// Sentinel for the "Custom…" select entry; never stored
+const CUSTOM_CATEGORY = '__custom__'
+
 export function ExpenseForm({
   groupToken,
   members,
@@ -84,7 +87,14 @@ export function ExpenseForm({
   const [date, setDate] = useState(
     expense ? timestampToDateInput(expense.date) : new Date().toISOString().split('T')[0]
   )
-  const [category, setCategory] = useState<string>(expense?.category ?? '')
+  const initialCategory = expense?.category ?? ''
+  const initialIsCustom =
+    initialCategory !== '' && !(GROUP_CATEGORIES as readonly string[]).includes(initialCategory)
+  const [categoryChoice, setCategoryChoice] = useState<string>(
+    initialIsCustom ? CUSTOM_CATEGORY : initialCategory
+  )
+  const [customCategory, setCustomCategory] = useState(initialIsCustom ? initialCategory : '')
+  const category = categoryChoice === CUSTOM_CATEGORY ? customCategory.trim() : categoryChoice
   const [notes, setNotes] = useState(expense?.notes ?? '')
   const [splitMethod, setSplitMethod] = useState<SplitMethod>(expense?.splitMethod ?? 'equal')
 
@@ -410,12 +420,17 @@ export function ExpenseForm({
               value={date}
               onChange={(e) => setDate(e.target.value)}
             />
+            {date > new Date().toISOString().split('T')[0] && (
+              <p className="text-xs text-amber-600 dark:text-amber-500">
+                This date is in the future — double-check it&apos;s intended.
+              </p>
+            )}
           </div>
         </div>
 
         <div className="space-y-2">
           <Label>Category</Label>
-          <Select value={category} onValueChange={setCategory}>
+          <Select value={categoryChoice} onValueChange={setCategoryChoice}>
             <SelectTrigger>
               <SelectValue placeholder="Select category (optional)" />
             </SelectTrigger>
@@ -425,8 +440,18 @@ export function ExpenseForm({
                   {c}
                 </SelectItem>
               ))}
+              <SelectItem value={CUSTOM_CATEGORY}>Custom…</SelectItem>
             </SelectContent>
           </Select>
+          {categoryChoice === CUSTOM_CATEGORY && (
+            <Input
+              placeholder="Your category"
+              maxLength={50}
+              value={customCategory}
+              onChange={(e) => setCustomCategory(e.target.value)}
+              autoFocus
+            />
+          )}
         </div>
 
         <div className="space-y-2">

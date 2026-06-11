@@ -22,7 +22,7 @@ import type {
   DeleteExpenseAction,
   DeleteGroupAction,
   RemoveGroupMemberAction,
-  RenameGroupAction,
+  UpdateGroupAction,
   UpdateGroupMemberAction,
 } from '@/types/actions'
 
@@ -32,7 +32,7 @@ interface Props {
   addMemberAction: AddGroupMemberAction
   deleteExpenseAction: DeleteExpenseAction
   deleteAttachmentAction?: DeleteAttachmentAction
-  renameGroupAction: RenameGroupAction
+  updateGroupAction: UpdateGroupAction
   deleteGroupAction: DeleteGroupAction
   archiveGroupAction: ArchiveGroupAction
   updateMemberAction: UpdateGroupMemberAction
@@ -46,7 +46,7 @@ export function GroupDashboard({
   addMemberAction,
   deleteExpenseAction,
   deleteAttachmentAction,
-  renameGroupAction,
+  updateGroupAction,
   deleteGroupAction,
   archiveGroupAction,
   updateMemberAction,
@@ -98,7 +98,7 @@ export function GroupDashboard({
           </Button>
           <GroupSettingsDialog
             group={group}
-            renameGroupAction={renameGroupAction}
+            updateGroupAction={updateGroupAction}
             deleteGroupAction={deleteGroupAction}
             archiveGroupAction={archiveGroupAction}
           />

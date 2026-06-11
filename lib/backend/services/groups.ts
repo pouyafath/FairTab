@@ -23,11 +23,14 @@ export function createGroupService({ repositories, createId, now, storage }: Bac
       return repositories.groups.findByToken(token)
     },
 
-    async renameGroup(groupId: number, formData: unknown): Promise<ActionResult<Group>> {
+    async updateGroup(groupId: number, formData: unknown): Promise<ActionResult<Group>> {
       const parsed = updateGroupSchema.safeParse(formData)
       if (!parsed.success) return validationError<Group>(parsed.error)
 
-      const group = await repositories.groups.update(groupId, { name: parsed.data.name })
+      const group = await repositories.groups.update(groupId, {
+        name: parsed.data.name,
+        currency: parsed.data.currency,
+      })
       return { success: true, data: group }
     },
 

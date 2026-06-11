@@ -297,7 +297,7 @@ describe('backend services', () => {
     const { backend } = createTestBackend()
     const { groupId } = await createGroupWithMembers(backend, ['Alice'])
 
-    const result = await backend.groups.renameGroup(groupId, { name: 'Updated Name' })
+    const result = await backend.groups.updateGroup(groupId, { name: 'Updated Name' })
     assert.equal(result.success, true)
     if (!result.success) return
 
@@ -311,9 +311,23 @@ describe('backend services', () => {
     const { backend } = createTestBackend()
     const { groupId } = await createGroupWithMembers(backend, ['Alice'])
 
-    const result = await backend.groups.renameGroup(groupId, { name: 'X' })
+    const result = await backend.groups.updateGroup(groupId, { name: 'X' })
     assert.equal(result.success, false)
     if (!result.success) assert.match(result.error, /at least 2 characters/)
+  })
+
+  it('changes the group currency without touching amounts', async () => {
+    const { backend, state } = createTestBackend()
+    const { groupId } = await createGroupWithMembers(backend, ['Alice'])
+
+    const result = await backend.groups.updateGroup(groupId, { name: 'Test Group', currency: 'EUR' })
+    assert.equal(result.success, true)
+    if (!result.success) return
+    assert.equal(result.data.currency, 'EUR')
+
+    const rejected = await backend.groups.updateGroup(groupId, { name: 'Test Group', currency: 'XYZ' })
+    assert.equal(rejected.success, false)
+    assert.equal(state.groups[0].currency, 'EUR')
   })
 
   it('deletes a group and cascades members, expenses, and participants', async () => {

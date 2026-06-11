@@ -7,7 +7,7 @@ import {
   archiveGroup,
   deleteGroup,
   removeGroupMember,
-  renameGroup,
+  updateGroup,
   updateGroupMember,
 } from '@/lib/actions/groups'
 import { deleteExpense } from '@/lib/actions/expenses'
@@ -41,7 +41,7 @@ export default async function GroupPage({ params }: Props) {
       addMemberAction={addGroupMember}
       deleteExpenseAction={deleteExpense}
       deleteAttachmentAction={deleteAttachment.bind(null, token)}
-      renameGroupAction={renameGroup}
+      updateGroupAction={updateGroup}
       deleteGroupAction={deleteGroup}
       archiveGroupAction={archiveGroup}
       updateMemberAction={updateGroupMember}
