@@ -118,7 +118,8 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
       },
 
       async update(groupId: number, input: UpdateGroupRecord): Promise<Group> {
-        const group = state.groups.find((g) => g.id === groupId)!
+        const group = state.groups.find((g) => g.id === groupId)
+        if (!group) throw new Error('Group not found')
         if (input.name !== undefined) {
           group.name = input.name
         }
@@ -151,7 +152,8 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
       },
 
       async updateMember(memberId: number, input: UpdateMemberRecord): Promise<GroupMember> {
-        const member = state.members.find((m) => m.id === memberId)!
+        const member = state.members.find((m) => m.id === memberId)
+        if (!member) throw new Error('Member not found')
         member.name = input.name
         member.email = input.email
         return member
@@ -199,7 +201,8 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
         expenseId: number,
         input: UpdateExpenseRecord
       ): Promise<Expense> {
-        const expense = state.expenses.find((candidate) => candidate.id === expenseId)!
+        const expense = state.expenses.find((candidate) => candidate.id === expenseId)
+        if (!expense) throw new Error('Expense not found')
         expense.title = input.title
         expense.amount = input.amount
         expense.currency = input.currency
@@ -283,7 +286,8 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
       },
 
       async update(id: number, input: UpdatePersonalTransactionRecord): Promise<PersonalTransaction> {
-        const tx = state.personalTransactions.find((t) => t.id === id)!
+        const tx = state.personalTransactions.find((t) => t.id === id)
+        if (!tx) throw new Error('Transaction not found')
         tx.type = input.type
         tx.title = input.title
         tx.amount = input.amount
@@ -314,7 +318,9 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
       },
 
       async findPaidForGroup(groupId: number): Promise<Settlement[]> {
-        return state.settlements.filter((s) => s.groupId === groupId && s.isPaid)
+        return state.settlements
+          .filter((s) => s.groupId === groupId && s.isPaid)
+          .sort((a, b) => (b.paidAt ?? 0) - (a.paidAt ?? 0))
       },
 
       async undo(settlementId: number): Promise<void> {

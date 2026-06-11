@@ -45,7 +45,7 @@ export function GroupSettingsDialog({ group, renameGroupAction, deleteGroupActio
   function handleRename(e: React.FormEvent) {
     e.preventDefault()
     startTransition(async () => {
-      const result = await renameGroupAction(group.id, { name })
+      const result = await renameGroupAction(group.token, { name })
       if (result.success) {
         toast({ title: 'Group renamed', description: result.data.name })
         setOpen(false)
@@ -59,7 +59,7 @@ export function GroupSettingsDialog({ group, renameGroupAction, deleteGroupActio
   function handleArchiveToggle() {
     startTransition(async () => {
       const newState = !group.isArchived
-      const result = await archiveGroupAction(group.id, newState)
+      const result = await archiveGroupAction(group.token, newState)
       if (result.success) {
         toast({
           title: newState ? 'Group archived' : 'Group unarchived',
@@ -77,7 +77,7 @@ export function GroupSettingsDialog({ group, renameGroupAction, deleteGroupActio
 
   function handleDelete() {
     startTransition(async () => {
-      const result = await deleteGroupAction(group.id)
+      const result = await deleteGroupAction(group.token)
       if (result.success) {
         toast({ title: 'Group deleted' })
         setOpen(false)

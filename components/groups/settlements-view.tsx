@@ -17,7 +17,7 @@ interface Props {
   suggestions: SettlementSuggestion[]
   paidSettlements: Settlement[]
   memberNames: Record<number, string>
-  groupId: number
+  groupToken: string
   groupName: string
   currency: string
   markSettlementPaidAction: MarkSettlementPaidAction
@@ -28,7 +28,7 @@ export function SettlementsView({
   suggestions,
   paidSettlements: initialPaid,
   memberNames,
-  groupId,
+  groupToken,
   groupName,
   currency,
   markSettlementPaidAction,
@@ -52,7 +52,7 @@ export function SettlementsView({
   function handleMarkPaid(s: SettlementSuggestion) {
     startTransition(async () => {
       const result = await markSettlementPaidAction(
-        groupId,
+        groupToken,
         s.fromMember.id,
         s.toMember.id,
         s.amount
@@ -68,7 +68,7 @@ export function SettlementsView({
 
   function handleUndo(settlementId: number, fromName: string, toName: string) {
     startTransition(async () => {
-      const result = await undoSettlementAction(settlementId)
+      const result = await undoSettlementAction(groupToken, settlementId)
       if (result.success) {
         toast({ title: 'Settlement undone', description: `${fromName} → ${toName}` })
         router.refresh()

@@ -58,7 +58,7 @@ describe('personal finance calculations', () => {
   it('exports CSV with escaped quoted text', () => {
     const csv = generateCSV(transactions.slice(1, 2))
 
-    assert.match(csv, /^Date,Type,Title,Category,Amount \(CAD\),Currency,Account,Note\n/)
+    assert.match(csv, /^Date,Type,Title,Category,Amount,Currency,Account,Note\n/)
     assert.match(csv, /expense,"Grocery ""run""",Groceries,84\.50,CAD,Credit Card,"Used coupons"$/)
   })
 })

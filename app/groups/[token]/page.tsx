@@ -1,16 +1,16 @@
 export const dynamic = 'force-dynamic'
 
 import { notFound } from 'next/navigation'
+import { getBackend } from '@/lib/backend/runtime'
 import {
   addGroupMember,
   archiveGroup,
   deleteGroup,
-  getGroupByToken,
   removeGroupMember,
   renameGroup,
   updateGroupMember,
 } from '@/lib/actions/groups'
-import { deleteExpense, getGroupExpenses } from '@/lib/actions/expenses'
+import { deleteExpense } from '@/lib/actions/expenses'
 import { GroupDashboard } from '@/components/groups/group-dashboard'
 import type { Metadata } from 'next'
 
@@ -20,16 +20,17 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { token } = await params
-  const group = await getGroupByToken(token)
+  const group = await getBackend().groups.getGroupByToken(token)
   return { title: group ? group.name : 'Group not found' }
 }
 
 export default async function GroupPage({ params }: Props) {
   const { token } = await params
-  const group = await getGroupByToken(token)
+  const backend = getBackend()
+  const group = await backend.groups.getGroupByToken(token)
   if (!group) notFound()
 
-  const expenses = await getGroupExpenses(group.id)
+  const expenses = await backend.expenses.getGroupExpenses(group.id)
 
   return (
     <GroupDashboard

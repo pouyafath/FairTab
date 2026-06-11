@@ -2,13 +2,8 @@ export const dynamic = 'force-dynamic'
 
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { getGroupByToken } from '@/lib/actions/groups'
-import {
-  getSettlementSuggestions,
-  getPaidSettlements,
-  markSettlementPaid,
-  undoSettlement,
-} from '@/lib/actions/settlements'
+import { getBackend } from '@/lib/backend/runtime'
+import { markSettlementPaid, undoSettlement } from '@/lib/actions/settlements'
 import { SettlementsView } from '@/components/groups/settlements-view'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
@@ -22,12 +17,13 @@ export const metadata: Metadata = { title: 'Settle Up' }
 
 export default async function SettlementsPage({ params }: Props) {
   const { token } = await params
-  const group = await getGroupByToken(token)
+  const backend = getBackend()
+  const group = await backend.groups.getGroupByToken(token)
   if (!group) notFound()
 
   const [suggestions, paidSettlements] = await Promise.all([
-    getSettlementSuggestions(group.id),
-    getPaidSettlements(group.id),
+    backend.settlements.getSettlementSuggestions(group.id),
+    backend.settlements.getPaidSettlements(group.id),
   ])
 
   const memberNames = Object.fromEntries(group.members.map((m) => [m.id, m.name]))
@@ -50,7 +46,7 @@ export default async function SettlementsPage({ params }: Props) {
         suggestions={suggestions}
         paidSettlements={paidSettlements}
         memberNames={memberNames}
-        groupId={group.id}
+        groupToken={group.token}
         groupName={group.name}
         currency={group.currency}
         markSettlementPaidAction={markSettlementPaid}

@@ -27,8 +27,12 @@ export function TransactionList({ transactions, deleteTransactionAction }: Props
 
   function handleDelete(id: number, title: string) {
     startTransition(async () => {
-      await deleteTransactionAction(id)
-      toast({ title: `Deleted: ${title}` })
+      const result = await deleteTransactionAction(id)
+      if (result.success) {
+        toast({ title: `Deleted: ${title}` })
+      } else {
+        toast({ title: 'Could not delete', description: result.error, variant: 'destructive' })
+      }
     })
   }
 

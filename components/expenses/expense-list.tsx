@@ -38,7 +38,7 @@ export function ExpenseList({ expenses, currency, groupToken, deleteExpenseActio
     if (!deleteTarget) return
     const target = deleteTarget
     startTransition(async () => {
-      const result = await deleteExpenseAction(target.id)
+      const result = await deleteExpenseAction(groupToken, target.id)
       if (result.success) {
         toast({ title: 'Expense deleted', description: target.title })
         setDeleteTarget(null)

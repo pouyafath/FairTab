@@ -19,13 +19,13 @@ import type { GroupMember } from '@/types'
 import type { RemoveGroupMemberAction, UpdateGroupMemberAction } from '@/types/actions'
 
 interface Props {
-  groupId: number
+  groupToken: string
   members: GroupMember[]
   updateMemberAction: UpdateGroupMemberAction
   removeMemberAction: RemoveGroupMemberAction
 }
 
-export function MemberList({ groupId, members, updateMemberAction, removeMemberAction }: Props) {
+export function MemberList({ groupToken, members, updateMemberAction, removeMemberAction }: Props) {
   const router = useRouter()
   const { toast } = useToast()
   const [isPending, startTransition] = useTransition()
@@ -45,7 +45,7 @@ export function MemberList({ groupId, members, updateMemberAction, removeMemberA
     if (!editTarget) return
     const target = editTarget
     startTransition(async () => {
-      const result = await updateMemberAction(target.id, {
+      const result = await updateMemberAction(groupToken, target.id, {
         name: editName,
         email: editEmail,
       })
@@ -63,7 +63,7 @@ export function MemberList({ groupId, members, updateMemberAction, removeMemberA
     if (!removeTarget) return
     const target = removeTarget
     startTransition(async () => {
-      const result = await removeMemberAction(groupId, target.id)
+      const result = await removeMemberAction(groupToken, target.id)
       if (result.success) {
         toast({ title: 'Member removed', description: target.name })
         setRemoveTarget(null)

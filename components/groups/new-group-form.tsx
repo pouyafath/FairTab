@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CURRENCIES } from '@/lib/constants'
-import { readDefaultCurrency } from '@/lib/settings'
+import { useDefaultCurrency } from '@/lib/settings'
 import type { CreateGroupAction } from '@/types/actions'
 
 interface Props {
@@ -26,7 +26,10 @@ export function NewGroupForm({ createGroupAction }: Props) {
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [name, setName] = useState('')
-  const [currency, setCurrency] = useState(readDefaultCurrency)
+  const defaultCurrency = useDefaultCurrency()
+  // null = user has not picked one; follow the stored default
+  const [currencyOverride, setCurrencyOverride] = useState<string | null>(null)
+  const currency = currencyOverride ?? defaultCurrency
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -58,7 +61,7 @@ export function NewGroupForm({ createGroupAction }: Props) {
 
       <div className="space-y-2">
         <Label>Default Currency</Label>
-        <Select value={currency} onValueChange={setCurrency}>
+        <Select value={currency} onValueChange={setCurrencyOverride}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>

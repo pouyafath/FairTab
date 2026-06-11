@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import type { AppDb } from '@/lib/db'
 import {
   expenseParticipants,
@@ -31,11 +31,18 @@ import type {
   Settlement,
 } from '@/types'
 
-function toEpochMs(value: Date | number | string | null): number {
-  if (value === null) return 0
+function toEpochMs(value: Date | number | string): number {
   if (value instanceof Date) return value.getTime()
   if (typeof value === 'number') return value
   return new Date(value).getTime()
+}
+
+// .returning() yields an empty array when the WHERE clause matched no rows;
+// destructuring that into `undefined` would surface as a confusing TypeError
+// deep in a serializer. Fail with a clear message instead.
+function requireRow<T>(row: T | undefined, entity: string): T {
+  if (row === undefined) throw new Error(`${entity} not found`)
+  return row
 }
 
 function serializeGroup(row: typeof groups.$inferSelect): Group {
@@ -96,7 +103,7 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
           .set(setFields)
           .where(eq(groups.id, groupId))
           .returning()
-        return serializeGroup(group)
+        return serializeGroup(requireRow(group, 'Group'))
       },
 
       async delete(groupId: number): Promise<void> {
@@ -114,7 +121,7 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
           .set({ name: input.name, email: input.email })
           .where(eq(groupMembers.id, memberId))
           .returning()
-        return member
+        return requireRow(member, 'Member')
       },
 
       async removeMember(memberId: number): Promise<void> {
@@ -210,6 +217,7 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
           })
           .where(eq(expenses.id, expenseId))
           .returning()
+        const updated = requireRow(expense, 'Expense')
 
         await db.delete(expenseParticipants).where(eq(expenseParticipants.expenseId, expenseId))
         await db.insert(expenseParticipants).values(
@@ -221,7 +229,7 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
           }))
         )
 
-        return serializeExpense(expense)
+        return serializeExpense(updated)
       },
 
       async delete(expenseId: number): Promise<void> {
@@ -304,7 +312,7 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
           })
           .where(eq(personalTransactions.id, id))
           .returning()
-        return serializePersonalTransaction(tx)
+        return serializePersonalTransaction(requireRow(tx, 'Transaction'))
       },
 
       async delete(id: number): Promise<void> {
@@ -328,7 +336,7 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
         const rows = await db
           .select()
           .from(settlements)
-          .where(eq(settlements.groupId, groupId))
+          .where(and(eq(settlements.groupId, groupId), eq(settlements.isPaid, true)))
           .orderBy(desc(settlements.paidAt))
         return rows.map((row) => ({
           ...row,

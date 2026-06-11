@@ -11,48 +11,56 @@ export type UpdatePersonalTransactionAction = (
   formData: unknown
 ) => Promise<ActionResult<PersonalTransaction>>
 
-export type UndoSettlementAction = (settlementId: number) => Promise<ActionResult<void>>
+export type UndoSettlementAction = (
+  token: string,
+  settlementId: number
+) => Promise<ActionResult<void>>
 
 export type CreateGroupAction = (formData: unknown) => Promise<ActionResult<Group>>
 
 export type RenameGroupAction = (
-  groupId: number,
+  token: string,
   formData: unknown
 ) => Promise<ActionResult<Group>>
 
-export type DeleteGroupAction = (groupId: number) => Promise<ActionResult<void>>
+export type DeleteGroupAction = (token: string) => Promise<ActionResult<void>>
 
 export type ArchiveGroupAction = (
-  groupId: number,
+  token: string,
   archive: boolean
 ) => Promise<ActionResult<Group>>
 
 export type AddGroupMemberAction = (
-  groupId: number,
+  token: string,
   formData: unknown
 ) => Promise<ActionResult<GroupMember>>
 
 export type UpdateGroupMemberAction = (
+  token: string,
   memberId: number,
   formData: unknown
 ) => Promise<ActionResult<GroupMember>>
 
 export type RemoveGroupMemberAction = (
-  groupId: number,
+  token: string,
   memberId: number
 ) => Promise<ActionResult<void>>
 
 export type AddExpenseAction = (
-  groupId: number,
+  token: string,
   formData: unknown
 ) => Promise<ActionResult<Expense>>
 
 export type UpdateExpenseAction = (
+  token: string,
   expenseId: number,
   formData: unknown
 ) => Promise<ActionResult<Expense>>
 
-export type DeleteExpenseAction = (expenseId: number) => Promise<ActionResult<void>>
+export type DeleteExpenseAction = (
+  token: string,
+  expenseId: number
+) => Promise<ActionResult<void>>
 
 export type AddPersonalTransactionAction = (
   formData: unknown
@@ -61,7 +69,7 @@ export type AddPersonalTransactionAction = (
 export type DeletePersonalTransactionAction = (id: number) => Promise<ActionResult<void>>
 
 export type MarkSettlementPaidAction = (
-  groupId: number,
+  token: string,
   fromMemberId: number,
   toMemberId: number,
   amount: number

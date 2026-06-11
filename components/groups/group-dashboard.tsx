@@ -98,7 +98,7 @@ export function GroupDashboard({
             archiveGroupAction={archiveGroupAction}
           />
           {group.members.length > 0 && (
-            <AddMemberDialog groupId={group.id} addMemberAction={addMemberAction} />
+            <AddMemberDialog groupToken={group.token} addMemberAction={addMemberAction} />
           )}
         </div>
       </div>
@@ -116,7 +116,7 @@ export function GroupDashboard({
                 Invite everyone in the group so you can track who paid what.
               </p>
             </div>
-            <AddMemberDialog groupId={group.id} addMemberAction={addMemberAction} />
+            <AddMemberDialog groupToken={group.token} addMemberAction={addMemberAction} />
           </CardContent>
         </Card>
       ) : (
@@ -143,7 +143,7 @@ export function GroupDashboard({
           <div>
             <h2 className="text-sm font-medium text-muted-foreground mb-2">Members</h2>
             <MemberList
-              groupId={group.id}
+              groupToken={group.token}
               members={group.members}
               updateMemberAction={updateMemberAction}
               removeMemberAction={removeMemberAction}
