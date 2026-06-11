@@ -30,6 +30,7 @@ import type {
 } from '@/lib/backend/ports'
 import type {
   Attachment,
+  BackupData,
   Expense,
   ExpenseParticipant,
   ExpenseWithParticipants,
@@ -536,5 +537,243 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
         await db.delete(savingsGoals).where(eq(savingsGoals.id, id))
       },
     },
+
+    backup: {
+      async exportAll(): Promise<BackupData> {
+        const [
+          groupRows,
+          memberRows,
+          expenseRows,
+          participantRows,
+          settlementRows,
+          personalRows,
+          ruleRows,
+          goalRows,
+          attachmentRows,
+        ] = await Promise.all([
+          db.select().from(groups),
+          db.select().from(groupMembers),
+          db.select().from(expenses),
+          db.select().from(expenseParticipants),
+          db.select().from(settlements),
+          db.select().from(personalTransactions),
+          db.select().from(recurringRules),
+          db.select().from(savingsGoals),
+          db.select().from(attachments),
+        ])
+
+        return {
+          groups: groupRows.map(serializeGroup),
+          members: memberRows,
+          expenses: expenseRows.map(serializeExpense),
+          expenseParticipants: participantRows,
+          settlements: settlementRows.map((row) => ({
+            ...row,
+            paidAt: row.paidAt ? toEpochMs(row.paidAt) : null,
+          })),
+          personalTransactions: personalRows.map(serializePersonalTransaction),
+          recurringRules: ruleRows.map(serializeRecurringRule),
+          savingsGoals: goalRows.map(serializeSavingsGoal),
+          attachments: attachmentRows.map(serializeAttachment),
+        }
+      },
+
+      async importAll(data: BackupData): Promise<void> {
+        await withBestEffortTransaction(db, async () => {
+          // Wipe children before parents so the order also works with
+          // foreign keys enforced and no cascades.
+          await db.delete(expenseParticipants)
+          await db.delete(attachments)
+          await db.delete(settlements)
+          await db.delete(expenses)
+          await db.delete(groupMembers)
+          await db.delete(groups)
+          await db.delete(personalTransactions)
+          await db.delete(recurringRules)
+          await db.delete(savingsGoals)
+
+          // Auto-increment assigns fresh ids on insert, so every foreign key
+          // is rewritten through an old-id → new-id map.
+          const groupIds = new Map<number, number>()
+          for (const row of data.groups) {
+            const [inserted] = await db
+              .insert(groups)
+              .values({
+                name: row.name,
+                token: row.token,
+                currency: row.currency,
+                isArchived: row.isArchived,
+                createdAt: new Date(row.createdAt),
+              })
+              .returning({ id: groups.id })
+            groupIds.set(row.id, inserted.id)
+          }
+
+          const memberIds = new Map<number, number>()
+          for (const row of data.members) {
+            const [inserted] = await db
+              .insert(groupMembers)
+              .values({
+                groupId: mapId(groupIds, row.groupId, 'group'),
+                name: row.name,
+                email: row.email,
+              })
+              .returning({ id: groupMembers.id })
+            memberIds.set(row.id, inserted.id)
+          }
+
+          const expenseIds = new Map<number, number>()
+          for (const row of data.expenses) {
+            const [inserted] = await db
+              .insert(expenses)
+              .values({
+                groupId: mapId(groupIds, row.groupId, 'group'),
+                title: row.title,
+                amount: row.amount,
+                currency: row.currency,
+                paidById: mapId(memberIds, row.paidById, 'member'),
+                date: new Date(row.date),
+                category: row.category,
+                notes: row.notes,
+                splitMethod: row.splitMethod,
+                createdAt: new Date(row.createdAt),
+              })
+              .returning({ id: expenses.id })
+            expenseIds.set(row.id, inserted.id)
+          }
+
+          if (data.expenseParticipants.length > 0) {
+            await db.insert(expenseParticipants).values(
+              data.expenseParticipants.map((row) => ({
+                expenseId: mapId(expenseIds, row.expenseId, 'expense'),
+                memberId: mapId(memberIds, row.memberId, 'member'),
+                shareValue: row.shareValue,
+                amountCents: row.amountCents,
+              }))
+            )
+          }
+
+          if (data.settlements.length > 0) {
+            await db.insert(settlements).values(
+              data.settlements.map((row) => ({
+                groupId: mapId(groupIds, row.groupId, 'group'),
+                fromMemberId: mapId(memberIds, row.fromMemberId, 'member'),
+                toMemberId: mapId(memberIds, row.toMemberId, 'member'),
+                amount: row.amount,
+                isPaid: row.isPaid,
+                paidAt: row.paidAt === null ? null : new Date(row.paidAt),
+              }))
+            )
+          }
+
+          const ruleIds = new Map<number, number>()
+          for (const row of data.recurringRules) {
+            const [inserted] = await db
+              .insert(recurringRules)
+              .values({
+                type: row.type,
+                title: row.title,
+                amount: row.amount,
+                currency: row.currency,
+                category: row.category,
+                note: row.note,
+                accountLabel: row.accountLabel,
+                frequency: row.frequency,
+                intervalCount: row.intervalCount,
+                nextRunDate: new Date(row.nextRunDate),
+                lastRunDate: row.lastRunDate === null ? null : new Date(row.lastRunDate),
+                active: row.active,
+                createdAt: new Date(row.createdAt),
+              })
+              .returning({ id: recurringRules.id })
+            ruleIds.set(row.id, inserted.id)
+          }
+
+          if (data.personalTransactions.length > 0) {
+            await db.insert(personalTransactions).values(
+              data.personalTransactions.map((row) => ({
+                type: row.type,
+                title: row.title,
+                amount: row.amount,
+                currency: row.currency,
+                date: new Date(row.date),
+                category: row.category,
+                note: row.note,
+                accountLabel: row.accountLabel,
+                // A dangling rule reference is dropped rather than failing the
+                // restore — the transaction itself is still worth keeping.
+                sourceRuleId:
+                  row.sourceRuleId === null ? null : (ruleIds.get(row.sourceRuleId) ?? null),
+                createdAt: new Date(row.createdAt),
+              }))
+            )
+          }
+
+          if (data.savingsGoals.length > 0) {
+            await db.insert(savingsGoals).values(
+              data.savingsGoals.map((row) => ({
+                name: row.name,
+                targetAmount: row.targetAmount,
+                currentAmount: row.currentAmount,
+                currency: row.currency,
+                targetDate: row.targetDate === null ? null : new Date(row.targetDate),
+                createdAt: new Date(row.createdAt),
+              }))
+            )
+          }
+
+          if (data.attachments.length > 0) {
+            await db.insert(attachments).values(
+              data.attachments.map((row) => ({
+                groupId: mapId(groupIds, row.groupId, 'group'),
+                expenseId: row.expenseId === null ? null : mapId(expenseIds, row.expenseId, 'expense'),
+                // Keys are kept verbatim so files already present in the
+                // uploads directory are found again after a restore.
+                storageKey: row.storageKey,
+                filename: row.filename,
+                contentType: row.contentType,
+                size: row.size,
+                createdAt: new Date(row.createdAt),
+              }))
+            )
+          }
+        })
+      },
+    },
+  }
+}
+
+function mapId(map: Map<number, number>, oldId: number, entity: string): number {
+  const newId = map.get(oldId)
+  if (newId === undefined) {
+    throw new Error(`Backup references a missing ${entity} (id ${oldId})`)
+  }
+  return newId
+}
+
+// better-sqlite3 honors interactive transactions, giving the restore real
+// atomicity. D1 rejects BEGIN — there the restore runs statement-by-statement
+// and a failure can leave partial data (documented in docs/database.md).
+async function withBestEffortTransaction(db: AppDb, fn: () => Promise<void>): Promise<void> {
+  let txOpen = false
+  try {
+    await db.run(sql`begin immediate`)
+    txOpen = true
+  } catch {
+    // Driver without interactive transaction support — proceed unwrapped.
+  }
+
+  try {
+    await fn()
+    if (txOpen) await db.run(sql`commit`)
+  } catch (error) {
+    if (txOpen) {
+      try {
+        await db.run(sql`rollback`)
+      } catch {
+        // Rollback failure leaves nothing more to do; surface the original error.
+      }
+    }
+    throw error
   }
 }

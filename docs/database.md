@@ -139,22 +139,39 @@ discover new files automatically.
 
 ## Backup
 
-### Local dev
+### Built-in JSON backup (recommended)
+
+Settings → **Data** → **Download backup** produces a portable JSON document with
+every table (groups, members, expenses, participants, settlements, personal
+transactions, recurring rules, savings goals, attachment metadata). The same
+document is served at `GET /api/backup`, so it can be scripted:
 
 ```bash
-cp fairtab.db fairtab-backup-$(date +%Y%m%d).db
+curl -fsS http://localhost:3000/api/backup -o fairtab-backup-$(date +%Y%m%d).json
 ```
 
-### Docker self-hosted
+**Restore** (Settings → Data → Restore, or `POST /api/backup` with the JSON body)
+replaces *all* data in the instance. References are remapped to fresh ids, so a
+backup can be restored into any FairTab instance — group share URLs keep working
+because tokens are preserved. On SQLite the restore runs inside a transaction
+(all-or-nothing); on Cloudflare D1 interactive transactions are unavailable, so
+a mid-restore failure there can leave partial data — re-run the restore.
 
-The database is in `./data/fairtab.db` (a bind mount, outside the container):
+Receipt **files** are not inside the JSON (it stays small and DB-agnostic);
+they live in the uploads directory next to the database. Copying the whole
+`./data` directory therefore covers both.
+
+### File-level backup
 
 ```bash
-# One-off backup
-cp ./data/fairtab.db ./data/fairtab-backup-$(date +%Y%m%d).db
+# Local dev
+cp fairtab.db fairtab-backup-$(date +%Y%m%d).db
+
+# Docker self-hosted — ./data holds the SQLite file AND uploaded receipts
+cp -r ./data ./data-backup-$(date +%Y%m%d)
 
 # Automated daily backup (add to crontab)
-0 3 * * * cp ~/FairTab/data/fairtab.db ~/FairTab/data/backup-$(date +\%Y\%m\%d).db
+0 3 * * * cp -r ~/FairTab/data ~/FairTab/data-backup-$(date +\%Y\%m\%d)
 ```
 
 ### Home-server backups

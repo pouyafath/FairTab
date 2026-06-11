@@ -1,5 +1,6 @@
 import type {
   Attachment,
+  BackupData,
   Expense,
   ExpenseWithParticipants,
   Group,
@@ -220,6 +221,12 @@ export interface AttachmentRepository {
   delete(id: number): Promise<void>
 }
 
+export interface BackupRepository {
+  exportAll(): Promise<BackupData>
+  /** Full replace: wipes every table, then re-inserts with fresh ids. */
+  importAll(data: BackupData): Promise<void>
+}
+
 export interface AppRepositories {
   groups: GroupRepository
   expenses: ExpenseRepository
@@ -228,4 +235,5 @@ export interface AppRepositories {
   recurring: RecurringRepository
   savings: SavingsGoalRepository
   attachments: AttachmentRepository
+  backup: BackupRepository
 }

@@ -67,9 +67,12 @@ No manual steps are needed when upgrading — pull the new image and restart.
 
 ```
 ./data/fairtab.db    ← bind-mounted into /data/fairtab.db inside the container
+./data/uploads/      ← uploaded receipt files (created on first boot)
 ```
 
-This is a plain file on your host. Back it up by copying it.
+These are plain files on your host. Back them up by copying the `./data`
+directory, or use Settings → Data → **Download backup** for a portable JSON
+export of the database (receipt files stay in `./data/uploads`).
 
 ---
 
@@ -159,24 +162,33 @@ Your `./data/fairtab.db` is never touched by the build — data is always safe.
 
 ## Backup and Restore
 
-### Manual backup
+### Built-in JSON backup
+
+Settings → **Data** → **Download backup**, or:
 
 ```bash
-cp ./data/fairtab.db ./data/fairtab-backup-$(date +%Y%m%d).db
+curl -fsS http://localhost:3000/api/backup -o fairtab-backup-$(date +%Y%m%d).json
 ```
 
-### Automated daily backup
+Restore from Settings → Data → **Restore from file** (replaces all data,
+type-to-confirm). Receipt files are not in the JSON — they live in
+`./data/uploads`.
+
+### File-level backup
 
 ```bash
-# Add to crontab (crontab -e)
-0 2 * * * cp ~/FairTab/data/fairtab.db ~/FairTab/data/backup-$(date +\%Y\%m\%d).db
+# Manual — covers database AND receipts
+cp -r ./data ./data-backup-$(date +%Y%m%d)
+
+# Automated daily backup (crontab -e)
+0 2 * * * cp -r ~/FairTab/data ~/FairTab/data-backup-$(date +\%Y\%m\%d)
 ```
 
-### Restore
+### File-level restore
 
 ```bash
 docker compose down
-cp ./data/backup-20260101.db ./data/fairtab.db
+rm -rf ./data && cp -r ./data-backup-20260101 ./data
 docker compose up -d
 ```
 
