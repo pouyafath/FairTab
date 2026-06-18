@@ -196,26 +196,27 @@ export function PersonalDashboard({
       {/* Category breakdown */}
       {summary.byCategory.length > 0 && <CategoryBreakdown byCategory={summary.byCategory} />}
 
-      {/* Recurring rules */}
-      <div className="rounded-lg border p-4 bg-card">
-        <RecurringRules
-          rules={rules}
-          addAction={addRecurringRuleAction}
-          updateAction={updateRecurringRuleAction}
-          toggleAction={toggleRecurringRuleAction}
-          deleteAction={deleteRecurringRuleAction}
-        />
-      </div>
+      {/* Recurring rules + savings goals */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-lg border p-4 bg-card">
+          <RecurringRules
+            rules={rules}
+            addAction={addRecurringRuleAction}
+            updateAction={updateRecurringRuleAction}
+            toggleAction={toggleRecurringRuleAction}
+            deleteAction={deleteRecurringRuleAction}
+          />
+        </div>
 
-      {/* Savings goals */}
-      <div className="rounded-lg border p-4 bg-card">
-        <SavingsGoals
-          goals={savingsGoals}
-          addAction={addSavingsGoalAction}
-          updateAction={updateSavingsGoalAction}
-          contributeAction={contributeSavingsGoalAction}
-          deleteAction={deleteSavingsGoalAction}
-        />
+        <div className="rounded-lg border p-4 bg-card">
+          <SavingsGoals
+            goals={savingsGoals}
+            addAction={addSavingsGoalAction}
+            updateAction={updateSavingsGoalAction}
+            contributeAction={contributeSavingsGoalAction}
+            deleteAction={deleteSavingsGoalAction}
+          />
+        </div>
       </div>
 
       {/* Transaction list */}

@@ -1,36 +1,17 @@
-'use client'
-
-import { useMemo } from 'react'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
-import { calculateMemberBalances, calculateSettlements } from '@/lib/calculations/balances'
 import { formatCurrency } from '@/lib/formatting'
-import type { GroupMember, ExpenseWithParticipants } from '@/types'
+import type { SettlementSuggestion } from '@/types'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 
 interface Props {
-  members: GroupMember[]
-  expenses: ExpenseWithParticipants[]
+  suggestions: SettlementSuggestion[]
   currency: string
   groupToken: string
 }
 
-export function SettlementPreview({ members, expenses, currency, groupToken }: Props) {
-  const suggestions = useMemo(() => {
-    if (expenses.length === 0) return []
-    const rawExpenses = expenses.map((e) => ({
-      paidById: e.paidById,
-      totalAmount: e.amount,
-      participantShares: e.participants.map((p) => ({
-        memberId: p.memberId,
-        amountCents: p.amountCents,
-      })),
-    }))
-    const balances = calculateMemberBalances(members, rawExpenses)
-    return calculateSettlements(balances)
-  }, [members, expenses])
-
+export function SettlementPreview({ suggestions, currency, groupToken }: Props) {
   if (suggestions.length === 0) return null
 
   return (

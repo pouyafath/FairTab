@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { Plus, ArrowRightLeft, Copy, Users, Archive } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -13,6 +13,7 @@ import { MemberList } from '@/components/groups/member-list'
 import { SettlementPreview } from '@/components/groups/settlement-preview'
 import { ExpenseList } from '@/components/expenses/expense-list'
 import { saveRecentGroup } from '@/components/groups/recent-groups'
+import { calculateMemberBalances, calculateSettlements } from '@/lib/calculations/balances'
 import { useToast } from '@/components/ui/use-toast'
 import type { GroupWithMembers, ExpenseWithParticipants } from '@/types'
 import type {
@@ -55,6 +56,22 @@ export function GroupDashboard({
 }: Props) {
   const { toast } = useToast()
 
+  // Computed once here so BalanceSummary and the settlement preview share it,
+  // and so we can lay the two cards out side by side only when there is
+  // actually something to settle (otherwise the preview renders nothing).
+  const suggestions = useMemo(() => {
+    if (expenses.length === 0) return []
+    const rawExpenses = expenses.map((e) => ({
+      paidById: e.paidById,
+      totalAmount: e.amount,
+      participantShares: e.participants.map((p) => ({
+        memberId: p.memberId,
+        amountCents: p.amountCents,
+      })),
+    }))
+    return calculateSettlements(calculateMemberBalances(group.members, rawExpenses))
+  }, [group.members, expenses])
+
   useEffect(() => {
     saveRecentGroup({
       token: group.token,
@@ -73,7 +90,7 @@ export function GroupDashboard({
   }
 
   return (
-    <div className="container py-8 space-y-8 max-w-3xl">
+    <div className="container py-8 space-y-8 max-w-5xl">
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
@@ -155,20 +172,27 @@ export function GroupDashboard({
             />
           </div>
 
-          {/* Balance summary */}
-          <BalanceSummary
-            members={group.members}
-            expenses={expenses}
-            currency={group.currency}
-          />
-
-          {/* Settlement suggestions */}
-          <SettlementPreview
-            members={group.members}
-            expenses={expenses}
-            currency={group.currency}
-            groupToken={group.token}
-          />
+          {/* Balance summary + settlement suggestions */}
+          {suggestions.length > 0 ? (
+            <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+              <BalanceSummary
+                members={group.members}
+                expenses={expenses}
+                currency={group.currency}
+              />
+              <SettlementPreview
+                suggestions={suggestions}
+                currency={group.currency}
+                groupToken={group.token}
+              />
+            </div>
+          ) : (
+            <BalanceSummary
+              members={group.members}
+              expenses={expenses}
+              currency={group.currency}
+            />
+          )}
 
           {/* Expense list */}
           <div>

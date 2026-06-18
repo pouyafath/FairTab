@@ -33,7 +33,7 @@ export default async function PersonalPage() {
   const summary = calculatePersonalSummary(transactions, year, month)
 
   return (
-    <div className="container py-8 max-w-3xl">
+    <div className="container py-8 max-w-5xl">
       <PersonalDashboard
         transactions={transactions}
         currentSummary={summary}
