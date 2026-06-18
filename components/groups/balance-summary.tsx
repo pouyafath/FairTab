@@ -42,7 +42,7 @@ export function BalanceSummary({ members, expenses, currency = 'CAD' }: Props) {
         {balances.length === 0 ? (
           <p className="text-sm text-muted-foreground px-6 pb-4">No members yet.</p>
         ) : allSettled ? (
-          <div className="flex items-center gap-3 px-6 py-4 text-green-600">
+          <div className="flex items-center gap-3 px-6 py-4 text-green-600 dark:text-green-400">
             <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
             <div>
               <p className="font-medium text-sm">All settled up!</p>
@@ -63,9 +63,9 @@ export function BalanceSummary({ members, expenses, currency = 'CAD' }: Props) {
                   className={cn(
                     'font-semibold text-sm',
                     b.netBalance > 0
-                      ? 'text-green-600'
+                      ? 'text-green-600 dark:text-green-400'
                       : b.netBalance < 0
-                        ? 'text-red-600'
+                        ? 'text-red-600 dark:text-red-400'
                         : 'text-muted-foreground'
                   )}
                 >

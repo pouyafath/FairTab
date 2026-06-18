@@ -284,9 +284,15 @@ export function SavingsGoals({ goals, addAction, updateAction, contributeAction,
       </div>
 
       {goals.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-2">
-          No goals yet — track progress toward a house deposit, vacation, emergency fund, and more.
-        </p>
+        <div className="flex flex-col items-center gap-3 py-8 text-center">
+          <div className="rounded-full bg-muted p-3">
+            <Target className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <p className="text-sm text-muted-foreground max-w-xs">
+            No goals yet — track progress toward a house deposit, vacation, emergency fund, and
+            more.
+          </p>
+        </div>
       ) : (
         <div className="space-y-3">
           {goals.map((goal) => {
@@ -301,7 +307,7 @@ export function SavingsGoals({ goals, addAction, updateAction, contributeAction,
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {formatCurrency(goal.currentAmount, goal.currency)} of {formatCurrency(goal.targetAmount, goal.currency)}
                       {' '}
-                      <span className={`font-semibold ${pct >= 100 ? 'text-green-600' : pct >= 80 ? 'text-yellow-600' : ''}`}>
+                      <span className={`font-semibold ${pct >= 100 ? 'text-green-600 dark:text-green-400' : pct >= 80 ? 'text-yellow-600 dark:text-yellow-400' : ''}`}>
                         ({pct}%)
                       </span>
                     </p>

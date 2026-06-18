@@ -115,7 +115,7 @@ export function TransactionForm({ addTransactionAction, updateTransactionAction,
               className={`rounded-md border py-2.5 text-sm font-medium transition-colors capitalize ${
                 type === t
                   ? t === 'income'
-                    ? 'bg-green-600 text-white border-green-600'
+                    ? 'bg-green-600 dark:bg-green-700 text-white border-green-600 dark:border-green-700'
                     : 'bg-destructive text-white border-destructive'
                   : 'bg-background hover:bg-muted'
               }`}

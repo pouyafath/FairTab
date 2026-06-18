@@ -46,13 +46,15 @@ export function TransactionList({ transactions, deleteTransactionAction }: Props
           <div className="flex items-center gap-3 min-w-0">
             <div
               className={`rounded-full p-1.5 flex-shrink-0 ${
-                t.type === 'income' ? 'bg-green-100' : 'bg-red-100'
+                t.type === 'income'
+                  ? 'bg-green-100 dark:bg-green-950'
+                  : 'bg-red-100 dark:bg-red-950'
               }`}
             >
               {t.type === 'income' ? (
-                <TrendingUp className="h-3.5 w-3.5 text-green-600" />
+                <TrendingUp className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
               ) : (
-                <TrendingDown className="h-3.5 w-3.5 text-red-600" />
+                <TrendingDown className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
               )}
             </div>
             <div className="min-w-0">
@@ -76,7 +78,9 @@ export function TransactionList({ transactions, deleteTransactionAction }: Props
           <div className="flex items-center gap-2 flex-shrink-0">
             <span
               className={`font-semibold text-sm ${
-                t.type === 'income' ? 'text-green-600' : 'text-red-600'
+                t.type === 'income'
+                  ? 'text-green-600 dark:text-green-400'
+                  : 'text-red-600 dark:text-red-400'
               }`}
             >
               {t.type === 'income' ? '+' : '-'}

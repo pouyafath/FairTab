@@ -6,6 +6,15 @@ import { SiteHeader } from '@/components/layout/site-header'
 import { SiteFooter } from '@/components/layout/site-footer'
 import { PWARegister } from '@/components/pwa-register'
 import { PWAInstallBanner } from '@/components/pwa-install-banner'
+import { ThemeProvider } from '@/components/theme-provider'
+
+const THEME_INIT_SCRIPT = `
+try {
+  var t = localStorage.getItem('fairtab:theme');
+  var dark = t === 'dark' || ((t === 'system' || !t) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.classList.toggle('dark', dark);
+} catch (e) {}
+`
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -17,6 +26,10 @@ export const metadata: Metadata = {
   description:
     'Free, privacy-first expense splitting and personal finance tracking. No account required. Built for Canadians.',
   manifest: '/manifest.json',
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/icons/icon-192.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -42,6 +55,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className={inter.className}>
         <div className="relative flex min-h-screen flex-col">
@@ -52,6 +66,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Toaster />
         <PWARegister />
         <PWAInstallBanner />
+        <ThemeProvider />
       </body>
     </html>
   )

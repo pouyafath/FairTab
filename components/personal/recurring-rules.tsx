@@ -316,9 +316,14 @@ export function RecurringRules({ rules, addAction, updateAction, toggleAction, d
       </div>
 
       {rules.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-2">
-          No rules yet — add one to auto-generate rent, salary, subscriptions, and more.
-        </p>
+        <div className="flex flex-col items-center gap-3 py-8 text-center">
+          <div className="rounded-full bg-muted p-3">
+            <RefreshCw className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <p className="text-sm text-muted-foreground max-w-xs">
+            No rules yet — add one to auto-generate rent, salary, subscriptions, and more.
+          </p>
+        </div>
       ) : (
         <div className="space-y-2">
           {rules.map((rule) => (
@@ -327,15 +332,15 @@ export function RecurringRules({ rules, addAction, updateAction, toggleAction, d
               className={`flex items-center justify-between gap-3 rounded-lg border p-3 bg-card ${!rule.active ? 'opacity-60' : ''}`}
             >
               <div className="flex items-center gap-3 min-w-0">
-                <div className={`rounded-full p-1.5 flex-shrink-0 ${rule.type === 'income' ? 'bg-green-100' : 'bg-red-100'}`}>
+                <div className={`rounded-full p-1.5 flex-shrink-0 ${rule.type === 'income' ? 'bg-green-100 dark:bg-green-950' : 'bg-red-100 dark:bg-red-950'}`}>
                   {rule.type === 'income'
-                    ? <TrendingUp className="h-3.5 w-3.5 text-green-600" />
-                    : <TrendingDown className="h-3.5 w-3.5 text-red-600" />}
+                    ? <TrendingUp className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                    : <TrendingDown className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />}
                 </div>
                 <div className="min-w-0">
                   <p className="font-medium text-sm truncate">{rule.title}</p>
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                    <span className={`text-xs font-semibold ${rule.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
+                    <span className={`text-xs font-semibold ${rule.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                       {rule.type === 'income' ? '+' : '-'}{formatCurrency(rule.amount, rule.currency)}
                     </span>
                     <span className="text-xs text-muted-foreground">

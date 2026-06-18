@@ -15,22 +15,25 @@ export function SummaryCards({ summary, currency = 'CAD' }: Props) {
       label: 'Income',
       value: summary.totalIncome,
       icon: TrendingUp,
-      color: 'text-green-600',
-      bg: 'bg-green-50',
+      color: 'text-green-600 dark:text-green-400',
+      bg: 'bg-green-50 dark:bg-green-950',
     },
     {
       label: 'Expenses',
       value: summary.totalExpenses,
       icon: TrendingDown,
-      color: 'text-red-600',
-      bg: 'bg-red-50',
+      color: 'text-red-600 dark:text-red-400',
+      bg: 'bg-red-50 dark:bg-red-950',
     },
     {
       label: 'Net Balance',
       value: summary.netSavings,
       icon: Wallet,
-      color: summary.netSavings >= 0 ? 'text-blue-600' : 'text-red-600',
-      bg: summary.netSavings >= 0 ? 'bg-blue-50' : 'bg-red-50',
+      color:
+        summary.netSavings >= 0
+          ? 'text-blue-600 dark:text-blue-400'
+          : 'text-red-600 dark:text-red-400',
+      bg: summary.netSavings >= 0 ? 'bg-blue-50 dark:bg-blue-950' : 'bg-red-50 dark:bg-red-950',
     },
   ]
 

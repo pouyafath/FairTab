@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, Download, Upload } from 'lucide-react'
+import { Check, Download, Upload, Sun, Moon, Monitor } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,6 +17,13 @@ import {
 import { useToast } from '@/components/ui/use-toast'
 import { CURRENCIES } from '@/lib/constants'
 import { useDefaultCurrency, writeDefaultCurrency } from '@/lib/settings'
+import { useTheme, writeTheme, type Theme } from '@/lib/theme'
+
+const THEMES: { value: Theme; label: string; icon: typeof Sun }[] = [
+  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'dark', label: 'Dark', icon: Moon },
+  { value: 'system', label: 'System', icon: Monitor },
+]
 
 interface PendingRestore {
   doc: unknown
@@ -53,6 +60,12 @@ export default function SettingsPage() {
   const [pending, setPending] = useState<PendingRestore | null>(null)
   const [confirmText, setConfirmText] = useState('')
   const [restoring, setRestoring] = useState(false)
+
+  const theme = useTheme()
+
+  function handleThemeChange(value: Theme) {
+    writeTheme(value)
+  }
 
   function handleSave() {
     writeDefaultCurrency(currency)
@@ -113,6 +126,32 @@ export default function SettingsPage() {
   return (
     <div className="container py-12 max-w-lg space-y-6">
       <h1 className="text-2xl font-bold">Settings</h1>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Appearance</CardTitle>
+          <CardDescription>Choose how FairTab looks on this device.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-3 gap-2">
+            {THEMES.map(({ value, label, icon: Icon }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => handleThemeChange(value)}
+                className={`flex flex-col items-center gap-2 rounded-md border px-4 py-3 text-sm font-medium transition-colors ${
+                  theme === value
+                    ? 'border-primary bg-primary/5 text-primary'
+                    : 'bg-background hover:bg-muted'
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                {label}
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

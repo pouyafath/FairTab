@@ -133,8 +133,8 @@ export function SettlementsView({
         </div>
       ) : (
         <div className="text-center py-8">
-          <div className="rounded-full bg-green-100 p-4 inline-flex mb-4">
-            <Check className="h-8 w-8 text-green-600" />
+          <div className="rounded-full bg-green-100 dark:bg-green-950 p-4 inline-flex mb-4">
+            <Check className="h-8 w-8 text-green-600 dark:text-green-400" />
           </div>
           <h3 className="font-semibold text-lg">All settled up!</h3>
           <p className="text-muted-foreground mt-1">No outstanding balances in this group.</p>
@@ -167,7 +167,10 @@ export function SettlementsView({
                       )}
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <Badge variant="outline" className="text-green-600 border-green-600">
+                      <Badge
+                        variant="outline"
+                        className="text-green-600 dark:text-green-400 border-green-600 dark:border-green-700"
+                      >
                         Paid
                       </Badge>
                       <Button
