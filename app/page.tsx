@@ -17,30 +17,36 @@ export default function HomePage() {
   return (
     <div className="flex flex-col">
       {/* Hero */}
-      <section className="container py-20 text-center">
-        <Badge variant="secondary" className="mb-4">
-          Free forever · No account required
-        </Badge>
-        <h1 className="text-4xl font-bold tracking-tight sm:text-6xl max-w-3xl mx-auto">
-          Split expenses, track money, settle fairly.
-        </h1>
-        <p className="mt-6 text-xl text-muted-foreground max-w-2xl mx-auto">
-          The free, privacy-first app for splitting group expenses and tracking personal spending.
-          Built for Canadians — Interac-friendly from day one.
-        </p>
-        <div className="mt-10 flex gap-4 justify-center flex-wrap">
-          <Button size="lg" asChild>
-            <Link href="/groups/new">
-              <Users className="h-5 w-5 mr-2" />
-              Create a Group
-            </Link>
-          </Button>
-          <Button size="lg" variant="outline" asChild>
-            <Link href="/personal">
-              <TrendingUp className="h-5 w-5 mr-2" />
-              Track My Finances
-            </Link>
-          </Button>
+      <section className="relative overflow-hidden border-b">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-primary/5 via-background to-background"
+        />
+        <div className="container py-20 text-center sm:py-28">
+          <Badge variant="secondary" className="mb-4">
+            Free forever · No account required
+          </Badge>
+          <h1 className="text-4xl font-bold tracking-tight sm:text-6xl max-w-3xl mx-auto">
+            Split expenses, track money, settle fairly.
+          </h1>
+          <p className="mt-6 text-xl text-muted-foreground max-w-2xl mx-auto">
+            The free, privacy-first app for splitting group expenses and tracking personal
+            spending. Built for Canadians — Interac-friendly from day one.
+          </p>
+          <div className="mt-10 flex gap-4 justify-center flex-wrap">
+            <Button size="lg" asChild>
+              <Link href="/groups/new">
+                <Users className="h-5 w-5 mr-2" />
+                Create a Group
+              </Link>
+            </Button>
+            <Button size="lg" variant="outline" asChild>
+              <Link href="/personal">
+                <TrendingUp className="h-5 w-5 mr-2" />
+                Track My Finances
+              </Link>
+            </Button>
+          </div>
         </div>
       </section>
 
@@ -69,7 +75,10 @@ export default function HomePage() {
               description: 'CAD default, Interac e-Transfer settlement messages built in.',
             },
           ].map(({ icon: Icon, title, description }) => (
-            <Card key={title}>
+            <Card
+              key={title}
+              className="transition-colors hover:border-primary/30 hover:shadow-sm"
+            >
               <CardContent className="pt-6">
                 <div className="rounded-full bg-primary/10 p-3 w-fit mb-4">
                   <Icon className="h-5 w-5 text-primary" />
