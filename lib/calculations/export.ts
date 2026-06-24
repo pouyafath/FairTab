@@ -8,19 +8,27 @@ function centsToDecimal(cents: number): string {
   return `${sign}${Math.floor(abs / 100)}.${String(abs % 100).padStart(2, '0')}`
 }
 
+function csvCell(value: string | number): string {
+  const text = String(value)
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
+}
+
 export function generateCSV(transactions: PersonalTransaction[]): string {
   const headers = ['Date', 'Type', 'Title', 'Category', 'Amount', 'Currency', 'Account', 'Note']
 
   const rows = transactions.map((t) => [
     formatDate(t.date),
     t.type,
-    `"${t.title.replace(/"/g, '""')}"`,
+    t.title,
     t.category ?? '',
     centsToDecimal(t.amount),
     t.currency,
     t.accountLabel ?? '',
-    `"${(t.note ?? '').replace(/"/g, '""')}"`,
+    t.note ?? '',
   ])
 
-  return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
+  return [
+    headers.map(csvCell).join(','),
+    ...rows.map((row) => row.map(csvCell).join(',')),
+  ].join('\n')
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { UserPlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,6 +26,7 @@ interface Props {
 }
 
 export function AddMemberDialog({ groupToken, addMemberAction, onMemberAdded }: Props) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -49,6 +51,7 @@ export function AddMemberDialog({ groupToken, addMemberAction, onMemberAdded }: 
         setEmail('')
         setOpen(false)
         toast({ title: `${memberName} added to group` })
+        router.refresh()
         onMemberAdded?.()
       } else {
         setError(result.error)

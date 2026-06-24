@@ -12,7 +12,10 @@ node --version   # v20.x.x
 npm --version    # 10.x.x
 ```
 
-If you use a Node version manager, run `nvm use` from the repo root. `.nvmrc` pins the project to Node 20.
+If you use a Node version manager, run `nvm use` from the repo root. `.nvmrc` pins the project to
+Node 20. Use a normal system Node.js/npm install for builds and browser QA; embedded Node runtimes
+without `npm` on `PATH` can run some direct binaries, but they cannot install dependencies,
+Playwright browsers, or reliably resolve native Next.js packages.
 
 ---
 
@@ -39,7 +42,11 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-Use a normal system Node.js/npm install for builds. Embedded Node runtimes without `npm` on `PATH` can run some direct binaries, but `next build` may still need npm while resolving the native SWC package.
+Install Playwright's browser binary before running browser E2E locally:
+
+```bash
+npx playwright install chromium
+```
 
 ---
 
@@ -51,12 +58,20 @@ Use a normal system Node.js/npm install for builds. Embedded Node runtimes witho
 | `npm run build` | Production build (creates `.next/` and `.next/standalone/`) |
 | `npm run start` | Run the production build locally |
 | `npm run test` | Run backend service tests with in-memory repositories, no server or DB |
+| `npm run verify` | Run lint, typecheck, tests, migration smoke, and Chromium E2E |
+| `npm run test:e2e:prepare` | Reset, migrate, and seed the isolated E2E database |
+| `npm run test:e2e` | Run non-visual Playwright browser E2E specs against `./.tmp/fairtab-e2e.db` |
+| `npm run test:e2e:visual` | Run opt-in Playwright visual snapshot specs against `./.tmp/fairtab-e2e.db` |
+| `npm run deploy:smoke` | Check `/`, `/groups`, `/personal`, and `/api/health` on a running app |
+| `npm run release:check` | Run direct release verification: whitespace, doctor, lint, typecheck, backend tests, migration verifier, Chromium E2E, build, and optional smoke |
+| `npm run release:report` | Print changed paths grouped by release review area |
 | `npm run typecheck` | TypeScript type check (no emit) |
 | `npm run lint` | Run ESLint |
+| `npm run db:verify-migrations` | Verify migrations with a temporary `better-sqlite3` database |
 | `npm run db:push` | Sync Drizzle schema → SQLite (creates `fairtab.db` if missing) |
 | `npm run db:studio` | Open Drizzle Studio at [http://localhost:4983](http://localhost:4983) |
 | `npm run db:generate` | Generate SQL migration files from schema changes |
-| `npm run db:migrate` | Apply `migrations/0001_initial.sql` (used by Docker, not needed for dev) |
+| `npm run db:migrate` | Apply pending `migrations/*.sql` files idempotently |
 | `npm run pages:build` | Build for Cloudflare Workers (`@opennextjs/cloudflare`) |
 
 ---
@@ -67,6 +82,8 @@ Use a normal system Node.js/npm install for builds. Embedded Node runtimes witho
 |---|---|---|
 | `DATABASE_URL` | `./fairtab.db` | Path to the SQLite database file |
 | `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` | Public URL (used in PWA manifest) |
+| `FAIRTAB_BACKUP_TOKEN` | unset | Optional bearer token for full JSON backup export and restore dry-run routes; required before JSON restore execution is enabled |
+| `SMOKE_REQUIRE_BACKUP_AUTH` | unset | Set to `1` when deploy smoke should fail if `/api/health` reports missing backup authorization |
 
 For local dev, the defaults in `.env.example` work without any changes.
 
@@ -237,10 +254,8 @@ These tests exercise backend services through in-memory repositories, so they do
 
 To verify a broader change:
 
-1. Run `npm run test` — backend behavior must pass without server setup
-2. Run `npm run typecheck` — zero errors required
-3. Run `npm run lint` — zero warnings required
-4. Run `npm run build` — production build must succeed
-5. Manually test the affected user flow
+1. Run `npm run release:check` — lint, typecheck, backend tests, migration verification, Chromium E2E, and build
+2. Run `SMOKE_BASE_URL=http://localhost:3000 npm run release:check` against a running build or dev server when release smoke is needed
+3. Manually test the affected user flow
 
 See [docs/contributing.md](contributing.md) for how to add tests.

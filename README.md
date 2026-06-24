@@ -29,7 +29,7 @@ private or self-hosted personal use.
 | Feature | Details |
 |---|---|
 | **Group expense splitting** | 4 split methods: equal, exact amounts, percentage, shares |
-| **Group management** | Rename or delete groups, and edit or remove members without referenced expenses |
+| **Group management** | Rename, archive, or delete groups, and edit or remove members without referenced expenses |
 | **Expense management** | Edit or delete group expenses after they are created |
 | **Smart settlements** | Inline suggestions, payment history, and undo support |
 | **Interac e-Transfer** | One-click copy of a ready-to-send settlement message |
@@ -109,8 +109,11 @@ App is live at **http://localhost:3000**. Data is in `./data/fairtab.db`.
 | [docs/development.md](docs/development.md) | Local setup, env vars, available scripts, dev workflow |
 | [docs/docker.md](docs/docker.md) | Dockerfile, Compose, volumes, updating |
 | [docs/cloudflare.md](docs/cloudflare.md) | Cloudflare Pages + D1 deployment |
+| [docs/deployment-checklist.md](docs/deployment-checklist.md) | Predeploy verification, backups, and postdeploy smoke checks |
 | [docs/architecture.md](docs/architecture.md) | Tech stack, file structure, data flow, algorithms |
 | [docs/database.md](docs/database.md) | Schema, migrations, backup and restore |
+| [docs/qa.md](docs/qa.md) | Browser QA, Playwright E2E, and visual smoke checks |
+| [docs/review-plan.md](docs/review-plan.md) | Suggested review chunks for the current broad improvement branch |
 | [docs/contributing.md](docs/contributing.md) | How to contribute, commit style, PR process |
 | [pouyafath/Phomeserver](https://github.com/pouyafath/Phomeserver) | Home-server OS, VPN, security, monitoring, and host operations |
 
@@ -187,8 +190,16 @@ npm run dev           # Development server (http://localhost:3000)
 npm run build         # Production build (Next.js + standalone output)
 npm run start         # Start production server (after build)
 npm run test          # Backend service tests without server/database setup
+npm run verify        # Lint, typecheck, tests, migration smoke, Chromium E2E
+npm run test:e2e:prepare # Reset, migrate, and seed the isolated E2E DB
+npm run test:e2e      # Playwright browser E2E using ./.tmp/fairtab-e2e.db
+npm run test:e2e:visual # Opt-in visual snapshots using ./.tmp/fairtab-e2e.db
+npm run deploy:smoke  # Smoke-check a running app via SMOKE_BASE_URL
+npm run release:check # Direct release gate: lint, typecheck, tests, migration verifier, E2E, build
+npm run release:report # Print changed paths grouped by review area
 npm run typecheck     # TypeScript type checking
 npm run lint          # ESLint
+npm run db:verify-migrations # Verify migrations with a temporary better-sqlite3 DB
 npm run db:push       # Sync Drizzle schema → SQLite (dev only)
 npm run db:studio     # Open Drizzle Studio database browser
 npm run db:generate   # Generate Drizzle migration files
@@ -217,7 +228,6 @@ Contributions are welcome! Please read [docs/contributing.md](docs/contributing.
 
 ## Roadmap
 
-- [ ] Group archiving
 - [ ] Receipt image attachments
 - [ ] Recurring expenses
 - [ ] PWA install prompt

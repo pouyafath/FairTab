@@ -13,15 +13,20 @@ import type { DeletePersonalTransactionAction } from '@/types/actions'
 interface Props {
   transactions: PersonalTransaction[]
   deleteTransactionAction: DeletePersonalTransactionAction
+  emptyMessage?: string
 }
 
-export function TransactionList({ transactions, deleteTransactionAction }: Props) {
+export function TransactionList({
+  transactions,
+  deleteTransactionAction,
+  emptyMessage = 'No transactions in this period.',
+}: Props) {
   const [isPending, startTransition] = useTransition()
   const { toast } = useToast()
 
   if (transactions.length === 0) {
     return (
-      <p className="text-center py-8 text-muted-foreground">No transactions in this period.</p>
+      <p className="text-center py-8 text-muted-foreground">{emptyMessage}</p>
     )
   }
 
@@ -41,18 +46,18 @@ export function TransactionList({ transactions, deleteTransactionAction }: Props
       {transactions.map((t) => (
         <div
           key={t.id}
-          className="flex items-center justify-between gap-3 rounded-lg border p-3 bg-card"
+          className="flex flex-col gap-3 rounded-lg border bg-card/85 p-3 shadow-sm transition-colors hover:border-primary/25 sm:flex-row sm:items-center sm:justify-between"
         >
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex min-w-0 items-center gap-3">
             <div
-              className={`rounded-full p-1.5 flex-shrink-0 ${
-                t.type === 'income' ? 'bg-green-100' : 'bg-red-100'
+              className={`rounded-md p-1.5 flex-shrink-0 ${
+                t.type === 'income' ? 'bg-emerald-100' : 'bg-rose-100'
               }`}
             >
               {t.type === 'income' ? (
-                <TrendingUp className="h-3.5 w-3.5 text-green-600" />
+                <TrendingUp className="h-3.5 w-3.5 text-emerald-700" />
               ) : (
-                <TrendingDown className="h-3.5 w-3.5 text-red-600" />
+                <TrendingDown className="h-3.5 w-3.5 text-rose-700" />
               )}
             </div>
             <div className="min-w-0">
@@ -67,31 +72,33 @@ export function TransactionList({ transactions, deleteTransactionAction }: Props
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex w-full flex-shrink-0 items-center justify-between gap-2 sm:w-auto sm:justify-end">
             <span
               className={`font-semibold text-sm ${
-                t.type === 'income' ? 'text-green-600' : 'text-red-600'
+                t.type === 'income' ? 'text-emerald-700' : 'text-rose-700'
               }`}
             >
               {t.type === 'income' ? '+' : '-'}
               {formatCurrency(t.amount, t.currency)}
             </span>
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" asChild>
-              <Link href={`/personal/transactions/${t.id}/edit`}>
-                <Pencil className="h-3.5 w-3.5" />
-                <span className="sr-only">Edit {t.title}</span>
-              </Link>
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-muted-foreground hover:text-destructive"
-              onClick={() => handleDelete(t.id, t.title)}
-              disabled={isPending}
-              aria-label={`Delete ${t.title}`}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground sm:h-7 sm:w-7" asChild>
+                <Link href={`/personal/transactions/${t.id}/edit`}>
+                  <Pencil className="h-3.5 w-3.5" />
+                  <span className="sr-only">Edit {t.title}</span>
+                </Link>
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 text-muted-foreground hover:text-destructive sm:h-7 sm:w-7"
+                onClick={() => handleDelete(t.id, t.title)}
+                disabled={isPending}
+                aria-label={`Delete ${t.title}`}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           </div>
         </div>
       ))}

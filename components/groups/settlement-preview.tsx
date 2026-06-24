@@ -14,9 +14,16 @@ interface Props {
   expenses: ExpenseWithParticipants[]
   currency: string
   groupToken: string
+  isArchived?: boolean
 }
 
-export function SettlementPreview({ members, expenses, currency, groupToken }: Props) {
+export function SettlementPreview({
+  members,
+  expenses,
+  currency,
+  groupToken,
+  isArchived = false,
+}: Props) {
   const suggestions = useMemo(() => {
     if (expenses.length === 0) return []
     const rawExpenses = expenses.map((e) => ({
@@ -38,12 +45,14 @@ export function SettlementPreview({ members, expenses, currency, groupToken }: P
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base">Who owes what</CardTitle>
-          <Button variant="ghost" size="sm" asChild className="text-xs h-7 px-2">
-            <Link href={`/groups/${groupToken}/settlements`}>
-              Settle Up
-              <ArrowRight className="h-3 w-3 ml-1" />
-            </Link>
-          </Button>
+          {!isArchived && (
+            <Button variant="ghost" size="sm" asChild className="text-xs h-7 px-2">
+              <Link href={`/groups/${groupToken}/settlements`}>
+                Settle Up
+                <ArrowRight className="h-3 w-3 ml-1" />
+              </Link>
+            </Button>
+          )}
         </div>
       </CardHeader>
       <CardContent className="p-0">

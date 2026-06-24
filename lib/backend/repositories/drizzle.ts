@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { and, desc, eq } from 'drizzle-orm'
+import { and, asc, desc, eq, sql } from 'drizzle-orm'
 import type { AppDb } from '@/lib/db'
 import {
   expenseParticipants,
@@ -30,6 +30,14 @@ import type {
   PersonalTransaction,
   Settlement,
 } from '@/types'
+
+type WriteDb = {
+  insert: (table: unknown) => {
+    values: (values: unknown) => { run: () => unknown }
+  }
+  delete: (table: unknown) => { run: () => unknown }
+  run: (query: unknown) => unknown
+}
 
 function toEpochMs(value: Date | number | string): number {
   if (value instanceof Date) return value.getTime()
@@ -73,6 +81,34 @@ function serializeExpenseParticipant(
   return row
 }
 
+function serializeSettlement(row: typeof settlements.$inferSelect): Settlement {
+  return {
+    ...row,
+    paidAt: row.paidAt ? toEpochMs(row.paidAt) : null,
+  }
+}
+
+async function runInSqlTransaction<T>(db: WriteDb, work: () => Promise<T>): Promise<T> {
+  await Promise.resolve(db.run(sql.raw('begin')))
+  try {
+    const result = await work()
+    await Promise.resolve(db.run(sql.raw('commit')))
+    return result
+  } catch (error) {
+    try {
+      await Promise.resolve(db.run(sql.raw('rollback')))
+    } catch (rollbackError) {
+      console.error('[fairtab] backup restore rollback failed:', rollbackError)
+    }
+    throw error
+  }
+}
+
+async function insertRows(db: WriteDb, table: unknown, rows: unknown[]) {
+  if (rows.length === 0) return
+  await Promise.resolve(db.insert(table).values(rows).run())
+}
+
 export function createDrizzleRepositories(db: AppDb): AppRepositories {
   return {
     groups: {
@@ -84,6 +120,37 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
       async findByToken(token: string): Promise<GroupWithMembers | null> {
         const group = await db.query.groups.findFirst({
           where: eq(groups.token, token),
+          with: { members: true },
+        })
+        if (!group) return null
+
+        return {
+          ...serializeGroup(group),
+          members: group.members,
+        }
+      },
+
+      async findById(groupId: number): Promise<GroupWithMembers | null> {
+        const group = await db.query.groups.findFirst({
+          where: eq(groups.id, groupId),
+          with: { members: true },
+        })
+        if (!group) return null
+
+        return {
+          ...serializeGroup(group),
+          members: group.members,
+        }
+      },
+
+      async findByMemberId(memberId: number): Promise<GroupWithMembers | null> {
+        const member = await db.query.groupMembers.findFirst({
+          where: eq(groupMembers.id, memberId),
+        })
+        if (!member) return null
+
+        const group = await db.query.groups.findFirst({
+          where: eq(groups.id, member.groupId),
           with: { members: true },
         })
         if (!group) return null
@@ -332,20 +399,106 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
         })
       },
 
+      async findById(settlementId: number): Promise<Settlement | null> {
+        const row = await db.query.settlements.findFirst({
+          where: eq(settlements.id, settlementId),
+        })
+        if (!row) return null
+
+        return serializeSettlement(row)
+      },
+
       async findPaidForGroup(groupId: number): Promise<Settlement[]> {
         const rows = await db
           .select()
           .from(settlements)
           .where(and(eq(settlements.groupId, groupId), eq(settlements.isPaid, true)))
           .orderBy(desc(settlements.paidAt))
-        return rows.map((row) => ({
-          ...row,
-          paidAt: row.paidAt ? toEpochMs(row.paidAt) : null,
-        }))
+        return rows.map(serializeSettlement)
       },
 
       async undo(settlementId: number): Promise<void> {
         await db.delete(settlements).where(eq(settlements.id, settlementId))
+      },
+    },
+
+    backups: {
+      async readSnapshot() {
+        const [
+          groupRows,
+          memberRows,
+          expenseRows,
+          participantRows,
+          settlementRows,
+          personalRows,
+        ] = await Promise.all([
+          db.select().from(groups).orderBy(asc(groups.id)),
+          db.select().from(groupMembers).orderBy(asc(groupMembers.id)),
+          db.select().from(expenses).orderBy(asc(expenses.id)),
+          db.select().from(expenseParticipants).orderBy(asc(expenseParticipants.id)),
+          db.select().from(settlements).orderBy(asc(settlements.id)),
+          db.select().from(personalTransactions).orderBy(asc(personalTransactions.id)),
+        ])
+
+        return {
+          groups: groupRows.map(serializeGroup),
+          groupMembers: memberRows,
+          expenses: expenseRows.map(serializeExpense),
+          expenseParticipants: participantRows.map(serializeExpenseParticipant),
+          settlements: settlementRows.map(serializeSettlement),
+          personalTransactions: personalRows.map(serializePersonalTransaction),
+        }
+      },
+
+      async restoreSnapshot(data, options) {
+        const writer = db as unknown as WriteDb
+        await runInSqlTransaction(writer, async () => {
+          if (options.replace) {
+            await Promise.resolve(writer.delete(expenseParticipants).run())
+            await Promise.resolve(writer.delete(settlements).run())
+            await Promise.resolve(writer.delete(expenses).run())
+            await Promise.resolve(writer.delete(groupMembers).run())
+            await Promise.resolve(writer.delete(groups).run())
+            await Promise.resolve(writer.delete(personalTransactions).run())
+          }
+
+          await insertRows(
+            writer,
+            groups,
+            data.groups.map((group) => ({
+              ...group,
+              createdAt: new Date(group.createdAt),
+            }))
+          )
+          await insertRows(writer, groupMembers, data.groupMembers)
+          await insertRows(
+            writer,
+            expenses,
+            data.expenses.map((expense) => ({
+              ...expense,
+              date: new Date(expense.date),
+              createdAt: new Date(expense.createdAt),
+            }))
+          )
+          await insertRows(writer, expenseParticipants, data.expenseParticipants)
+          await insertRows(
+            writer,
+            settlements,
+            data.settlements.map((settlement) => ({
+              ...settlement,
+              paidAt: settlement.paidAt === null ? null : new Date(settlement.paidAt),
+            }))
+          )
+          await insertRows(
+            writer,
+            personalTransactions,
+            data.personalTransactions.map((transaction) => ({
+              ...transaction,
+              date: new Date(transaction.date),
+              createdAt: new Date(transaction.createdAt),
+            }))
+          )
+        })
       },
     },
   }

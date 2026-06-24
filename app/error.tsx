@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '@/components/ui/button'
+import { ErrorState } from '@/components/layout/error-state'
 
 export default function Error({
   error,
@@ -9,13 +9,17 @@ export default function Error({
   error: Error & { digest?: string }
   reset: () => void
 }) {
+  const description =
+    process.env.NODE_ENV === 'production'
+      ? 'An unexpected error occurred while loading this page.'
+      : error.message || 'An unexpected error occurred while loading this page.'
+
   return (
-    <div className="container py-24 text-center max-w-md mx-auto">
-      <h2 className="text-2xl font-bold">Something went wrong</h2>
-      <p className="mt-3 text-muted-foreground">{error.message || 'An unexpected error occurred.'}</p>
-      <Button onClick={reset} className="mt-8">
-        Try again
-      </Button>
-    </div>
+    <ErrorState
+      title="Something went wrong"
+      description={description}
+      digest={error.digest}
+      reset={reset}
+    />
   )
 }

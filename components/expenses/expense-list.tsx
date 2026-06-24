@@ -25,9 +25,16 @@ interface Props {
   currency: string
   groupToken: string
   deleteExpenseAction: DeleteExpenseAction
+  isArchived?: boolean
 }
 
-export function ExpenseList({ expenses, currency, groupToken, deleteExpenseAction }: Props) {
+export function ExpenseList({
+  expenses,
+  currency,
+  groupToken,
+  deleteExpenseAction,
+  isArchived = false,
+}: Props) {
   const router = useRouter()
   const { toast } = useToast()
   const [isPending, startTransition] = useTransition()
@@ -52,10 +59,14 @@ export function ExpenseList({ expenses, currency, groupToken, deleteExpenseActio
   if (expenses.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3 py-12 text-center">
-        <div className="rounded-full bg-muted p-4">
-          <Receipt className="h-6 w-6 text-muted-foreground" />
+        <div className="rounded-lg bg-primary/10 p-4">
+          <Receipt className="h-6 w-6 text-primary" />
         </div>
-        <p className="text-muted-foreground">No expenses yet. Add one to get started.</p>
+        <p className="text-muted-foreground">
+          {isArchived
+            ? 'No expenses were recorded before this group was archived.'
+            : 'No expenses yet. Add one to get started.'}
+        </p>
       </div>
     )
   }
@@ -87,11 +98,11 @@ export function ExpenseList({ expenses, currency, groupToken, deleteExpenseActio
           <Card key={expense.id}>
             <CardContent className="p-0">
               <button
-                className="w-full text-left p-4 hover:bg-muted/50 transition-colors rounded-lg"
+                className="w-full rounded-lg p-3 text-left transition-colors hover:bg-muted/50 sm:p-4"
                 onClick={() => toggle(expense.id)}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium truncate">{expense.title}</span>
                       {expense.category && (
@@ -104,7 +115,7 @@ export function ExpenseList({ expenses, currency, groupToken, deleteExpenseActio
                       Paid by {expense.paidBy.name} · {formatDate(expense.date)}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex w-full flex-shrink-0 items-center justify-between gap-2 sm:w-auto sm:justify-end">
                     <span className="font-semibold">{formatCurrency(expense.amount, currency)}</span>
                     {isOpen ? (
                       <ChevronUp className="h-4 w-4 text-muted-foreground" />
@@ -122,8 +133,8 @@ export function ExpenseList({ expenses, currency, groupToken, deleteExpenseActio
                   </p>
                   <div className="space-y-1">
                     {expense.participants.map((p) => (
-                      <div key={p.id} className="flex justify-between text-sm">
-                        <span>{p.member.name}</span>
+                    <div key={p.id} className="flex items-center justify-between gap-3 text-sm">
+                      <span>{p.member.name}</span>
                         <span className="text-muted-foreground">
                           {formatCurrency(p.amountCents, currency)}
                         </span>
@@ -133,23 +144,25 @@ export function ExpenseList({ expenses, currency, groupToken, deleteExpenseActio
                   {expense.notes && (
                     <p className="text-xs text-muted-foreground mt-2 italic">{expense.notes}</p>
                   )}
-                  <div className="flex gap-2 pt-2">
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href={`/groups/${groupToken}/expenses/${expense.id}/edit`}>
-                        <Pencil className="h-3.5 w-3.5 mr-1.5" />
-                        Edit
-                      </Link>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => setDeleteTarget(expense)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                      Delete
-                    </Button>
-                  </div>
+                  {!isArchived && (
+                    <div className="grid grid-cols-2 gap-2 pt-2 sm:flex">
+                      <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
+                        <Link href={`/groups/${groupToken}/expenses/${expense.id}/edit`}>
+                          <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                          Edit
+                        </Link>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full text-destructive hover:text-destructive sm:w-auto"
+                        onClick={() => setDeleteTarget(expense)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                        Delete
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>

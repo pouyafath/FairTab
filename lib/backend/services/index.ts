@@ -1,3 +1,4 @@
+import { createBackupService } from './backups'
 import { createExpenseService } from './expenses'
 import { createGroupService } from './groups'
 import { createPersonalService } from './personal'
@@ -10,6 +11,7 @@ export function createBackendServices(deps: BackendServiceDeps) {
     expenses: createExpenseService(deps),
     personal: createPersonalService(deps),
     settlements: createSettlementService(deps),
+    backups: createBackupService(deps),
   }
 }
 

@@ -7,7 +7,31 @@ on:
     branches: [main]
 
 jobs:
-  ci:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Doctor
+        run: npm run doctor
+
+      - name: Release check
+        run: npm run release:check
+
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -21,15 +45,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Type check
-        run: npm run typecheck
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Test
-        run: npm test
 
       - name: Build
         run: npm run build

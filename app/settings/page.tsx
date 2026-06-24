@@ -1,9 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Check } from 'lucide-react'
+import Link from 'next/link'
+import { Check, DatabaseBackup, FileDown, ShieldCheck } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { BackupActions } from '@/components/settings/backup-actions'
 import { useToast } from '@/components/ui/use-toast'
 import { CURRENCIES } from '@/lib/constants'
 import { useDefaultCurrency, writeDefaultCurrency } from '@/lib/settings'
@@ -22,10 +24,13 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="container py-12 max-w-lg">
-      <h1 className="text-2xl font-bold mb-6">Settings</h1>
+    <div className="container max-w-2xl py-12">
+      <div className="mb-6">
+        <p className="section-kicker mb-2">Device preferences</p>
+        <h1 className="text-3xl font-bold">Settings</h1>
+      </div>
 
-      <Card>
+      <Card className="overflow-hidden">
         <CardHeader>
           <CardTitle>Default Currency</CardTitle>
           <CardDescription>
@@ -42,7 +47,7 @@ export default function SettingsPage() {
                 className={`flex items-center justify-between rounded-md border px-4 py-3 text-sm font-medium transition-colors ${
                   currency === c
                     ? 'border-primary bg-primary/5 text-primary'
-                    : 'bg-background hover:bg-muted'
+                    : 'bg-card/80 hover:bg-muted'
                 }`}
               >
                 <span>{c}</span>
@@ -60,6 +65,46 @@ export default function SettingsPage() {
               Current default: <span className="font-medium">{saved}</span>
             </p>
           )}
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6 overflow-hidden">
+        <CardHeader>
+          <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <DatabaseBackup className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <CardTitle>Data safety</CardTitle>
+          <CardDescription>
+            FairTab stores only the records you enter. For self-hosted deployments, back up the
+            SQLite file before upgrades and confirm health after every deploy.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-lg border bg-muted/35 p-4 text-sm text-muted-foreground">
+            <p className="font-medium text-foreground">Recommended upgrade habit</p>
+            <p className="mt-1">
+              Copy `fairtab.db` before pulling a new version, run migrations, then check the health
+              endpoint for database and migration status.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Button variant="outline" asChild>
+              <Link href="/personal">
+                <FileDown className="mr-2 h-4 w-4" aria-hidden="true" />
+                Export personal CSV
+              </Link>
+            </Button>
+            <Button variant="outline" className="flex-1" asChild>
+              <Link href="/api/health" target="_blank">
+                <ShieldCheck className="mr-2 h-4 w-4" aria-hidden="true" />
+                Open health check
+              </Link>
+            </Button>
+            <Button variant="outline" className="flex-1" asChild>
+              <Link href="/privacy">Review privacy model</Link>
+            </Button>
+          </div>
+          <BackupActions />
         </CardContent>
       </Card>
     </div>

@@ -100,8 +100,8 @@ export function SettlementsView({
             return (
               <Card key={key}>
                 <CardContent className="p-5">
-                  <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <div className="flex items-center gap-3">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-wrap items-center gap-3">
                       <div>
                         <span className="font-semibold">{s.fromMember.name}</span>
                         <span className="text-muted-foreground mx-2">pays</span>
@@ -111,8 +111,13 @@ export function SettlementsView({
                       <span className="font-bold text-lg">{formatCurrency(s.amount, currency)}</span>
                     </div>
 
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => copyInteracMessage(s)}>
+                    <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyInteracMessage(s)}
+                        className="w-full sm:w-auto"
+                      >
                         {isCopied ? (
                           <Check className="h-3 w-3 mr-1" />
                         ) : (
@@ -120,7 +125,12 @@ export function SettlementsView({
                         )}
                         {isCopied ? 'Copied' : 'Copy Interac'}
                       </Button>
-                      <Button size="sm" onClick={() => handleMarkPaid(s)} disabled={isPending}>
+                      <Button
+                        size="sm"
+                        onClick={() => handleMarkPaid(s)}
+                        disabled={isPending}
+                        className="w-full sm:w-auto"
+                      >
                         Mark Paid
                       </Button>
                     </div>
@@ -133,8 +143,8 @@ export function SettlementsView({
         </div>
       ) : (
         <div className="text-center py-8">
-          <div className="rounded-full bg-green-100 p-4 inline-flex mb-4">
-            <Check className="h-8 w-8 text-green-600" />
+          <div className="inline-flex rounded-lg bg-emerald-100 p-4 mb-4">
+            <Check className="h-8 w-8 text-emerald-700" />
           </div>
           <h3 className="font-semibold text-lg">All settled up!</h3>
           <p className="text-muted-foreground mt-1">No outstanding balances in this group.</p>
@@ -153,7 +163,7 @@ export function SettlementsView({
                 return (
                   <div
                     key={s.id}
-                    className="flex items-center justify-between rounded-lg border p-3 bg-card gap-3"
+                    className="flex flex-col gap-3 rounded-lg border bg-card/85 p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="min-w-0">
                       <p className="text-sm">
@@ -166,8 +176,8 @@ export function SettlementsView({
                         <p className="text-xs text-muted-foreground">{formatDate(s.paidAt)}</p>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <Badge variant="outline" className="text-green-600 border-green-600">
+                    <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:flex-shrink-0 sm:justify-end">
+                      <Badge variant="outline" className="text-emerald-700 border-emerald-700">
                         Paid
                       </Badge>
                       <Button

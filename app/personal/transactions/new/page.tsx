@@ -7,10 +7,10 @@ export const metadata: Metadata = { title: 'Add Transaction' }
 
 export default function NewTransactionPage() {
   return (
-    <div className="container py-12 max-w-md">
-      <Card>
+    <div className="container max-w-md py-12">
+      <Card className="overflow-hidden">
         <CardHeader>
-          <CardTitle>Add Transaction</CardTitle>
+          <CardTitle>Add transaction</CardTitle>
           <CardDescription>Track your income or expense.</CardDescription>
         </CardHeader>
         <CardContent>

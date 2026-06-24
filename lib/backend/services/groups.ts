@@ -1,7 +1,9 @@
 import { addMemberSchema, createGroupSchema, updateGroupSchema } from '@/lib/validations/group'
 import type { ActionResult, Group, GroupMember, GroupWithMembers } from '@/types'
 import type { BackendServiceDeps } from './types'
-import { validationError } from './result'
+import { failure, validationError } from './result'
+
+const ARCHIVED_GROUP_ERROR = 'Archived groups are read-only. Unarchive the group to make changes.'
 
 export function createGroupService({ repositories, createId, now }: BackendServiceDeps) {
   return {
@@ -43,6 +45,10 @@ export function createGroupService({ repositories, createId, now }: BackendServi
       const parsed = addMemberSchema.safeParse(formData)
       if (!parsed.success) return validationError<GroupMember>(parsed.error)
 
+      const group = await repositories.groups.findById(groupId)
+      if (!group) return failure<GroupMember>('Group not found')
+      if (group.isArchived) return failure<GroupMember>(ARCHIVED_GROUP_ERROR)
+
       const member = await repositories.groups.addMember({
         groupId,
         name: parsed.data.name,
@@ -56,6 +62,10 @@ export function createGroupService({ repositories, createId, now }: BackendServi
       const parsed = addMemberSchema.safeParse(formData)
       if (!parsed.success) return validationError<GroupMember>(parsed.error)
 
+      const group = await repositories.groups.findByMemberId(memberId)
+      if (!group) return failure<GroupMember>('Member not found')
+      if (group.isArchived) return failure<GroupMember>(ARCHIVED_GROUP_ERROR)
+
       const member = await repositories.groups.updateMember(memberId, {
         name: parsed.data.name,
         email: parsed.data.email || null,
@@ -64,6 +74,13 @@ export function createGroupService({ repositories, createId, now }: BackendServi
     },
 
     async removeMember(groupId: number, memberId: number): Promise<ActionResult<void>> {
+      const group = await repositories.groups.findById(groupId)
+      if (!group) return failure<void>('Group not found')
+      if (group.isArchived) return failure<void>(ARCHIVED_GROUP_ERROR)
+      if (!group.members.some((member) => member.id === memberId)) {
+        return failure<void>('Member not found in this group')
+      }
+
       const hasExpenses = await repositories.expenses.memberHasExpenses(memberId)
       if (hasExpenses) {
         return {

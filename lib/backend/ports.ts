@@ -10,6 +10,13 @@ import type {
   SplitMethod,
   TransactionType,
 } from '@/types'
+import type {
+  BackupData,
+  BackupFile,
+  BackupRestoreOptions,
+  BackupRestoreResult,
+  BackupValidationResult,
+} from '@/lib/backups/types'
 
 export interface CreateGroupRecord {
   name: string
@@ -105,6 +112,8 @@ export interface RecordPaidSettlementInput {
 export interface GroupRepository {
   create(input: CreateGroupRecord): Promise<Group>
   findByToken(token: string): Promise<GroupWithMembers | null>
+  findById(groupId: number): Promise<GroupWithMembers | null>
+  findByMemberId(memberId: number): Promise<GroupWithMembers | null>
   update(groupId: number, input: UpdateGroupRecord): Promise<Group>
   delete(groupId: number): Promise<void>
   addMember(input: AddMemberRecord): Promise<GroupMember>
@@ -132,8 +141,14 @@ export interface PersonalRepository {
 
 export interface SettlementRepository {
   recordPaid(input: RecordPaidSettlementInput): Promise<void>
+  findById(settlementId: number): Promise<Settlement | null>
   findPaidForGroup(groupId: number): Promise<Settlement[]>
   undo(settlementId: number): Promise<void>
+}
+
+export interface BackupRepository {
+  readSnapshot(): Promise<BackupData>
+  restoreSnapshot(data: BackupData, options: { replace: boolean }): Promise<void>
 }
 
 export interface AppRepositories {
@@ -141,4 +156,11 @@ export interface AppRepositories {
   expenses: ExpenseRepository
   personal: PersonalRepository
   settlements: SettlementRepository
+  backups: BackupRepository
+}
+
+export interface BackupService {
+  createBackup(): Promise<BackupFile>
+  validateBackup(payload: unknown): Promise<BackupValidationResult>
+  restoreBackup(payload: unknown, options: BackupRestoreOptions): Promise<BackupRestoreResult>
 }

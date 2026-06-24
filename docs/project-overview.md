@@ -42,9 +42,13 @@ Typical workflow:
 5. Split each expense equally, by exact amounts, by percentage, or by shares.
 6. Review member balances and suggested payments.
 7. Record completed settlements and undo them if needed.
+8. Archive inactive groups to keep them out of the active recent-groups list.
 
 Group owners and members are not separate roles. Anyone who has the group link can view and
 manage the group, including its members and expenses.
+
+Archived groups are read-only for members, expenses, and settlements until they are unarchived.
+They can still be renamed, deleted, or unarchived from group settings.
 
 ### Personal Finance Tracking
 
@@ -144,7 +148,6 @@ The database adapter is selected at runtime. Local and Docker deployments use
 - No automatic currency conversion
 - No recurring transactions
 - No receipt image attachments
-- No group archiving
 - No full-instance data deletion workflow
 
 These constraints are intentional or known roadmap items. Changes that affect them should update
@@ -160,6 +163,8 @@ this document, the README, and the relevant technical documentation.
 | [development.md](development.md) | Local setup, scripts, project structure, and testing |
 | [architecture.md](architecture.md) | Runtime design, boundaries, data flows, and algorithms |
 | [database.md](database.md) | Schema, migrations, backups, and restore |
+| [qa.md](qa.md) | Browser QA, Playwright E2E, and visual smoke checks |
+| [review-plan.md](review-plan.md) | Suggested review chunks for broad improvement work |
 | [docker.md](docker.md) | Docker deployment details |
 | [cloudflare.md](cloudflare.md) | Cloudflare Pages and D1 deployment |
 | [contributing.md](contributing.md) | Contribution workflow and code conventions |
