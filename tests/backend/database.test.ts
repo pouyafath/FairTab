@@ -69,6 +69,7 @@ const backupFixture: BackupData = {
       category: 'Food & Dining',
       note: null,
       accountLabel: null,
+      sourceRuleId: null,
       createdAt: 1780000000000,
     },
   ],
@@ -100,6 +101,9 @@ function createMigratedDatabase() {
     '0001_initial.sql',
     '0002_add_is_archived.sql',
     '0003_add_integrity_indexes.sql',
+    '0004_recurring_rules.sql',
+    '0005_savings_goals.sql',
+    '0006_attachments.sql',
   ]
   for (const file of migrationFiles) {
     db.exec(readFileSync(path.join(migrationsDir, file), 'utf8'))

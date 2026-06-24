@@ -4,6 +4,7 @@ import { createBackendServices } from '@/lib/backend/services'
 import type { BackendServices } from '@/lib/backend/services'
 import { REPLACE_BACKUP_CONFIRMATION } from '@/lib/backups/types'
 import { createInMemoryRepositories } from '../support/in-memory-repositories'
+import { createInMemoryStorage } from '../support/in-memory-storage'
 
 const fixedNow = new Date('2026-05-29T10:00:00.000Z')
 const populatedSummary = {
@@ -27,6 +28,7 @@ function createTestBackend(createId: () => string = () => 'backup01') {
   const { repositories, state } = createInMemoryRepositories()
   const backend = createBackendServices({
     repositories,
+    storage: createInMemoryStorage(),
     createId,
     now: () => fixedNow,
   })

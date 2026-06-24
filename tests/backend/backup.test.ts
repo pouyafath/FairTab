@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { createInMemoryRepositories } from '../support/in-memory-repositories'
 import { createInMemoryStorage } from '../support/in-memory-storage'
-import { createBackupService } from '@/lib/backend/services/backup'
+import { createLegacyBackupService } from '@/lib/backend/services/backup'
 import type { InMemoryRepositoryState } from '../support/in-memory-repositories'
 
 const NOW = new Date('2026-06-01T00:00:00Z').getTime()
@@ -53,7 +53,7 @@ const seeded: Partial<InMemoryRepositoryState> = {
 
 function createService(initial?: Partial<InMemoryRepositoryState>) {
   const { repositories, state } = createInMemoryRepositories(initial)
-  const service = createBackupService({
+  const service = createLegacyBackupService({
     repositories,
     storage: createInMemoryStorage(),
     createId: () => 'x',

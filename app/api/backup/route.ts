@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getBackend } from '@/lib/backend/runtime'
 
 export async function GET() {
-  const doc = await getBackend().backup.exportBackup()
+  const doc = await getBackend().legacyBackup.exportBackup()
   const stamp = doc.generatedAt.replace(/[:.]/g, '-')
 
   return NextResponse.json(doc, {
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Request body is not valid JSON' }, { status: 400 })
   }
 
-  const result = await getBackend().backup.importBackup(raw)
+  const result = await getBackend().legacyBackup.importBackup(raw)
   if (!result.success) {
     return NextResponse.json({ error: result.error }, { status: 400 })
   }

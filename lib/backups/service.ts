@@ -86,6 +86,7 @@ const personalTransactionSchema = z.object({
   category: optionalTextSchema,
   note: optionalTextSchema,
   accountLabel: optionalTextSchema,
+  sourceRuleId: idSchema.nullable(),
   createdAt: timestampSchema,
 })
 

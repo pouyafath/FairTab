@@ -15,10 +15,12 @@ function countRows(doc: BackupDocument): BackupCounts {
   }
 }
 
-export function createBackupService({ repositories, now }: BackendServiceDeps) {
+// Pending unification with lib/backend/services/backups.ts — see the note on
+// LegacyBackupRepository in lib/backend/ports.ts.
+export function createLegacyBackupService({ repositories, now }: BackendServiceDeps) {
   return {
     async exportBackup(): Promise<BackupDocument> {
-      const data = await repositories.backup.exportAll()
+      const data = await repositories.legacyBackup.exportAll()
       return {
         format: 'fairtab-backup',
         version: 1,
@@ -37,7 +39,7 @@ export function createBackupService({ repositories, now }: BackendServiceDeps) {
       }
 
       try {
-        await repositories.backup.importAll(parsed.data.data)
+        await repositories.legacyBackup.importAll(parsed.data.data)
       } catch (error) {
         return {
           success: false,

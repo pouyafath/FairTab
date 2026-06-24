@@ -42,8 +42,8 @@ test('health endpoint exposes app and migration metadata', async ({ request }) =
   expect(payload.runtime.storageAdapter).toMatch(/^(sqlite|cloudflare-d1)$/)
   expect(typeof payload.runtime.backupAuthConfigured).toBe('boolean')
   expect(payload.migrations.status).toBe('tracked')
-  expect(payload.migrations.latest).toBe('0003_add_integrity_indexes.sql')
-  expect(payload.migrations.expectedLatest).toBe('0003_add_integrity_indexes.sql')
+  expect(payload.migrations.latest).toBe('0006_attachments.sql')
+  expect(payload.migrations.expectedLatest).toBe('0006_attachments.sql')
   expect(payload.migrations.drift).toBe(false)
 })
 
