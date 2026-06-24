@@ -9,8 +9,19 @@ test('seeded group data is readable and added to recent groups', async ({ page }
   await expect(page.getByText('Seed dinner').first()).toBeVisible()
   await expect(page.getByText('$64.00').first()).toBeVisible()
 
+  // Visiting a group records it in localStorage via a post-hydration effect.
+  // Wait for that write before navigating, otherwise the SSR "No recent groups"
+  // empty state can still be on /groups when we assert.
+  await page.waitForFunction(() => {
+    try {
+      return JSON.parse(localStorage.getItem('fairtab_recent_groups') || '[]').length > 0
+    } catch {
+      return false
+    }
+  })
+
   await page.goto('/groups')
-  await expect(page.getByRole('heading', { name: 'Groups' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Groups', exact: true })).toBeVisible()
   await expect(page.getByText('E2E Seed Trip').first()).toBeVisible()
 })
 
