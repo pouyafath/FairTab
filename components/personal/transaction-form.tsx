@@ -154,7 +154,7 @@ export function TransactionForm({ addTransactionAction, updateTransactionAction,
         <div className="space-y-2">
           <Label>Currency</Label>
           <Select value={currency} onValueChange={setCurrencyOverride}>
-            <SelectTrigger>
+            <SelectTrigger aria-label="Transaction currency">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -181,7 +181,7 @@ export function TransactionForm({ addTransactionAction, updateTransactionAction,
       <div className="space-y-2">
         <Label>Category</Label>
         <Select value={categoryChoice} onValueChange={setCategoryChoice}>
-          <SelectTrigger>
+          <SelectTrigger aria-label="Transaction category">
             <SelectValue placeholder="Select category (optional)" />
           </SelectTrigger>
           <SelectContent>
@@ -230,7 +230,7 @@ export function TransactionForm({ addTransactionAction, updateTransactionAction,
         </Alert>
       )}
 
-      <div className="flex gap-3">
+      <div className="sticky bottom-0 -mx-6 flex gap-3 border-t bg-card/95 px-6 py-4 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">
         <Button type="button" variant="outline" onClick={() => router.push('/personal')}>
           Cancel
         </Button>

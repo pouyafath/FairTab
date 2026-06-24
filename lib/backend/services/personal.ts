@@ -1,7 +1,7 @@
 import { addTransactionSchema } from '@/lib/validations/personal'
 import type { ActionResult, PersonalTransaction } from '@/types'
 import type { BackendServiceDeps } from './types'
-import { validationError } from './result'
+import { failure, validationError } from './result'
 
 export function createPersonalService({ repositories, now }: BackendServiceDeps) {
   return {
@@ -62,6 +62,9 @@ export function createPersonalService({ repositories, now }: BackendServiceDeps)
     },
 
     async deletePersonalTransaction(id: number): Promise<ActionResult<void>> {
+      const existing = await repositories.personal.findById(id)
+      if (!existing) return failure<void>('Transaction not found')
+
       await repositories.personal.delete(id)
       return { success: true, data: undefined }
     },

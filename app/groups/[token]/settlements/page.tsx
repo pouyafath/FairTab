@@ -6,6 +6,7 @@ import { getBackend } from '@/lib/backend/runtime'
 import { markSettlementPaid, undoSettlement } from '@/lib/actions/settlements'
 import { SettlementsView } from '@/components/groups/settlements-view'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { ArrowLeft } from 'lucide-react'
 import type { Metadata } from 'next'
 
@@ -21,6 +22,34 @@ export default async function SettlementsPage({ params }: Props) {
   const group = await backend.groups.getGroupByToken(token)
   if (!group) notFound()
 
+  if (group.isArchived) {
+    return (
+      <div className="container max-w-2xl py-8 sm:py-10">
+        <div className="mb-6 flex items-center gap-3">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href={`/groups/${token}`}>
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              {group.name}
+            </Link>
+          </Button>
+        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Settle Up</CardTitle>
+            <CardDescription>
+              This group is archived. Unarchive it before recording settlements.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button variant="outline" asChild>
+              <Link href={`/groups/${token}`}>Back to group</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   const [suggestions, paidSettlements] = await Promise.all([
     backend.settlements.getSettlementSuggestions(group.id),
     backend.settlements.getPaidSettlements(group.id),
@@ -29,8 +58,8 @@ export default async function SettlementsPage({ params }: Props) {
   const memberNames = Object.fromEntries(group.members.map((m) => [m.id, m.name]))
 
   return (
-    <div className="container py-8 max-w-2xl">
-      <div className="flex items-center gap-3 mb-6">
+    <div className="container max-w-3xl py-8 sm:py-10">
+      <div className="mb-6 flex items-center gap-3">
         <Button variant="ghost" size="sm" asChild>
           <Link href={`/groups/${token}`}>
             <ArrowLeft className="h-4 w-4 mr-1" />
@@ -38,10 +67,13 @@ export default async function SettlementsPage({ params }: Props) {
           </Link>
         </Button>
       </div>
-      <h1 className="text-2xl font-bold mb-2">Settle Up</h1>
-      <p className="text-muted-foreground mb-6">
-        Suggested settlements to balance the group. Use Interac e-Transfer or cash to pay.
-      </p>
+      <div className="mb-6">
+        <p className="section-kicker mb-2">Settlement center</p>
+        <h1 className="text-3xl font-bold">Settle Up</h1>
+        <p className="mt-2 text-muted-foreground">
+          Suggested transfers to balance the group.
+        </p>
+      </div>
       <SettlementsView
         suggestions={suggestions}
         paidSettlements={paidSettlements}

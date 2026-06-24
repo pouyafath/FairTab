@@ -1,6 +1,6 @@
 import type {
   Attachment,
-  BackupData,
+  BackupData as LegacyBackupData,
   Expense,
   ExpenseWithParticipants,
   Group,
@@ -15,6 +15,13 @@ import type {
   SplitMethod,
   TransactionType,
 } from '@/types'
+import type {
+  BackupData,
+  BackupFile,
+  BackupRestoreOptions,
+  BackupRestoreResult,
+  BackupValidationResult,
+} from '@/lib/backups/types'
 
 export interface CreateGroupRecord {
   name: string
@@ -139,6 +146,8 @@ export interface UpdateRecurringRuleRecord {
 export interface GroupRepository {
   create(input: CreateGroupRecord): Promise<Group>
   findByToken(token: string): Promise<GroupWithMembers | null>
+  findById(groupId: number): Promise<GroupWithMembers | null>
+  findByMemberId(memberId: number): Promise<GroupWithMembers | null>
   update(groupId: number, input: UpdateGroupRecord): Promise<Group>
   delete(groupId: number): Promise<void>
   addMember(input: AddMemberRecord): Promise<GroupMember>
@@ -166,6 +175,7 @@ export interface PersonalRepository {
 
 export interface SettlementRepository {
   recordPaid(input: RecordPaidSettlementInput): Promise<void>
+  findById(settlementId: number): Promise<Settlement | null>
   findPaidForGroup(groupId: number): Promise<Settlement[]>
   undo(settlementId: number): Promise<void>
 }
@@ -222,10 +232,19 @@ export interface AttachmentRepository {
   delete(id: number): Promise<void>
 }
 
-export interface BackupRepository {
-  exportAll(): Promise<BackupData>
+// NOTE: two backup systems currently coexist pending a follow-up decision —
+// `LegacyBackupRepository` (this branch's Zod-validated, ID-remapped full-replace
+// JSON export/import) and `BackupRepository`/`BackupService` (main's snapshot-based
+// implementation). Do not build on either further until they're unified.
+export interface LegacyBackupRepository {
+  exportAll(): Promise<LegacyBackupData>
   /** Full replace: wipes every table, then re-inserts with fresh ids. */
-  importAll(data: BackupData): Promise<void>
+  importAll(data: LegacyBackupData): Promise<void>
+}
+
+export interface BackupRepository {
+  readSnapshot(): Promise<BackupData>
+  restoreSnapshot(data: BackupData, options: { replace: boolean }): Promise<void>
 }
 
 export interface AppRepositories {
@@ -236,5 +255,12 @@ export interface AppRepositories {
   recurring: RecurringRepository
   savings: SavingsGoalRepository
   attachments: AttachmentRepository
-  backup: BackupRepository
+  legacyBackup: LegacyBackupRepository
+  backups: BackupRepository
+}
+
+export interface BackupService {
+  createBackup(): Promise<BackupFile>
+  validateBackup(payload: unknown): Promise<BackupValidationResult>
+  restoreBackup(payload: unknown, options: BackupRestoreOptions): Promise<BackupRestoreResult>
 }

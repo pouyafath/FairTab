@@ -372,7 +372,7 @@ export function ExpenseForm({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="amount">Amount *</Label>
             <Input
@@ -396,11 +396,11 @@ export function ExpenseForm({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>Paid by *</Label>
             <Select value={paidById} onValueChange={setPaidById}>
-              <SelectTrigger>
+              <SelectTrigger aria-label="Paid by">
                 <SelectValue placeholder="Select member" />
               </SelectTrigger>
               <SelectContent>
@@ -431,7 +431,7 @@ export function ExpenseForm({
         <div className="space-y-2">
           <Label>Category</Label>
           <Select value={categoryChoice} onValueChange={setCategoryChoice}>
-            <SelectTrigger>
+            <SelectTrigger aria-label="Expense category">
               <SelectValue placeholder="Select category (optional)" />
             </SelectTrigger>
             <SelectContent>
@@ -472,7 +472,7 @@ export function ExpenseForm({
         <div className="space-y-2">
           <Label>How to split?</Label>
           <Select value={splitMethod} onValueChange={(v) => setSplitMethod(v as SplitMethod)}>
-            <SelectTrigger>
+            <SelectTrigger aria-label="Split method">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -624,15 +624,20 @@ export function ExpenseForm({
         </Alert>
       )}
 
-      <div className="flex gap-3">
+      <div className="sticky bottom-0 -mx-6 flex flex-col gap-3 border-t bg-card/95 px-6 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 backdrop-blur sm:static sm:mx-0 sm:flex-row sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">
         <Button
           type="button"
           variant="outline"
           onClick={() => router.push(`/groups/${groupToken}`)}
+          className="w-full sm:w-auto"
         >
           Cancel
         </Button>
-        <Button type="submit" disabled={isPending || !title || totalCents <= 0} className="flex-1">
+        <Button
+          type="submit"
+          disabled={isPending || !title || totalCents <= 0}
+          className="w-full sm:flex-1"
+        >
           {isPending ? (isEdit ? 'Saving…' : 'Adding…') : isEdit ? 'Save Changes' : 'Add Expense'}
         </Button>
       </div>

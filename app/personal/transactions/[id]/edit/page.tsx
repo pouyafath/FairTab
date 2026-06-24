@@ -18,10 +18,10 @@ export default async function EditTransactionPage({ params }: Props) {
   if (!transaction) notFound()
 
   return (
-    <div className="container py-12 max-w-lg">
-      <Card>
+    <div className="container max-w-lg py-12">
+      <Card className="overflow-hidden">
         <CardHeader>
-          <CardTitle>Edit Transaction</CardTitle>
+          <CardTitle>Edit transaction</CardTitle>
         </CardHeader>
         <CardContent>
           <TransactionForm

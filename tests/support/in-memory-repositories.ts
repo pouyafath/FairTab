@@ -18,7 +18,7 @@ import type {
 } from '@/lib/backend/ports'
 import type {
   Attachment,
-  BackupData,
+  BackupData as LegacyBackupData,
   Expense,
   ExpenseParticipant,
   ExpenseWithParticipants,
@@ -71,6 +71,10 @@ function createCounters(): Counters {
     savingsGoalId: 1,
     attachmentId: 1,
   }
+}
+
+function nextId<T extends { id: number }>(rows: T[]): number {
+  return rows.reduce((max, row) => Math.max(max, row.id), 0) + 1
 }
 
 function participantRows(
@@ -136,6 +140,29 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
         return {
           ...group,
           members: state.members.filter((member) => member.groupId === group.id),
+        }
+      },
+
+      async findById(groupId: number): Promise<GroupWithMembers | null> {
+        const group = state.groups.find((candidate) => candidate.id === groupId)
+        if (!group) return null
+
+        return {
+          ...group,
+          members: state.members.filter((member) => member.groupId === group.id),
+        }
+      },
+
+      async findByMemberId(memberId: number): Promise<GroupWithMembers | null> {
+        const member = state.members.find((candidate) => candidate.id === memberId)
+        if (!member) return null
+
+        const group = state.groups.find((candidate) => candidate.id === member.groupId)
+        if (!group) return null
+
+        return {
+          ...group,
+          members: state.members.filter((candidate) => candidate.groupId === group.id),
         }
       },
 
@@ -378,6 +405,10 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
         })
       },
 
+      async findById(settlementId: number): Promise<Settlement | null> {
+        return state.settlements.find((settlement) => settlement.id === settlementId) ?? null
+      },
+
       async findPaidForGroup(groupId: number): Promise<Settlement[]> {
         return state.settlements
           .filter((s) => s.groupId === groupId && s.isPaid)
@@ -496,8 +527,8 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
       },
     },
 
-    backup: {
-      async exportAll(): Promise<BackupData> {
+    legacyBackup: {
+      async exportAll(): Promise<LegacyBackupData> {
         return structuredClone({
           groups: state.groups,
           members: state.members,
@@ -511,7 +542,7 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
         })
       },
 
-      async importAll(data: BackupData): Promise<void> {
+      async importAll(data: LegacyBackupData): Promise<void> {
         const mapId = (map: Map<number, number>, oldId: number, entity: string): number => {
           const newId = map.get(oldId)
           if (newId === undefined) {
@@ -604,6 +635,48 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
               row.expenseId === null ? null : mapId(expenseIds, row.expenseId, 'expense'),
           })
         }
+      },
+    },
+
+    backups: {
+      async readSnapshot() {
+        return {
+          groups: [...state.groups].sort((a, b) => a.id - b.id),
+          groupMembers: [...state.members].sort((a, b) => a.id - b.id),
+          expenses: [...state.expenses].sort((a, b) => a.id - b.id),
+          expenseParticipants: [...state.expenseParticipants].sort((a, b) => a.id - b.id),
+          settlements: [...state.settlements].sort((a, b) => a.id - b.id),
+          personalTransactions: [...state.personalTransactions].sort((a, b) => a.id - b.id),
+        }
+      },
+
+      async restoreSnapshot(data, options) {
+        if (options.replace) {
+          state.groups = []
+          state.members = []
+          state.expenses = []
+          state.expenseParticipants = []
+          state.personalTransactions = []
+          state.settlements = []
+        }
+
+        state.groups.push(...data.groups.map((group) => ({ ...group })))
+        state.members.push(...data.groupMembers.map((member) => ({ ...member })))
+        state.expenses.push(...data.expenses.map((expense) => ({ ...expense })))
+        state.expenseParticipants.push(
+          ...data.expenseParticipants.map((participant) => ({ ...participant }))
+        )
+        state.settlements.push(...data.settlements.map((settlement) => ({ ...settlement })))
+        state.personalTransactions.push(
+          ...data.personalTransactions.map((transaction) => ({ ...transaction }))
+        )
+
+        counters.groupId = nextId(state.groups)
+        counters.memberId = nextId(state.members)
+        counters.expenseId = nextId(state.expenses)
+        counters.expenseParticipantId = nextId(state.expenseParticipants)
+        counters.personalTransactionId = nextId(state.personalTransactions)
+        counters.settlementId = nextId(state.settlements)
       },
     },
   }

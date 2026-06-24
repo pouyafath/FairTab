@@ -25,9 +25,9 @@ const transactions: PersonalTransaction[] = [
     amount: 8450,
     currency: 'CAD',
     date: Date.UTC(2026, 4, 16, 12),
-    category: 'Groceries',
-    note: 'Used coupons',
-    accountLabel: 'Credit Card',
+    category: 'Groceries, household',
+    note: 'Used "weekly" coupons',
+    accountLabel: 'Credit, Card',
     sourceRuleId: null,
     createdAt: Date.UTC(2026, 4, 16, 12),
   },
@@ -54,14 +54,17 @@ describe('personal finance calculations', () => {
     assert.equal(summary.totalExpenses, 8450)
     assert.equal(summary.netSavings, 241550)
     assert.deepEqual(summary.byCategory, [
-      { category: 'Groceries', amount: 8450, count: 1 },
+      { category: 'Groceries, household', amount: 8450, count: 1 },
     ])
   })
 
-  it('exports CSV with escaped quoted text', () => {
+  it('exports CSV with escaped fields', () => {
     const csv = generateCSV(transactions.slice(1, 2))
 
     assert.match(csv, /^Date,Type,Title,Category,Amount,Currency,Account,Note\n/)
-    assert.match(csv, /expense,"Grocery ""run""",Groceries,84\.50,CAD,Credit Card,"Used coupons"$/)
+    assert.match(
+      csv,
+      /expense,"Grocery ""run""","Groceries, household",84\.50,CAD,"Credit, Card","Used ""weekly"" coupons"$/
+    )
   })
 })

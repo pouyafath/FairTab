@@ -23,9 +23,16 @@ interface Props {
   members: GroupMember[]
   updateMemberAction: UpdateGroupMemberAction
   removeMemberAction: RemoveGroupMemberAction
+  isArchived?: boolean
 }
 
-export function MemberList({ groupToken, members, updateMemberAction, removeMemberAction }: Props) {
+export function MemberList({
+  groupToken,
+  members,
+  updateMemberAction,
+  removeMemberAction,
+  isArchived = false,
+}: Props) {
   const router = useRouter()
   const { toast } = useToast()
   const [isPending, startTransition] = useTransition()
@@ -83,36 +90,38 @@ export function MemberList({ groupToken, members, updateMemberAction, removeMemb
         {members.map((member) => (
           <div
             key={member.id}
-            className="flex items-center justify-between rounded-md px-3 py-2 hover:bg-muted/50"
+            className="flex items-center justify-between gap-3 rounded-md px-3 py-2 hover:bg-muted/50"
           >
-            <div>
+            <div className="min-w-0">
               <span className="text-sm font-medium">{member.name}</span>
               {member.email && (
-                <p className="text-xs text-muted-foreground">{member.email}</p>
+                <p className="truncate text-xs text-muted-foreground">{member.email}</p>
               )}
             </div>
-            <div className="flex gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0"
-                onClick={() => openEdit(member)}
-                disabled={isPending}
-              >
-                <Pencil className="h-3.5 w-3.5" />
-                <span className="sr-only">Edit {member.name}</span>
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                onClick={() => setRemoveTarget(member)}
-                disabled={isPending}
-              >
-                <UserMinus className="h-3.5 w-3.5" />
-                <span className="sr-only">Remove {member.name}</span>
-              </Button>
-            </div>
+            {!isArchived && (
+              <div className="flex flex-shrink-0 gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 w-9 p-0 sm:h-7 sm:w-7"
+                  onClick={() => openEdit(member)}
+                  disabled={isPending}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  <span className="sr-only">Edit {member.name}</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 w-9 p-0 text-destructive hover:text-destructive sm:h-7 sm:w-7"
+                  onClick={() => setRemoveTarget(member)}
+                  disabled={isPending}
+                >
+                  <UserMinus className="h-3.5 w-3.5" />
+                  <span className="sr-only">Remove {member.name}</span>
+                </Button>
+              </div>
+            )}
           </div>
         ))}
       </div>

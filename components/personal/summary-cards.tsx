@@ -40,7 +40,7 @@ export function SummaryCards({ summary, currency = 'CAD' }: Props) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       {cards.map(({ label, value, icon: Icon, color, bg }) => (
-        <Card key={label}>
+        <Card key={label} className="overflow-hidden">
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div>
@@ -50,7 +50,7 @@ export function SummaryCards({ summary, currency = 'CAD' }: Props) {
                   {formatCurrency(value, currency)}
                 </p>
               </div>
-              <div className={cn('rounded-full p-3', bg)}>
+              <div className={cn('rounded-lg p-3', bg)}>
                 <Icon className={cn('h-5 w-5', color)} />
               </div>
             </div>

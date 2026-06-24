@@ -23,11 +23,31 @@ export default async function EditExpensePage({ params }: Props) {
   const expense = await backend.expenses.getExpense(Number(expenseId))
   if (!expense || expense.groupId !== group.id) notFound()
 
+  if (group.isArchived) {
+    return (
+      <div className="container max-w-md py-12">
+        <Card className="overflow-hidden">
+          <CardHeader>
+            <CardTitle>Edit Expense</CardTitle>
+            <CardDescription>
+              This group is archived. Unarchive it before editing expenses.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <a href={`/groups/${token}`} className="text-primary underline">
+              Back to group
+            </a>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   const storageEnabled = backend.storage.isEnabled()
 
   return (
-    <div className="container py-12 max-w-lg">
-      <Card>
+    <div className="container max-w-lg py-12">
+      <Card className="overflow-hidden">
         <CardHeader>
           <CardTitle>Edit Expense</CardTitle>
           <CardDescription>{group.name}</CardDescription>

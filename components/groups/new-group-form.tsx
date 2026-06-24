@@ -62,7 +62,7 @@ export function NewGroupForm({ createGroupAction }: Props) {
       <div className="space-y-2">
         <Label>Default Currency</Label>
         <Select value={currency} onValueChange={setCurrencyOverride}>
-          <SelectTrigger>
+          <SelectTrigger aria-label="Default currency">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -88,9 +88,11 @@ export function NewGroupForm({ createGroupAction }: Props) {
         </Alert>
       )}
 
-      <Button type="submit" disabled={isPending || !name.trim()} className="w-full">
-        {isPending ? 'Creating...' : 'Create Group'}
-      </Button>
+      <div className="sticky bottom-0 -mx-6 border-t bg-card/95 px-6 py-4 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">
+        <Button type="submit" disabled={isPending || !name.trim()} className="w-full">
+          {isPending ? 'Creating...' : 'Create Group'}
+        </Button>
+      </div>
     </form>
   )
 }

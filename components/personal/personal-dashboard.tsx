@@ -3,8 +3,9 @@
 import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Plus, Download } from 'lucide-react'
+import { Plus, Download, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Select,
@@ -92,6 +93,8 @@ export function PersonalDashboard({
   const router = useRouter()
   const monthOptions = useMemo(() => getMonthOptions(), [])
   const [selectedKey, setSelectedKey] = useState(`${currentYear}-${currentMonth}`)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('all')
 
   const [selYear, selMonth] = selectedKey.split('-').map(Number)
 
@@ -111,7 +114,7 @@ export function PersonalDashboard({
     [selYear, selMonth, transactions, currentSummary, currentYear, currentMonth]
   )
 
-  const filteredTransactions = useMemo(
+  const monthTransactions = useMemo(
     () =>
       transactions.filter((t) => {
         const d = new Date(t.date)
@@ -120,27 +123,97 @@ export function PersonalDashboard({
     [transactions, selYear, selMonth]
   )
 
+  const categoryOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          monthTransactions
+            .map((transaction) => transaction.category)
+            .filter((category): category is string => Boolean(category))
+        )
+      ).sort((a, b) => a.localeCompare(b)),
+    [monthTransactions]
+  )
+
+  const filteredTransactions = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase()
+    return monthTransactions.filter((transaction) => {
+      const matchesCategory =
+        categoryFilter === 'all' || transaction.category === categoryFilter
+      const searchable = [
+        transaction.title,
+        transaction.category,
+        transaction.note,
+        transaction.accountLabel,
+        transaction.currency,
+        transaction.type,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+      const matchesSearch =
+        normalizedQuery.length === 0 || searchable.includes(normalizedQuery)
+
+      return matchesCategory && matchesSearch
+    })
+  }, [monthTransactions, searchQuery, categoryFilter])
+
+  const incomeTransactions = useMemo(
+    () => filteredTransactions.filter((t) => t.type === 'income'),
+    [filteredTransactions]
+  )
+
+  const expenseTransactions = useMemo(
+    () => filteredTransactions.filter((t) => t.type === 'expense'),
+    [filteredTransactions]
+  )
+  const hasActiveFilters = searchQuery.trim().length > 0 || categoryFilter !== 'all'
+  const allTransactionsEmptyMessage =
+    monthTransactions.length === 0
+      ? 'No transactions in this period.'
+      : 'No transactions match the current filters.'
+
   function handleExport() {
-    const csv = generateCSV(transactions)
+    const csv = generateCSV(filteredTransactions)
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `fairtab-transactions-${new Date().toISOString().slice(0, 10)}.csv`
+    a.download = `fairtab-transactions-${selYear}-${String(selMonth).padStart(2, '0')}.csv`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
   }
 
+  function handleMonthChange(value: string) {
+    setSelectedKey(value)
+    setCategoryFilter('all')
+  }
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold">Personal Finance</h1>
-          <Select value={selectedKey} onValueChange={setSelectedKey}>
-            <SelectTrigger className="w-44">
+      <div className="page-panel overflow-hidden">
+        <div className="flex flex-col gap-5 bg-foreground p-5 text-background sm:flex-row sm:items-end sm:justify-between sm:p-6">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-background/60">
+              Personal ledger
+            </p>
+            <h1 className="mt-2 text-3xl font-bold">Personal Finance</h1>
+            <p className="mt-2 max-w-xl text-sm text-background/65">
+              Track monthly cash flow, review spending categories, and export the filtered view.
+            </p>
+          </div>
+          <Button className="bg-background text-foreground hover:bg-background/90" asChild>
+            <Link href="/personal/transactions/new">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Transaction
+            </Link>
+          </Button>
+        </div>
+        <div className="flex flex-col gap-3 border-t bg-card/80 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+          <Select value={selectedKey} onValueChange={handleMonthChange}>
+            <SelectTrigger aria-label="Report month" className="w-44">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -151,17 +224,15 @@ export function PersonalDashboard({
               ))}
             </SelectContent>
           </Select>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleExport} disabled={transactions.length === 0}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            disabled={filteredTransactions.length === 0}
+            className="w-full sm:w-auto"
+          >
             <Download className="h-4 w-4 mr-2" />
-            Export CSV
-          </Button>
-          <Button size="sm" asChild>
-            <Link href="/personal/transactions/new">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Transaction
-            </Link>
+            Export View
           </Button>
         </div>
       </div>
@@ -220,34 +291,75 @@ export function PersonalDashboard({
       </div>
 
       {/* Transaction list */}
-      <div>
-        <h2 className="font-semibold mb-3">Transactions</h2>
+      <div className="page-panel p-4 sm:p-5">
+        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="font-semibold">Transactions</h2>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search transactions"
+                className="h-9 pl-8 sm:w-56"
+              />
+            </div>
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger aria-label="Category filter" className="h-9 sm:w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All categories</SelectItem>
+                {categoryOptions.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        {hasActiveFilters && filteredTransactions.length === 0 && (
+          <div className="mb-4 rounded-lg border border-dashed bg-muted/35 p-4 text-sm text-muted-foreground">
+            No transactions match this search and category combination.
+            <Button
+              type="button"
+              variant="link"
+              className="ml-0 h-auto px-0 text-sm sm:ml-2"
+              onClick={() => {
+                setSearchQuery('')
+                setCategoryFilter('all')
+              }}
+            >
+              Clear filters
+            </Button>
+          </div>
+        )}
         <Tabs defaultValue="all">
           <TabsList>
             <TabsTrigger value="all">All ({filteredTransactions.length})</TabsTrigger>
-            <TabsTrigger value="income">
-              Income ({filteredTransactions.filter((t) => t.type === 'income').length})
-            </TabsTrigger>
-            <TabsTrigger value="expenses">
-              Expenses ({filteredTransactions.filter((t) => t.type === 'expense').length})
-            </TabsTrigger>
+            <TabsTrigger value="income">Income ({incomeTransactions.length})</TabsTrigger>
+            <TabsTrigger value="expenses">Expenses ({expenseTransactions.length})</TabsTrigger>
           </TabsList>
           <TabsContent value="all">
             <TransactionList
               transactions={filteredTransactions}
               deleteTransactionAction={deleteTransactionAction}
+              emptyMessage={allTransactionsEmptyMessage}
             />
           </TabsContent>
           <TabsContent value="income">
             <TransactionList
-              transactions={filteredTransactions.filter((t) => t.type === 'income')}
+              transactions={incomeTransactions}
               deleteTransactionAction={deleteTransactionAction}
+              emptyMessage="No income transactions match this view."
             />
           </TabsContent>
           <TabsContent value="expenses">
             <TransactionList
-              transactions={filteredTransactions.filter((t) => t.type === 'expense')}
+              transactions={expenseTransactions}
               deleteTransactionAction={deleteTransactionAction}
+              emptyMessage="No expense transactions match this view."
             />
           </TabsContent>
         </Tabs>

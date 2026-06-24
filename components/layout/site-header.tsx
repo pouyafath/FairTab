@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Receipt } from 'lucide-react'
+import { ReceiptText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from '@/components/layout/theme-toggle'
 import { MobileNav } from '@/components/layout/mobile-nav'
@@ -12,15 +12,21 @@ export function SiteHeader() {
   const pathname = usePathname()
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 font-bold text-xl">
-          <Receipt className="h-6 w-6 text-primary" />
-          <span>FairTab</span>
+    <header className="sticky top-0 z-40 w-full border-b bg-background/88 backdrop-blur-xl supports-[backdrop-filter]:bg-background/72">
+      <div className="container flex min-h-16 flex-col gap-3 py-3 sm:h-16 sm:flex-row sm:items-center sm:justify-between sm:py-0">
+        <Link
+          href="/"
+          className="flex min-w-0 items-center gap-3 text-lg font-bold"
+          aria-label="FairTab home"
+        >
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+            <ReceiptText className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <span className="truncate">FairTab</span>
         </Link>
         <div className="flex items-center gap-1">
           {/* Desktop nav */}
-          <nav className="hidden items-center gap-1 sm:flex">
+          <nav aria-label="Primary navigation" className="hidden items-center gap-1 sm:flex">
             {NAV_LINKS.map(({ href, label }) => {
               const active = isNavActive(pathname, href)
               return (

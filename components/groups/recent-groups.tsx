@@ -67,9 +67,9 @@ export function RecentGroups() {
 
   if (groups.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-4 py-16 text-center">
-        <div className="rounded-full bg-muted p-4">
-          <Users className="h-8 w-8 text-muted-foreground" />
+      <div className="flex flex-col items-center gap-4 py-14 text-center">
+        <div className="rounded-lg bg-primary/10 p-4">
+          <Users className="h-7 w-7 text-primary" />
         </div>
         <div>
           <h3 className="font-semibold text-lg">No recent groups</h3>
@@ -112,17 +112,17 @@ export function RecentGroups() {
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {displayGroups.map((g) => (
             <Link key={g.token} href={`/groups/${g.token}`}>
-              <Card className="p-5 hover:shadow-md transition-shadow cursor-pointer h-full">
+              <Card className="h-full cursor-pointer p-5 transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-full bg-primary/10 p-2">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="rounded-lg bg-primary/10 p-2">
                       <Users className="h-4 w-4 text-primary" />
                     </div>
-                    <div>
-                      <h3 className="font-semibold">{g.name}</h3>
+                    <div className="min-w-0">
+                      <h3 className="truncate font-semibold">{g.name}</h3>
                       <div className="flex items-center gap-1.5">
                         <p className="text-xs text-muted-foreground">{g.currency}</p>
                         {g.isArchived && (

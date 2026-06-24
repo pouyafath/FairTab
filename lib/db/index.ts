@@ -10,6 +10,19 @@ export type AppDb = DrizzleD1Database<typeof fullSchema>
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _localDb: any = null
 
+type CloudflareContext = { env?: { DB?: D1Database } }
+
+function getCloudflareContext(): CloudflareContext | undefined {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (globalThis as any)[Symbol.for('__cloudflare-request-context__')] as
+    | CloudflareContext
+    | undefined
+}
+
+export function getStorageAdapter(): 'cloudflare-d1' | 'sqlite' {
+  return getCloudflareContext()?.env?.DB ? 'cloudflare-d1' : 'sqlite'
+}
+
 /**
  * Returns a Drizzle database client. Runtime-detected:
  *
@@ -22,12 +35,7 @@ let _localDb: any = null
  *    local SQLite file. The connection is cached for the lifetime of the Node.js process.
  */
 export function getDb(): AppDb {
-  // Cloudflare Pages: CF Workers sets this global before each request handler
-  // (same symbol used internally by @cloudflare/next-on-pages getRequestContext)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const cfCtx = (globalThis as any)[Symbol.for('__cloudflare-request-context__')] as
-    | { env?: { DB?: D1Database } }
-    | undefined
+  const cfCtx = getCloudflareContext()
 
   if (cfCtx?.env?.DB) {
     // eslint-disable-next-line @typescript-eslint/no-require-imports

@@ -1,8 +1,30 @@
 import { calculateSplits } from '@/lib/calculations/split'
 import { addExpenseSchema } from '@/lib/validations/expense'
-import type { ActionResult, Expense, ExpenseWithParticipants } from '@/types'
+import type { ActionResult, Expense, ExpenseWithParticipants, GroupMember } from '@/types'
 import type { BackendServiceDeps } from './types'
 import { failure, validationError } from './result'
+
+const ARCHIVED_GROUP_ERROR = 'Archived groups are read-only. Unarchive the group to make changes.'
+
+function validateExpenseMembers(
+  members: GroupMember[],
+  paidById: number,
+  participants: { memberId: number }[]
+): string | null {
+  const memberIds = new Set(members.map((member) => member.id))
+  if (!memberIds.has(paidById)) return 'Paid-by member must belong to this group'
+
+  const participantIds = participants.map((participant) => participant.memberId)
+  if (new Set(participantIds).size !== participantIds.length) {
+    return 'Each participant can only appear once'
+  }
+
+  if (participantIds.some((memberId) => !memberIds.has(memberId))) {
+    return 'All participants must belong to this group'
+  }
+
+  return null
+}
 
 export function createExpenseService({ repositories, now, storage }: BackendServiceDeps) {
   return {
@@ -14,6 +36,17 @@ export function createExpenseService({ repositories, now, storage }: BackendServ
       if (!parsed.success) return validationError<Expense>(parsed.error)
 
       const data = parsed.data
+      const group = await repositories.groups.findById(groupId)
+      if (!group) return failure<Expense>('Group not found')
+      if (group.isArchived) return failure<Expense>(ARCHIVED_GROUP_ERROR)
+
+      const membershipError = validateExpenseMembers(
+        group.members,
+        data.paidById,
+        data.participants
+      )
+      if (membershipError) return failure<Expense>(membershipError)
+
       let participants
       try {
         participants = calculateSplits(data.amount, data.splitMethod, data.participants)
@@ -57,6 +90,17 @@ export function createExpenseService({ repositories, now, storage }: BackendServ
       if (!existing) return failure<Expense>('Expense not found')
 
       const data = parsed.data
+      const group = await repositories.groups.findById(existing.groupId)
+      if (!group) return failure<Expense>('Group not found')
+      if (group.isArchived) return failure<Expense>(ARCHIVED_GROUP_ERROR)
+
+      const membershipError = validateExpenseMembers(
+        group.members,
+        data.paidById,
+        data.participants
+      )
+      if (membershipError) return failure<Expense>(membershipError)
+
       let participants
       try {
         participants = calculateSplits(data.amount, data.splitMethod, data.participants)
@@ -82,6 +126,10 @@ export function createExpenseService({ repositories, now, storage }: BackendServ
     async deleteExpense(expenseId: number): Promise<ActionResult<void>> {
       const existing = await repositories.expenses.findById(expenseId)
       if (!existing) return failure<void>('Expense not found')
+
+      const group = await repositories.groups.findById(existing.groupId)
+      if (!group) return failure<void>('Group not found')
+      if (group.isArchived) return failure<void>(ARCHIVED_GROUP_ERROR)
 
       for (const attachment of existing.attachments) {
         await storage.delete(attachment.storageKey)
