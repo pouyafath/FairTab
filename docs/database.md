@@ -206,50 +206,39 @@ discover new files automatically.
 
 ## Backup
 
-> **Note:** FairTab currently ships two independent backup/restore implementations
-> pending unification (see the note on `LegacyBackupRepository` in
-> `lib/backend/ports.ts`). Both are documented below until one is retired.
+FairTab has one logical JSON backup: a portable, DB-agnostic document (format
+`fairtab.backup`) covering every table — groups, members, expenses, splits,
+settlements, personal transactions, recurring rules, savings goals, and
+attachment metadata. Receipt **file bytes** are not in the JSON (it stays small
+and DB-agnostic); they live in the uploads directory next to the database, so
+copying the whole `./data` directory covers both the database and the receipts.
 
-### Built-in JSON backup (recommended)
+It is exposed through token-gated routes under `/api/backups/*` and the
+Settings → **Backup and restore** card.
 
-Settings → **Data** → **Download backup** produces a portable JSON document with
-every table (groups, members, expenses, participants, settlements, personal
-transactions, recurring rules, savings goals, attachment metadata). The same
-document is served at `GET /api/backup`, so it can be scripted:
+### Export and dry-run validation
+
+Set `FAIRTAB_BACKUP_TOKEN` so `/api/backups/export` and `/api/backups/validate`
+require a bearer token. Without that variable these read-only endpoints are open
+to anyone who can reach the app, so set the token (or front FairTab with the
+access gate) before exposing it beyond your LAN.
 
 ```bash
-curl -fsS http://localhost:3000/api/backup -o fairtab-backup-$(date +%Y%m%d).json
+curl -fsS -H "Authorization: Bearer $FAIRTAB_BACKUP_TOKEN" \
+  http://localhost:3000/api/backups/export -o fairtab-backup-$(date +%Y%m%d).json
 ```
 
-**Restore** (Settings → Data → Restore, or `POST /api/backup` with the JSON body)
-replaces *all* data in the instance. References are remapped to fresh ids, so a
-backup can be restored into any FairTab instance — group share URLs keep working
-because tokens are preserved. On SQLite the restore runs inside a transaction
-(all-or-nothing); on Cloudflare D1 interactive transactions are unavailable, so
-a mid-restore failure there can leave partial data — re-run the restore.
+Dry-run validation (`POST /api/backups/validate`) accepts a FairTab backup JSON
+file and checks shape, duplicate IDs, foreign-key references (including
+attachments → groups/expenses), split totals, suspicious future timestamps, and
+conflicts with the current database. It previews incoming row counts against
+current row counts and does not write data.
 
-This endpoint does not currently require authentication — anyone who can reach
-the app can export or replace all data. If you're exposing FairTab beyond your
-LAN, prefer the token-gated endpoints below, or wait for an access gate.
+### Restore
 
-### Application JSON export/restore (token-gated)
-
-Settings → Data safety also includes a full JSON export for groups, members,
-expenses, expense splits, settlements, and personal transactions (recurring
-rules, savings goals, and attachments are not yet included here). This is
-useful for auditability, off-site copies, and checking a backup before a
-database-file restore.
-
-For production deployments, set `FAIRTAB_BACKUP_TOKEN` so `/api/backups/export` and
-`/api/backups/validate` require a bearer token. Without that variable, those read-only
-endpoints are open to anyone who can reach the app.
-
-Dry-run validation accepts a FairTab backup JSON file and checks shape, duplicate IDs,
-foreign-key references, split totals, suspicious future timestamps, and conflicts with the current
-database. It previews incoming row counts against current row counts and does not write data.
-
-Settings → Data safety can restore a validated FairTab JSON backup through
-`/api/backups/restore`. Restore execution is intentionally stricter than export or dry-run:
+Settings → **Backup and restore**, or `POST /api/backups/restore`. IDs are
+preserved (so group share URLs keep working). Restore execution is intentionally
+stricter than export or dry-run:
 
 - `FAIRTAB_BACKUP_TOKEN` must be configured on the server.
 - The request must include `Authorization: Bearer <FAIRTAB_BACKUP_TOKEN>`.
@@ -257,13 +246,18 @@ Settings → Data safety can restore a validated FairTab JSON backup through
 - Replace restore deletes existing FairTab records first and requires the exact confirmation phrase
   `REPLACE ALL FAIRTAB DATA`.
 
+On SQLite the restore runs inside a transaction (all-or-nothing); on Cloudflare
+D1 interactive transactions are unavailable, so a mid-restore failure there can
+leave partial data — re-run the restore. Restoring onto a fresh host shows
+receipts as unavailable (the serving route 404s) until you copy the `./data`
+uploads back.
+
 Every export, dry-run validation, blocked restore, and completed restore writes a structured
 `[fairtab]` log line with row counts and restore mode. Keep those logs with deployment logs when
 performing a restore drill.
 
-Receipt **files** are not inside the JSON (it stays small and DB-agnostic);
-they live in the uploads directory next to the database. Copying the whole
-`./data` directory therefore covers both.
+> The earlier unauthenticated `/api/backup` route (format `fairtab-backup`) has
+> been removed; re-export any old backups through `/api/backups/export`.
 
 ### File-level backup
 

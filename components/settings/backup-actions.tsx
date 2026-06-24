@@ -32,6 +32,9 @@ const tableLabels: Record<keyof BackupValidationResult['summary'], string> = {
   expenseParticipants: 'Splits',
   settlements: 'Settlements',
   personalTransactions: 'Personal',
+  recurringRules: 'Recurring',
+  savingsGoals: 'Savings',
+  attachments: 'Attachments',
 }
 
 const tableOrder = Object.keys(tableLabels) as BackupTable[]

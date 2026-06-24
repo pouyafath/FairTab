@@ -73,6 +73,47 @@ const backupFixture: BackupData = {
       createdAt: 1780000000000,
     },
   ],
+  recurringRules: [
+    {
+      id: 20,
+      type: 'expense',
+      title: 'Restored rent',
+      amount: 150000,
+      currency: 'CAD',
+      category: null,
+      note: null,
+      accountLabel: null,
+      frequency: 'monthly',
+      intervalCount: 1,
+      nextRunDate: 1780000000000,
+      lastRunDate: null,
+      active: true,
+      createdAt: 1780000000000,
+    },
+  ],
+  savingsGoals: [
+    {
+      id: 21,
+      name: 'Restored fund',
+      targetAmount: 500000,
+      currentAmount: 12000,
+      currency: 'CAD',
+      targetDate: null,
+      createdAt: 1780000000000,
+    },
+  ],
+  attachments: [
+    {
+      id: 22,
+      groupId: 7,
+      expenseId: 10,
+      storageKey: '7/restored.png',
+      filename: 'restored.png',
+      contentType: 'image/png',
+      size: 1234,
+      createdAt: 1780000000000,
+    },
+  ],
 }
 
 function countRows(db: Database.Database, table: string): number {
@@ -213,6 +254,10 @@ describe('database schema', () => {
       assert.deepEqual(snapshot.personalTransactions.map((tx) => tx.title), [
         'Restored groceries',
       ])
+      assert.deepEqual(snapshot.recurringRules.map((rule) => rule.title), ['Restored rent'])
+      assert.deepEqual(snapshot.savingsGoals.map((goal) => goal.name), ['Restored fund'])
+      assert.equal(snapshot.attachments.length, 1)
+      assert.equal(snapshot.attachments[0].storageKey, '7/restored.png')
       assert.equal(countRows(db, 'groups'), 1)
     } finally {
       cleanup()

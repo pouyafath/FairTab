@@ -16,6 +16,9 @@ const TABLES = [
   'expenseParticipants',
   'settlements',
   'personalTransactions',
+  'recurringRules',
+  'savingsGoals',
+  'attachments',
 ] as const satisfies readonly BackupTableName[]
 
 const DEFAULT_FUTURE_GRACE_MS = 24 * 60 * 60 * 1000
@@ -90,6 +93,44 @@ const personalTransactionSchema = z.object({
   createdAt: timestampSchema,
 })
 
+const recurringRuleSchema = z.object({
+  id: idSchema,
+  type: transactionTypeSchema,
+  title: z.string().min(1),
+  amount: centsSchema,
+  currency: currencySchema,
+  category: optionalTextSchema,
+  note: optionalTextSchema,
+  accountLabel: optionalTextSchema,
+  frequency: z.enum(['weekly', 'biweekly', 'monthly', 'yearly']),
+  intervalCount: z.number().int().positive(),
+  nextRunDate: timestampSchema,
+  lastRunDate: timestampSchema.nullable(),
+  active: z.boolean(),
+  createdAt: timestampSchema,
+})
+
+const savingsGoalSchema = z.object({
+  id: idSchema,
+  name: z.string().min(1),
+  targetAmount: centsSchema,
+  currentAmount: z.number().int().nonnegative(),
+  currency: currencySchema,
+  targetDate: timestampSchema.nullable(),
+  createdAt: timestampSchema,
+})
+
+const attachmentSchema = z.object({
+  id: idSchema,
+  groupId: idSchema,
+  expenseId: idSchema.nullable(),
+  storageKey: z.string().min(1),
+  filename: z.string().min(1),
+  contentType: z.string().min(1),
+  size: z.number().int().nonnegative(),
+  createdAt: timestampSchema,
+})
+
 const backupDataSchema = z.object({
   groups: z.array(groupSchema),
   groupMembers: z.array(groupMemberSchema),
@@ -97,6 +138,10 @@ const backupDataSchema = z.object({
   expenseParticipants: z.array(expenseParticipantSchema),
   settlements: z.array(settlementSchema),
   personalTransactions: z.array(personalTransactionSchema),
+  // Added in v2; defaulted so older 6-entity fairtab.backup files still validate.
+  recurringRules: z.array(recurringRuleSchema).default([]),
+  savingsGoals: z.array(savingsGoalSchema).default([]),
+  attachments: z.array(attachmentSchema).default([]),
 })
 
 const rowCountsSchema = z.object({
@@ -106,6 +151,9 @@ const rowCountsSchema = z.object({
   expenseParticipants: z.number().int().nonnegative(),
   settlements: z.number().int().nonnegative(),
   personalTransactions: z.number().int().nonnegative(),
+  recurringRules: z.number().int().nonnegative().default(0),
+  savingsGoals: z.number().int().nonnegative().default(0),
+  attachments: z.number().int().nonnegative().default(0),
 })
 
 const backupFileSchema = z.object({
@@ -130,6 +178,9 @@ function summarize(data?: Partial<BackupData>): Record<BackupTableName, number> 
     expenseParticipants: data?.expenseParticipants?.length ?? 0,
     settlements: data?.settlements?.length ?? 0,
     personalTransactions: data?.personalTransactions?.length ?? 0,
+    recurringRules: data?.recurringRules?.length ?? 0,
+    savingsGoals: data?.savingsGoals?.length ?? 0,
+    attachments: data?.attachments?.length ?? 0,
   }
 }
 
@@ -340,10 +391,15 @@ export function validateBackupFile(
   )
   addUniqueCheck(data.settlements, 'Settlement id', (row) => row.id, result.errors)
   addUniqueCheck(data.personalTransactions, 'Personal transaction id', (row) => row.id, result.errors)
+  addUniqueCheck(data.recurringRules, 'Recurring rule id', (row) => row.id, result.errors)
+  addUniqueCheck(data.savingsGoals, 'Savings goal id', (row) => row.id, result.errors)
+  addUniqueCheck(data.attachments, 'Attachment id', (row) => row.id, result.errors)
+  addUniqueCheck(data.attachments, 'Attachment storage key', (row) => row.storageKey, result.errors)
 
   const groupsById = indexById(data.groups)
   const membersById = indexById(data.groupMembers)
   const expensesById = indexById(data.expenses)
+  const rulesById = indexById(data.recurringRules)
 
   for (const member of data.groupMembers) {
     if (!groupsById.has(member.groupId)) {
@@ -480,6 +536,35 @@ export function validateBackupFile(
     }
   }
 
+  for (const attachment of data.attachments) {
+    if (!groupsById.has(attachment.groupId)) {
+      result.errors.push({
+        code: 'missing_group',
+        message: `Attachment ${attachment.id} references missing group ${attachment.groupId}.`,
+        path: 'data.attachments',
+      })
+    }
+    if (attachment.expenseId !== null && !expensesById.has(attachment.expenseId)) {
+      result.errors.push({
+        code: 'missing_expense',
+        message: `Attachment ${attachment.id} references missing expense ${attachment.expenseId}.`,
+        path: 'data.attachments',
+      })
+    }
+  }
+
+  // A transaction whose generating rule is absent restores fine (sourceRuleId is a
+  // soft link with no FK), but flag it so the operator knows the badge will be stale.
+  for (const transaction of data.personalTransactions) {
+    if (transaction.sourceRuleId !== null && !rulesById.has(transaction.sourceRuleId)) {
+      result.warnings.push({
+        code: 'missing_recurring_rule',
+        message: `Personal transaction ${transaction.id} references missing recurring rule ${transaction.sourceRuleId}.`,
+        path: 'data.personalTransactions',
+      })
+    }
+  }
+
   if (currentData) {
     const currentGroupsById = indexById(currentData.groups)
     const currentGroupTokens = new Set(currentData.groups.map((group) => group.token))
@@ -488,6 +573,10 @@ export function validateBackupFile(
     const currentParticipantsById = indexById(currentData.expenseParticipants)
     const currentSettlementsById = indexById(currentData.settlements)
     const currentTransactionsById = indexById(currentData.personalTransactions)
+    const currentRulesById = indexById(currentData.recurringRules)
+    const currentGoalsById = indexById(currentData.savingsGoals)
+    const currentAttachmentsById = indexById(currentData.attachments)
+    const currentStorageKeys = new Set(currentData.attachments.map((a) => a.storageKey))
 
     for (const group of data.groups) {
       if (currentGroupsById.has(group.id)) addConflict(result, 'groups', String(group.id), 'Group id already exists.')
@@ -512,6 +601,24 @@ export function validateBackupFile(
     for (const transaction of data.personalTransactions) {
       if (currentTransactionsById.has(transaction.id)) {
         addConflict(result, 'personalTransactions', String(transaction.id), 'Personal transaction id already exists.')
+      }
+    }
+    for (const rule of data.recurringRules) {
+      if (currentRulesById.has(rule.id)) {
+        addConflict(result, 'recurringRules', String(rule.id), 'Recurring rule id already exists.')
+      }
+    }
+    for (const goal of data.savingsGoals) {
+      if (currentGoalsById.has(goal.id)) {
+        addConflict(result, 'savingsGoals', String(goal.id), 'Savings goal id already exists.')
+      }
+    }
+    for (const attachment of data.attachments) {
+      if (currentAttachmentsById.has(attachment.id)) {
+        addConflict(result, 'attachments', String(attachment.id), 'Attachment id already exists.')
+      }
+      if (currentStorageKeys.has(attachment.storageKey)) {
+        addConflict(result, 'attachments', attachment.storageKey, 'Attachment storage key already exists.')
       }
     }
   }

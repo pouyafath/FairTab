@@ -18,7 +18,6 @@ import type {
 } from '@/lib/backend/ports'
 import type {
   Attachment,
-  BackupData as LegacyBackupData,
   Expense,
   ExpenseParticipant,
   ExpenseWithParticipants,
@@ -527,117 +526,6 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
       },
     },
 
-    legacyBackup: {
-      async exportAll(): Promise<LegacyBackupData> {
-        return structuredClone({
-          groups: state.groups,
-          members: state.members,
-          expenses: state.expenses,
-          expenseParticipants: state.expenseParticipants,
-          settlements: state.settlements,
-          personalTransactions: state.personalTransactions,
-          recurringRules: state.recurringRules,
-          savingsGoals: state.savingsGoals,
-          attachments: state.attachments,
-        })
-      },
-
-      async importAll(data: LegacyBackupData): Promise<void> {
-        const mapId = (map: Map<number, number>, oldId: number, entity: string): number => {
-          const newId = map.get(oldId)
-          if (newId === undefined) {
-            throw new Error(`Backup references a missing ${entity} (id ${oldId})`)
-          }
-          return newId
-        }
-
-        state.groups = []
-        state.members = []
-        state.expenses = []
-        state.expenseParticipants = []
-        state.settlements = []
-        state.personalTransactions = []
-        state.recurringRules = []
-        state.savingsGoals = []
-        state.attachments = []
-
-        const groupIds = new Map<number, number>()
-        for (const row of data.groups) {
-          const id = counters.groupId++
-          groupIds.set(row.id, id)
-          state.groups.push({ ...row, id })
-        }
-
-        const memberIds = new Map<number, number>()
-        for (const row of data.members) {
-          const id = counters.memberId++
-          memberIds.set(row.id, id)
-          state.members.push({ ...row, id, groupId: mapId(groupIds, row.groupId, 'group') })
-        }
-
-        const expenseIds = new Map<number, number>()
-        for (const row of data.expenses) {
-          const id = counters.expenseId++
-          expenseIds.set(row.id, id)
-          state.expenses.push({
-            ...row,
-            id,
-            groupId: mapId(groupIds, row.groupId, 'group'),
-            paidById: mapId(memberIds, row.paidById, 'member'),
-          })
-        }
-
-        for (const row of data.expenseParticipants) {
-          state.expenseParticipants.push({
-            ...row,
-            id: counters.expenseParticipantId++,
-            expenseId: mapId(expenseIds, row.expenseId, 'expense'),
-            memberId: mapId(memberIds, row.memberId, 'member'),
-          })
-        }
-
-        for (const row of data.settlements) {
-          state.settlements.push({
-            ...row,
-            id: counters.settlementId++,
-            groupId: mapId(groupIds, row.groupId, 'group'),
-            fromMemberId: mapId(memberIds, row.fromMemberId, 'member'),
-            toMemberId: mapId(memberIds, row.toMemberId, 'member'),
-          })
-        }
-
-        const ruleIds = new Map<number, number>()
-        for (const row of data.recurringRules) {
-          const id = counters.recurringRuleId++
-          ruleIds.set(row.id, id)
-          state.recurringRules.push({ ...row, id })
-        }
-
-        for (const row of data.personalTransactions) {
-          state.personalTransactions.push({
-            ...row,
-            id: counters.personalTransactionId++,
-            sourceRuleId:
-              row.sourceRuleId === null ? null : (ruleIds.get(row.sourceRuleId) ?? null),
-          })
-        }
-
-        for (const row of data.savingsGoals) {
-          state.savingsGoals.push({ ...row, id: counters.savingsGoalId++ })
-        }
-
-        for (const row of data.attachments) {
-          state.attachments.push({
-            ...row,
-            id: counters.attachmentId++,
-            groupId: mapId(groupIds, row.groupId, 'group'),
-            expenseId:
-              row.expenseId === null ? null : mapId(expenseIds, row.expenseId, 'expense'),
-          })
-        }
-      },
-    },
-
     backups: {
       async readSnapshot() {
         return {
@@ -647,6 +535,9 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
           expenseParticipants: [...state.expenseParticipants].sort((a, b) => a.id - b.id),
           settlements: [...state.settlements].sort((a, b) => a.id - b.id),
           personalTransactions: [...state.personalTransactions].sort((a, b) => a.id - b.id),
+          recurringRules: [...state.recurringRules].sort((a, b) => a.id - b.id),
+          savingsGoals: [...state.savingsGoals].sort((a, b) => a.id - b.id),
+          attachments: [...state.attachments].sort((a, b) => a.id - b.id),
         }
       },
 
@@ -658,6 +549,9 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
           state.expenseParticipants = []
           state.personalTransactions = []
           state.settlements = []
+          state.recurringRules = []
+          state.savingsGoals = []
+          state.attachments = []
         }
 
         state.groups.push(...data.groups.map((group) => ({ ...group })))
@@ -670,6 +564,9 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
         state.personalTransactions.push(
           ...data.personalTransactions.map((transaction) => ({ ...transaction }))
         )
+        state.recurringRules.push(...data.recurringRules.map((rule) => ({ ...rule })))
+        state.savingsGoals.push(...data.savingsGoals.map((goal) => ({ ...goal })))
+        state.attachments.push(...data.attachments.map((attachment) => ({ ...attachment })))
 
         counters.groupId = nextId(state.groups)
         counters.memberId = nextId(state.members)
@@ -677,6 +574,9 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
         counters.expenseParticipantId = nextId(state.expenseParticipants)
         counters.personalTransactionId = nextId(state.personalTransactions)
         counters.settlementId = nextId(state.settlements)
+        counters.recurringRuleId = nextId(state.recurringRules)
+        counters.savingsGoalId = nextId(state.savingsGoals)
+        counters.attachmentId = nextId(state.attachments)
       },
     },
   }

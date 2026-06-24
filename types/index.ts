@@ -140,39 +140,6 @@ export type ActionResult<T> =
   | { success: true; data: T }
   | { success: false; error: string }
 
-// Portable backup document — everything except attachment file bytes,
-// which live in the uploads directory alongside the database.
-
-export interface BackupData {
-  groups: Group[]
-  members: GroupMember[]
-  expenses: Expense[]
-  expenseParticipants: ExpenseParticipant[]
-  settlements: Settlement[]
-  personalTransactions: PersonalTransaction[]
-  recurringRules: RecurringRule[]
-  savingsGoals: SavingsGoal[]
-  attachments: Attachment[]
-}
-
-export interface BackupDocument {
-  format: 'fairtab-backup'
-  version: 1
-  generatedAt: string
-  data: BackupData
-}
-
-export interface BackupCounts {
-  groups: number
-  members: number
-  expenses: number
-  settlements: number
-  personalTransactions: number
-  recurringRules: number
-  savingsGoals: number
-  attachments: number
-}
-
 export interface RawExpenseData {
   paidById: number
   totalAmount: number // cents

@@ -1,6 +1,5 @@
 import type {
   Attachment,
-  BackupData as LegacyBackupData,
   Expense,
   ExpenseWithParticipants,
   Group,
@@ -232,16 +231,6 @@ export interface AttachmentRepository {
   delete(id: number): Promise<void>
 }
 
-// NOTE: two backup systems currently coexist pending a follow-up decision —
-// `LegacyBackupRepository` (this branch's Zod-validated, ID-remapped full-replace
-// JSON export/import) and `BackupRepository`/`BackupService` (main's snapshot-based
-// implementation). Do not build on either further until they're unified.
-export interface LegacyBackupRepository {
-  exportAll(): Promise<LegacyBackupData>
-  /** Full replace: wipes every table, then re-inserts with fresh ids. */
-  importAll(data: LegacyBackupData): Promise<void>
-}
-
 export interface BackupRepository {
   readSnapshot(): Promise<BackupData>
   restoreSnapshot(data: BackupData, options: { replace: boolean }): Promise<void>
@@ -255,7 +244,6 @@ export interface AppRepositories {
   recurring: RecurringRepository
   savings: SavingsGoalRepository
   attachments: AttachmentRepository
-  legacyBackup: LegacyBackupRepository
   backups: BackupRepository
 }
 

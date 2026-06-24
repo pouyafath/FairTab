@@ -1,9 +1,12 @@
 import type {
+  Attachment,
   Expense,
   ExpenseParticipant,
   Group,
   GroupMember,
   PersonalTransaction,
+  RecurringRule,
+  SavingsGoal,
   Settlement,
 } from '@/types'
 
@@ -17,6 +20,9 @@ export interface BackupData {
   expenseParticipants: ExpenseParticipant[]
   settlements: Settlement[]
   personalTransactions: PersonalTransaction[]
+  recurringRules: RecurringRule[]
+  savingsGoals: SavingsGoal[]
+  attachments: Attachment[]
 }
 
 export type BackupTableName = keyof BackupData
