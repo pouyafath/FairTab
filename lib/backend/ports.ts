@@ -166,6 +166,7 @@ export interface ExpenseRepository {
 
 export interface PersonalRepository {
   create(input: CreatePersonalTransactionRecord): Promise<PersonalTransaction>
+  createIfAbsent(input: CreatePersonalTransactionRecord): Promise<PersonalTransaction | null>
   findById(id: number): Promise<PersonalTransaction | null>
   findAll(): Promise<PersonalTransaction[]>
   update(id: number, input: UpdatePersonalTransactionRecord): Promise<PersonalTransaction>

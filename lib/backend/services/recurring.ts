@@ -83,7 +83,7 @@ export function createRecurringService({ repositories, now }: BackendServiceDeps
         let lastRun: Date | null = null
 
         while (runDate <= asOf) {
-          await repositories.personal.create({
+          const created = await repositories.personal.createIfAbsent({
             type: rule.type,
             title: rule.title,
             amount: rule.amount,
@@ -95,7 +95,7 @@ export function createRecurringService({ repositories, now }: BackendServiceDeps
             sourceRuleId: rule.id,
             createdAt: now(),
           })
-          count++
+          if (created) count++
           lastRun = runDate
           runDate = nextDate(runDate, rule.frequency, rule.intervalCount)
         }

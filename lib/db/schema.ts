@@ -116,6 +116,10 @@ export const personalTransactions = sqliteTable(
   },
   (table) => [
     index('personal_transactions_date_idx').on(table.date),
+    uniqueIndex('personal_transactions_source_rule_date_unique').on(
+      table.sourceRuleId,
+      table.date
+    ),
   ]
 )
 

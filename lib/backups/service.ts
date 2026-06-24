@@ -391,6 +391,12 @@ export function validateBackupFile(
   )
   addUniqueCheck(data.settlements, 'Settlement id', (row) => row.id, result.errors)
   addUniqueCheck(data.personalTransactions, 'Personal transaction id', (row) => row.id, result.errors)
+  addUniqueCheck(
+    data.personalTransactions.filter((row) => row.sourceRuleId !== null),
+    'Recurring rule occurrence',
+    (row) => `${row.sourceRuleId}:${row.date}`,
+    result.errors
+  )
   addUniqueCheck(data.recurringRules, 'Recurring rule id', (row) => row.id, result.errors)
   addUniqueCheck(data.savingsGoals, 'Savings goal id', (row) => row.id, result.errors)
   addUniqueCheck(data.attachments, 'Attachment id', (row) => row.id, result.errors)

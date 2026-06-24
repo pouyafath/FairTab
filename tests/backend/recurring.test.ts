@@ -89,6 +89,56 @@ describe('materializeDueRecurring', () => {
     assert.notEqual(rule.lastRunDate, null)
   })
 
+  it('does not duplicate a transaction already materialized for the same date', async () => {
+    const { repositories, state } = createInMemoryRepositories()
+    const now = () => new Date('2026-06-04T12:00:00Z')
+    const service = createRecurringService({
+      repositories,
+      storage: createInMemoryStorage(),
+      createId: () => 'x',
+      now,
+    })
+
+    // Rule set 2 months ago — should generate 2 more transactions (May + Jun)
+    await service.addRecurringRule({
+      type: 'expense',
+      title: 'Rent',
+      amount: 150000,
+      currency: 'CAD',
+      category: 'Housing',
+      note: null,
+      accountLabel: null,
+      frequency: 'monthly',
+      intervalCount: 1,
+      startDate: new Date('2026-04-01T12:00:00Z').getTime(),
+    })
+    const rule = state.recurringRules[0]
+
+    // Simulate a prior interrupted run that inserted Apr's transaction but crashed
+    // before advancing nextRunDate, so the rule still reports Apr 1 as due.
+    await repositories.personal.create({
+      type: 'expense',
+      title: 'Rent',
+      amount: 150000,
+      currency: 'CAD',
+      date: new Date(rule.nextRunDate),
+      category: 'Housing',
+      note: null,
+      accountLabel: null,
+      sourceRuleId: rule.id,
+      createdAt: now(),
+    })
+
+    const count = await service.materializeDueRecurring(new Date('2026-06-04T12:00:00Z'))
+
+    // Only May 1 and Jun 1 are newly created; Apr 1 already existed.
+    assert.equal(count, 2)
+    assert.equal(state.personalTransactions.length, 3)
+
+    const updatedRule = state.recurringRules[0]
+    assert.equal(iso(new Date(updatedRule.nextRunDate)), '2026-07-01')
+  })
+
   it('does not generate for inactive rules', async () => {
     const { repositories, state } = createInMemoryRepositories()
     const service = createRecurringService({

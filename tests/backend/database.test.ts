@@ -145,6 +145,7 @@ function createMigratedDatabase() {
     '0004_recurring_rules.sql',
     '0005_savings_goals.sql',
     '0006_attachments.sql',
+    '0007_recurring_materialization_unique.sql',
   ]
   for (const file of migrationFiles) {
     db.exec(readFileSync(path.join(migrationsDir, file), 'utf8'))
@@ -303,6 +304,88 @@ describe('database schema', () => {
       assert.deepEqual(snapshot.groups.map((group) => group.token), ['oldtrip1'])
       assert.deepEqual(snapshot.groupMembers.map((member) => member.name), ['Old Member'])
       assert.equal(countRows(db, 'expenses'), 0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('enforces one personal transaction per recurring rule occurrence date', async (t) => {
+    let migrated: ReturnType<typeof createMigratedDatabase>
+    try {
+      migrated = createMigratedDatabase()
+    } catch (error) {
+      if (isNativeLoadError(error)) {
+        t.skip('better-sqlite3 native module cannot be loaded in this Node process')
+        return
+      }
+      throw error
+    }
+
+    const { db, cleanup } = migrated
+
+    try {
+      const appDb = drizzle(db, { schema: fullSchema }) as unknown as AppDb
+      const repositories = createDrizzleRepositories(appDb)
+      const occurrenceDate = new Date(1780000000000)
+
+      const first = await repositories.personal.createIfAbsent({
+        type: 'expense',
+        title: 'Rent',
+        amount: 150000,
+        currency: 'CAD',
+        date: occurrenceDate,
+        category: null,
+        note: null,
+        accountLabel: null,
+        sourceRuleId: 99,
+        createdAt: occurrenceDate,
+      })
+      assert.ok(first)
+
+      const duplicate = await repositories.personal.createIfAbsent({
+        type: 'expense',
+        title: 'Rent',
+        amount: 150000,
+        currency: 'CAD',
+        date: occurrenceDate,
+        category: null,
+        note: null,
+        accountLabel: null,
+        sourceRuleId: 99,
+        createdAt: occurrenceDate,
+      })
+      assert.equal(duplicate, null)
+      assert.equal(countRows(db, 'personal_transactions'), 1)
+
+      const nextOccurrence = await repositories.personal.createIfAbsent({
+        type: 'expense',
+        title: 'Rent',
+        amount: 150000,
+        currency: 'CAD',
+        date: new Date(occurrenceDate.getTime() + 86400000),
+        category: null,
+        note: null,
+        accountLabel: null,
+        sourceRuleId: 99,
+        createdAt: occurrenceDate,
+      })
+      assert.ok(nextOccurrence)
+      assert.equal(countRows(db, 'personal_transactions'), 2)
+
+      const manualEntry = await repositories.personal.create({
+        type: 'expense',
+        title: 'Manual entry',
+        amount: 500,
+        currency: 'CAD',
+        date: occurrenceDate,
+        category: null,
+        note: null,
+        accountLabel: null,
+        sourceRuleId: null,
+        createdAt: occurrenceDate,
+      })
+      assert.ok(manualEntry)
+      assert.equal(countRows(db, 'personal_transactions'), 3)
     } finally {
       cleanup()
     }

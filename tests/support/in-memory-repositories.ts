@@ -331,6 +331,34 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
         return tx
       },
 
+      async createIfAbsent(
+        input: CreatePersonalTransactionRecord
+      ): Promise<PersonalTransaction | null> {
+        const exists = state.personalTransactions.some(
+          (tx) =>
+            input.sourceRuleId !== null &&
+            tx.sourceRuleId === input.sourceRuleId &&
+            tx.date === input.date.getTime()
+        )
+        if (exists) return null
+
+        const tx: PersonalTransaction = {
+          id: counters.personalTransactionId++,
+          type: input.type,
+          title: input.title,
+          amount: input.amount,
+          currency: input.currency,
+          date: input.date.getTime(),
+          category: input.category,
+          note: input.note,
+          accountLabel: input.accountLabel,
+          sourceRuleId: input.sourceRuleId,
+          createdAt: input.createdAt.getTime(),
+        }
+        state.personalTransactions.push(tx)
+        return tx
+      },
+
       async findById(id: number): Promise<PersonalTransaction | null> {
         return state.personalTransactions.find((tx) => tx.id === id) ?? null
       },

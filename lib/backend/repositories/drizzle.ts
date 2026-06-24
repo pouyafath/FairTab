@@ -390,6 +390,19 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
         return serializePersonalTransaction(tx)
       },
 
+      async createIfAbsent(
+        input: CreatePersonalTransactionRecord
+      ): Promise<PersonalTransaction | null> {
+        const [tx] = await db
+          .insert(personalTransactions)
+          .values(input)
+          .onConflictDoNothing({
+            target: [personalTransactions.sourceRuleId, personalTransactions.date],
+          })
+          .returning()
+        return tx ? serializePersonalTransaction(tx) : null
+      },
+
       async findById(id: number): Promise<PersonalTransaction | null> {
         const tx = await db.query.personalTransactions.findFirst({
           where: eq(personalTransactions.id, id),

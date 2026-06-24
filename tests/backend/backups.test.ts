@@ -299,4 +299,47 @@ describe('backup service', () => {
     assert.equal(validation.valid, false)
     assert.match(validation.errors.map((error) => error.code).join(','), /missing_group/)
   })
+
+  it('rejects a backup with two personal transactions for the same recurring occurrence', async () => {
+    const { backend: source } = createTestBackend()
+    await seedBackupData(source)
+    const backup = await source.backups.createBackup()
+
+    const ruleId = backup.data.recurringRules[0].id
+    const occurrenceDate = fixedNow.getTime()
+    backup.data.personalTransactions.push(
+      {
+        id: 101,
+        type: 'expense',
+        title: 'Rent',
+        amount: 150000,
+        currency: 'CAD',
+        date: occurrenceDate,
+        category: null,
+        note: null,
+        accountLabel: null,
+        sourceRuleId: ruleId,
+        createdAt: occurrenceDate,
+      },
+      {
+        id: 102,
+        type: 'expense',
+        title: 'Rent',
+        amount: 150000,
+        currency: 'CAD',
+        date: occurrenceDate,
+        category: null,
+        note: null,
+        accountLabel: null,
+        sourceRuleId: ruleId,
+        createdAt: occurrenceDate,
+      }
+    )
+
+    const { backend: target } = createTestBackend(() => 'target01')
+    const validation = await target.backups.validateBackup(backup)
+
+    assert.equal(validation.valid, false)
+    assert.match(validation.errors.map((error) => error.code).join(','), /duplicate/)
+  })
 })
