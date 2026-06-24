@@ -123,7 +123,7 @@ describe('release check script', () => {
       `${process.execPath} scripts/doctor.js`,
       `${process.execPath} node_modules/eslint/bin/eslint.js .`,
       `${process.execPath} node_modules/typescript/bin/tsc --noEmit`,
-      `${process.execPath} --import ./tests/register-loader.mjs --test tests/**/*.test.ts`,
+      `${process.execPath} scripts/run-tests.js`,
       `${process.execPath} scripts/verify-migrations.js`,
       `${process.execPath} node_modules/@playwright/test/cli.js test --grep-invert @visual --project=chromium`,
       `${process.execPath} node_modules/next/dist/bin/next build`,

@@ -9,7 +9,7 @@ function buildSteps(env = process.env) {
     ['Doctor', [process.execPath, ['scripts/doctor.js']]],
     ['Lint', [process.execPath, ['node_modules/eslint/bin/eslint.js', '.']]],
     ['Typecheck', [process.execPath, ['node_modules/typescript/bin/tsc', '--noEmit']]],
-    ['Backend tests', [process.execPath, ['--import', './tests/register-loader.mjs', '--test', 'tests/**/*.test.ts']]],
+    ['Backend tests', [process.execPath, ['scripts/run-tests.js']]],
     ['Migration verification', [process.execPath, ['scripts/verify-migrations.js']]],
     ['Chromium E2E', [process.execPath, ['node_modules/@playwright/test/cli.js', 'test', '--grep-invert', '@visual', '--project=chromium']]],
     ['Build', [process.execPath, ['node_modules/next/dist/bin/next', 'build']]],
