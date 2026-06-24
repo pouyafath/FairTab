@@ -1,5 +1,5 @@
 import { getBackend } from '@/lib/backend/runtime'
-import { requireBackupAuthorization } from '@/lib/backups/auth'
+import { requireConfiguredBackupAuthorization } from '@/lib/backups/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,7 +8,7 @@ function backupFilename(exportedAt: string): string {
 }
 
 export async function GET(request: Request) {
-  const unauthorized = requireBackupAuthorization(request)
+  const unauthorized = requireConfiguredBackupAuthorization(request)
   if (unauthorized) return unauthorized
 
   const backup = await getBackend().backups.createBackup()

@@ -10,7 +10,7 @@ Use this before promoting a FairTab build.
 | `NEXT_PUBLIC_APP_URL` | Recommended | Public origin used by PWA metadata |
 | `NEXT_PUBLIC_APP_VERSION` | Optional | Overrides `package.json` version in `/api/health` |
 | `NEXT_PUBLIC_BUILD_TIME` | Optional | ISO timestamp surfaced in `/api/health` |
-| `FAIRTAB_BACKUP_TOKEN` | Required for restore | Protects full JSON backup export and dry-run routes; restore execution is disabled unless it is set |
+| `FAIRTAB_BACKUP_TOKEN` | Required for export/restore | Export and restore execution are disabled unless it is set; the dry-run validate route stays open |
 | Cloudflare `DB` binding | Cloudflare only | D1 binding name must match the deployment config |
 
 ## Predeploy
@@ -44,9 +44,10 @@ After boot, confirm the migration summary appears in logs and that `/api/health`
 `"status": "ok"`, database status `ok`, the expected app version, runtime storage adapter, and
 `migrations.drift: false`.
 
-Use Settings -> Data safety to download a full JSON backup and dry-run validate a backup file. If
-`FAIRTAB_BACKUP_TOKEN` is configured, enter it in Settings before exporting or validating. Keep it
-configured before any restore drill: JSON restore execution refuses to run without it.
+Use Settings -> Backup and restore to download a full JSON backup and dry-run validate a backup
+file. `FAIRTAB_BACKUP_TOKEN` must be configured and entered in Settings before exporting; dry-run
+validation works either way. Keep it configured before any restore drill: JSON restore execution
+refuses to run without it.
 
 Prefer the non-destructive restore path first. Empty restore only succeeds when the target database
 has no FairTab records. Replace restore deletes existing FairTab records and requires the exact

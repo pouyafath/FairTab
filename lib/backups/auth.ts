@@ -34,7 +34,7 @@ export function requireConfiguredBackupAuthorization(request: Request): Response
     return Response.json(
       {
         error: 'Backup token is not configured',
-        hint: 'Set FAIRTAB_BACKUP_TOKEN before enabling restore execution.',
+        hint: 'Set FAIRTAB_BACKUP_TOKEN before enabling backup export or restore.',
       },
       { status: 403 }
     )

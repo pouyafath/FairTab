@@ -117,8 +117,8 @@ export default function SettingsPage() {
             Export a full JSON backup of everything you have entered — groups, members, expenses,
             splits, settlements, personal transactions, recurring rules, savings goals, and
             attachment records — or restore one below. Receipt file bytes live in the data directory
-            next to the database, so also back up the `./data` folder to capture them. Restore
-            requires `FAIRTAB_BACKUP_TOKEN` to be configured.
+            next to the database, so also back up the `./data` folder to capture them. Export and
+            restore both require `FAIRTAB_BACKUP_TOKEN` to be configured.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

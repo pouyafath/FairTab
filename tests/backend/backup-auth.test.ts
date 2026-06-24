@@ -76,7 +76,7 @@ describe('backup route authorization', () => {
     assert.equal(response.status, 403)
     assert.deepEqual(await response.json(), {
       error: 'Backup token is not configured',
-      hint: 'Set FAIRTAB_BACKUP_TOKEN before enabling restore execution.',
+      hint: 'Set FAIRTAB_BACKUP_TOKEN before enabling backup export or restore.',
     })
   })
 
@@ -87,5 +87,20 @@ describe('backup route authorization', () => {
       requireConfiguredBackupAuthorization(backupRequest({ bearer: 'expected-token' })),
       null
     )
+  })
+})
+
+describe('export route authorization', () => {
+  it('blocks GET /api/backups/export when no backup token is configured', async () => {
+    setBackupToken(undefined)
+
+    const { GET } = await import('@/app/api/backups/export/route')
+    const response = await GET(backupRequest())
+
+    assert.equal(response.status, 403)
+    assert.deepEqual(await response.json(), {
+      error: 'Backup token is not configured',
+      hint: 'Set FAIRTAB_BACKUP_TOKEN before enabling backup export or restore.',
+    })
   })
 })

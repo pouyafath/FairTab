@@ -82,7 +82,7 @@ npx playwright install chromium
 |---|---|---|
 | `DATABASE_URL` | `./fairtab.db` | Path to the SQLite database file |
 | `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` | Public URL (used in PWA manifest) |
-| `FAIRTAB_BACKUP_TOKEN` | unset | Optional bearer token for full JSON backup export and restore dry-run routes; required before JSON restore execution is enabled |
+| `FAIRTAB_BACKUP_TOKEN` | unset | Bearer token required to export or restore a full JSON backup; the dry-run validate route stays open regardless |
 | `SMOKE_REQUIRE_BACKUP_AUTH` | unset | Set to `1` when deploy smoke should fail if `/api/health` reports missing backup authorization |
 
 For local dev, the defaults in `.env.example` work without any changes.

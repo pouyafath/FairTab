@@ -218,10 +218,14 @@ Settings → **Backup and restore** card.
 
 ### Export and dry-run validation
 
-Set `FAIRTAB_BACKUP_TOKEN` so `/api/backups/export` and `/api/backups/validate`
-require a bearer token. Without that variable these read-only endpoints are open
-to anyone who can reach the app, so set the token (or front FairTab with the
-access gate) before exposing it beyond your LAN.
+`FAIRTAB_BACKUP_TOKEN` must be configured for `GET /api/backups/export` —
+without it the route returns 403, since a full export contains every group,
+expense, and personal transaction in the database. `POST /api/backups/validate`
+stays open even when the token is unset: it only echoes row counts and
+conflict descriptions for a file the caller already has, never the current
+database's contents, so it is low-sensitivity enough to leave available on a
+trusted LAN. Set the token (or front FairTab with the access gate) before
+exposing the app beyond your LAN.
 
 ```bash
 curl -fsS -H "Authorization: Bearer $FAIRTAB_BACKUP_TOKEN" \
@@ -238,7 +242,7 @@ current row counts and does not write data.
 
 Settings → **Backup and restore**, or `POST /api/backups/restore`. IDs are
 preserved (so group share URLs keep working). Restore execution is intentionally
-stricter than export or dry-run:
+stricter than dry-run:
 
 - `FAIRTAB_BACKUP_TOKEN` must be configured on the server.
 - The request must include `Authorization: Bearer <FAIRTAB_BACKUP_TOKEN>`.

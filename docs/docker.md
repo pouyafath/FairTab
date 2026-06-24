@@ -179,19 +179,20 @@ Your `./data/fairtab.db` is never touched by the build — data is always safe.
 
 ### JSON backup (token-gated)
 
-Settings → **Backup and restore** → **Export**, or (with `FAIRTAB_BACKUP_TOKEN`
-set):
+Set `FAIRTAB_BACKUP_TOKEN`, then export from Settings → **Backup and
+restore** → **Export**, or:
 
 ```bash
 curl -fsS -H "Authorization: Bearer $FAIRTAB_BACKUP_TOKEN" \
   http://localhost:3000/api/backups/export -o fairtab-backup-$(date +%Y%m%d).json
 ```
 
-Restore from Settings → **Backup and restore** (replaces all data,
-type-to-confirm `REPLACE ALL FAIRTAB DATA`); restore requires
-`FAIRTAB_BACKUP_TOKEN`. Receipt files are not in the JSON — they live in
-`./data/uploads`, so back up the whole `./data` directory too. See
-[docs/database.md](./database.md#backup) for the full backup model.
+Export and restore both refuse to run until `FAIRTAB_BACKUP_TOKEN` is
+configured. Restore from Settings → **Backup and restore** (replaces all
+data, type-to-confirm `REPLACE ALL FAIRTAB DATA`). Receipt files are not in
+the JSON — they live in `./data/uploads`, so back up the whole `./data`
+directory too. See [docs/database.md](./database.md#backup) for the full
+backup model.
 
 ### File-level backup
 

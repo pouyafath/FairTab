@@ -53,13 +53,15 @@ test('health endpoint exposes app and migration metadata', async ({ request }) =
   expect(payload.runtime.storageAdapter).toMatch(/^(sqlite|cloudflare-d1)$/)
   expect(typeof payload.runtime.backupAuthConfigured).toBe('boolean')
   expect(payload.migrations.status).toBe('tracked')
-  expect(payload.migrations.latest).toBe('0006_attachments.sql')
-  expect(payload.migrations.expectedLatest).toBe('0006_attachments.sql')
+  expect(payload.migrations.latest).toBe('0007_recurring_materialization_unique.sql')
+  expect(payload.migrations.expectedLatest).toBe('0007_recurring_materialization_unique.sql')
   expect(payload.migrations.drift).toBe(false)
 })
 
 test('full backup export can be dry-run validated', async ({ request }) => {
-  const exportResponse = await request.get('/api/backups/export')
+  const exportResponse = await request.get('/api/backups/export', {
+    headers: { Authorization: 'Bearer e2e-fairtab-backup-token' },
+  })
   expect(exportResponse.ok()).toBe(true)
   expect(exportResponse.headers()['content-disposition']).toContain('fairtab-backup-')
 
@@ -72,7 +74,10 @@ test('full backup export can be dry-run validated', async ({ request }) => {
   expect(backup.rowCounts.expenseParticipants).toBeGreaterThanOrEqual(2)
   expect(backup.rowCounts.personalTransactions).toBeGreaterThanOrEqual(1)
 
-  const validateResponse = await request.post('/api/backups/validate', { data: backup })
+  const validateResponse = await request.post('/api/backups/validate', {
+    data: backup,
+    headers: { Authorization: 'Bearer e2e-fairtab-backup-token' },
+  })
   expect(validateResponse.ok()).toBe(true)
 
   const validation = await validateResponse.json()
