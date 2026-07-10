@@ -22,6 +22,8 @@ docker compose up -d
 
 - Every page and API route redirects to `/unlock` (or returns 401) until the PIN is entered;
   the resulting cookie lasts 30 days.
+- Unlock attempts are rate limited per IP (10 tries per 15 minutes, then a 15-minute lockout)
+  to slow online guessing — still pick a long passphrase, not a short numeric code.
 - `/api/health` stays open so Docker healthchecks and uptime monitors keep working.
 - Changing the PIN invalidates all existing sessions. Unsetting it disables the gate.
 - Enable this **before** exposing the instance to the internet, and serve it over HTTPS.
