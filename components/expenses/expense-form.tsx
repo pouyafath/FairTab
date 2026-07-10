@@ -85,7 +85,7 @@ export function ExpenseForm({
     expense ? String(expense.paidById) : ''
   )
   const [date, setDate] = useState(
-    expense ? timestampToDateInput(expense.date) : new Date().toISOString().split('T')[0]
+    expense ? timestampToDateInput(expense.date) : timestampToDateInput(new Date())
   )
   const initialCategory = expense?.category ?? ''
   const initialIsCustom =
@@ -420,7 +420,7 @@ export function ExpenseForm({
               value={date}
               onChange={(e) => setDate(e.target.value)}
             />
-            {date > new Date().toISOString().split('T')[0] && (
+            {date > timestampToDateInput(new Date()) && (
               <p className="text-xs text-amber-600 dark:text-amber-500">
                 This date is in the future — double-check it&apos;s intended.
               </p>

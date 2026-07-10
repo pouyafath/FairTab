@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { dateInputToTimestamp, dollarsToCentsString } from '@/lib/formatting'
+import { dateInputToTimestamp, dollarsToCentsString, timestampToDateInput } from '@/lib/formatting'
 import {
   CURRENCIES,
   PERSONAL_INCOME_CATEGORIES,
@@ -49,9 +49,7 @@ export function TransactionForm({ addTransactionAction, updateTransactionAction,
   const [currencyOverride, setCurrencyOverride] = useState<string | null>(null)
   const currency = currencyOverride ?? transaction?.currency ?? defaultCurrency
   const [date, setDate] = useState(
-    transaction
-      ? new Date(transaction.date).toISOString().split('T')[0]
-      : new Date().toISOString().split('T')[0]
+    transaction ? timestampToDateInput(transaction.date) : timestampToDateInput(new Date())
   )
   const categories = type === 'income' ? PERSONAL_INCOME_CATEGORIES : PERSONAL_EXPENSE_CATEGORIES
 

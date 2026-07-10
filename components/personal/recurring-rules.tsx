@@ -32,7 +32,13 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { useToast } from '@/components/ui/use-toast'
-import { formatCurrency, formatDate, dollarsToCentsString, dateInputToTimestamp } from '@/lib/formatting'
+import {
+  formatCurrency,
+  formatDate,
+  dollarsToCentsString,
+  dateInputToTimestamp,
+  timestampToDateInput,
+} from '@/lib/formatting'
 import { CURRENCIES, PERSONAL_INCOME_CATEGORIES, PERSONAL_EXPENSE_CATEGORIES } from '@/lib/constants'
 import { readDefaultCurrency } from '@/lib/settings'
 import type { RecurringRule, TransactionType, RecurringFrequency } from '@/types'
@@ -72,9 +78,7 @@ function RuleForm({ rule, addAction, updateAction, onDone }: RuleFormProps) {
   const [frequency, setFrequency] = useState<RecurringFrequency>(rule?.frequency ?? 'monthly')
   const [intervalCount, setIntervalCount] = useState(String(rule?.intervalCount ?? 1))
   const [startDate, setStartDate] = useState(
-    rule
-      ? new Date(rule.nextRunDate).toISOString().split('T')[0]
-      : new Date().toISOString().split('T')[0]
+    rule ? timestampToDateInput(rule.nextRunDate) : timestampToDateInput(new Date())
   )
 
   const categories = type === 'income' ? PERSONAL_INCOME_CATEGORIES : PERSONAL_EXPENSE_CATEGORIES

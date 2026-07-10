@@ -32,7 +32,12 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { useToast } from '@/components/ui/use-toast'
-import { formatCurrency, dollarsToCentsString, dateInputToTimestamp } from '@/lib/formatting'
+import {
+  formatCurrency,
+  dollarsToCentsString,
+  dateInputToTimestamp,
+  timestampToDateInput,
+} from '@/lib/formatting'
 import { CURRENCIES } from '@/lib/constants'
 import { readDefaultCurrency } from '@/lib/settings'
 import type { SavingsGoal } from '@/types'
@@ -77,7 +82,7 @@ function GoalForm({ goal, addAction, updateAction, onDone }: GoalFormProps) {
   const [targetStr, setTargetStr] = useState(goal ? (goal.targetAmount / 100).toFixed(2) : '')
   const [currency, setCurrency] = useState(goal?.currency ?? readDefaultCurrency())
   const [targetDate, setTargetDate] = useState(
-    goal?.targetDate ? new Date(goal.targetDate).toISOString().split('T')[0] : ''
+    goal?.targetDate ? timestampToDateInput(goal.targetDate) : ''
   )
 
   function handleSubmit(e: React.FormEvent) {
