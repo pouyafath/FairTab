@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fairtab-v1'
+const CACHE_NAME = 'fairtab-v2'
 const STATIC_ROUTES = ['/', '/groups', '/personal', '/privacy']
 
 self.addEventListener('install', (event) => {
@@ -28,6 +28,32 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url)
   if (url.pathname.startsWith('/_next/') || url.searchParams.has('_rsc')) return
 
+  // Never intercept API traffic: responses are dynamic, sometimes large
+  // (backup export), and sometimes authorized — none belong in Cache Storage.
+  if (url.pathname.startsWith('/api/')) return
+
+  // Pages: network-first so balances are never stale, cache as the offline
+  // fallback only.
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response.ok && response.type === 'basic') {
+            const clone = response.clone()
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
+          }
+          return response
+        })
+        .catch(() =>
+          caches
+            .match(event.request)
+            .then((cached) => cached ?? caches.match('/'))
+        )
+    )
+    return
+  }
+
+  // Static assets (icons, manifest): stale-while-revalidate
   event.respondWith(
     caches.match(event.request).then((cached) => {
       const networkFetch = fetch(event.request).then((response) => {
