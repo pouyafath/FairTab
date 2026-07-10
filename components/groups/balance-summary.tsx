@@ -4,17 +4,18 @@ import { useMemo } from 'react'
 import { CheckCircle2 } from 'lucide-react'
 import { calculateMemberBalances } from '@/lib/calculations/balances'
 import { formatCurrency } from '@/lib/formatting'
-import type { GroupMember, ExpenseWithParticipants } from '@/types'
+import type { GroupMember, ExpenseWithParticipants, Settlement } from '@/types'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 
 interface Props {
   members: GroupMember[]
   expenses: ExpenseWithParticipants[]
+  paidSettlements?: Settlement[]
   currency?: string
 }
 
-export function BalanceSummary({ members, expenses, currency = 'CAD' }: Props) {
+export function BalanceSummary({ members, expenses, paidSettlements = [], currency = 'CAD' }: Props) {
   const balances = useMemo(() => {
     const rawExpenses = expenses.map((e) => ({
       paidById: e.paidById,
@@ -24,8 +25,8 @@ export function BalanceSummary({ members, expenses, currency = 'CAD' }: Props) {
         amountCents: p.amountCents,
       })),
     }))
-    return calculateMemberBalances(members, rawExpenses)
-  }, [members, expenses])
+    return calculateMemberBalances(members, rawExpenses, paidSettlements)
+  }, [members, expenses, paidSettlements])
 
   const totalSpending = expenses.reduce((sum, e) => sum + e.amount, 0)
   const allSettled = expenses.length > 0 && balances.every((b) => b.netBalance === 0)

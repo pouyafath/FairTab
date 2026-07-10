@@ -2,20 +2,31 @@ import type { GroupMember, MemberBalance, RawExpenseData, SettlementSuggestion }
 
 export type { RawExpenseData }
 
+export interface PaidSettlementData {
+  fromMemberId: number
+  toMemberId: number
+  amount: number // cents
+}
+
 /**
  * Compute net balance for each member.
  * Positive = group owes them; negative = they owe the group.
+ * A recorded settlement (from → to) raises the payer's net and lowers the
+ * recipient's net, so settled debt stops appearing as owed.
  */
 export function calculateMemberBalances(
   members: GroupMember[],
-  expenses: RawExpenseData[]
+  expenses: RawExpenseData[],
+  paidSettlements: PaidSettlementData[] = []
 ): MemberBalance[] {
   const paid = new Map<number, number>()
   const owed = new Map<number, number>()
+  const settledNet = new Map<number, number>()
 
   for (const m of members) {
     paid.set(m.id, 0)
     owed.set(m.id, 0)
+    settledNet.set(m.id, 0)
   }
 
   for (const expense of expenses) {
@@ -28,6 +39,17 @@ export function calculateMemberBalances(
     }
   }
 
+  for (const settlement of paidSettlements) {
+    settledNet.set(
+      settlement.fromMemberId,
+      (settledNet.get(settlement.fromMemberId) ?? 0) + settlement.amount
+    )
+    settledNet.set(
+      settlement.toMemberId,
+      (settledNet.get(settlement.toMemberId) ?? 0) - settlement.amount
+    )
+  }
+
   return members.map((member) => {
     const totalPaid = paid.get(member.id) ?? 0
     const totalOwed = owed.get(member.id) ?? 0
@@ -35,7 +57,7 @@ export function calculateMemberBalances(
       member,
       totalPaid,
       totalOwed,
-      netBalance: totalPaid - totalOwed,
+      netBalance: totalPaid - totalOwed + (settledNet.get(member.id) ?? 0),
     }
   })
 }

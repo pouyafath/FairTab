@@ -16,7 +16,7 @@ import { SettlementPreview } from '@/components/groups/settlement-preview'
 import { ExpenseList } from '@/components/expenses/expense-list'
 import { saveRecentGroup } from '@/components/groups/recent-groups'
 import { useToast } from '@/components/ui/use-toast'
-import type { GroupWithMembers, ExpenseWithParticipants } from '@/types'
+import type { GroupWithMembers, ExpenseWithParticipants, Settlement } from '@/types'
 import type {
   AddGroupMemberAction,
   ArchiveGroupAction,
@@ -31,6 +31,7 @@ import type {
 interface Props {
   group: GroupWithMembers
   expenses: ExpenseWithParticipants[]
+  paidSettlements: Settlement[]
   addMemberAction: AddGroupMemberAction
   deleteExpenseAction: DeleteExpenseAction
   deleteAttachmentAction?: DeleteAttachmentAction
@@ -45,6 +46,7 @@ interface Props {
 export function GroupDashboard({
   group,
   expenses,
+  paidSettlements,
   addMemberAction,
   deleteExpenseAction,
   deleteAttachmentAction,
@@ -206,6 +208,7 @@ export function GroupDashboard({
           <BalanceSummary
             members={group.members}
             expenses={expenses}
+            paidSettlements={paidSettlements}
             currency={group.currency}
           />
 
@@ -213,6 +216,7 @@ export function GroupDashboard({
           <SettlementPreview
             members={group.members}
             expenses={expenses}
+            paidSettlements={paidSettlements}
             currency={group.currency}
             groupToken={group.token}
             isArchived={group.isArchived}

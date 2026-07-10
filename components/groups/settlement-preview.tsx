@@ -5,13 +5,14 @@ import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import { calculateMemberBalances, calculateSettlements } from '@/lib/calculations/balances'
 import { formatCurrency } from '@/lib/formatting'
-import type { GroupMember, ExpenseWithParticipants } from '@/types'
+import type { GroupMember, ExpenseWithParticipants, Settlement } from '@/types'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 
 interface Props {
   members: GroupMember[]
   expenses: ExpenseWithParticipants[]
+  paidSettlements?: Settlement[]
   currency: string
   groupToken: string
   isArchived?: boolean
@@ -20,6 +21,7 @@ interface Props {
 export function SettlementPreview({
   members,
   expenses,
+  paidSettlements = [],
   currency,
   groupToken,
   isArchived = false,
@@ -34,9 +36,9 @@ export function SettlementPreview({
         amountCents: p.amountCents,
       })),
     }))
-    const balances = calculateMemberBalances(members, rawExpenses)
+    const balances = calculateMemberBalances(members, rawExpenses, paidSettlements)
     return calculateSettlements(balances)
-  }, [members, expenses])
+  }, [members, expenses, paidSettlements])
 
   if (suggestions.length === 0) return null
 

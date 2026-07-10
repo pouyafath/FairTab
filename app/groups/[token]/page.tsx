@@ -31,13 +31,17 @@ export default async function GroupPage({ params }: Props) {
   const group = await backend.groups.getGroupByToken(token)
   if (!group) notFound()
 
-  const expenses = await backend.expenses.getGroupExpenses(group.id)
+  const [expenses, paidSettlements] = await Promise.all([
+    backend.expenses.getGroupExpenses(group.id),
+    backend.settlements.getPaidSettlements(group.id),
+  ])
   const storageEnabled = backend.storage.isEnabled()
 
   return (
     <GroupDashboard
       group={group}
       expenses={expenses}
+      paidSettlements={paidSettlements}
       addMemberAction={addGroupMember}
       deleteExpenseAction={deleteExpense}
       deleteAttachmentAction={deleteAttachment.bind(null, token)}
