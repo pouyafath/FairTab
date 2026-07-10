@@ -1,1 +1,1 @@
-export const EXPECTED_LATEST_MIGRATION = '0008_recurring_rules_due_index.sql'
+export const EXPECTED_LATEST_MIGRATION = '0009_recurring_anchor_day.sql'

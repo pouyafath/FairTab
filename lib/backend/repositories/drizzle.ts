@@ -126,20 +126,31 @@ function serializeSettlement(row: typeof settlements.$inferSelect): Settlement {
   }
 }
 
+// All transactions share one better-sqlite3 connection, so two overlapping
+// BEGINs would collide ("cannot start a transaction within a transaction").
+// Chain them so each waits for the previous transaction to settle.
+let transactionQueue: Promise<unknown> = Promise.resolve()
+
 async function runInSqlTransaction<T>(db: WriteDb, work: () => Promise<T>): Promise<T> {
-  await Promise.resolve(db.run(sql.raw('begin')))
-  try {
-    const result = await work()
-    await Promise.resolve(db.run(sql.raw('commit')))
-    return result
-  } catch (error) {
+  const run = async (): Promise<T> => {
+    await Promise.resolve(db.run(sql.raw('begin')))
     try {
-      await Promise.resolve(db.run(sql.raw('rollback')))
-    } catch (rollbackError) {
-      console.error('[fairtab] transaction rollback failed:', rollbackError)
+      const result = await work()
+      await Promise.resolve(db.run(sql.raw('commit')))
+      return result
+    } catch (error) {
+      try {
+        await Promise.resolve(db.run(sql.raw('rollback')))
+      } catch (rollbackError) {
+        console.error('[fairtab] transaction rollback failed:', rollbackError)
+      }
+      throw error
     }
-    throw error
   }
+
+  const chained = transactionQueue.then(run, run)
+  transactionQueue = chained.catch(() => {})
+  return chained
 }
 
 // D1 rejects raw BEGIN/COMMIT statements, so multi-statement writes can only
@@ -598,6 +609,7 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
             accountLabel: input.accountLabel,
             frequency: input.frequency,
             intervalCount: input.intervalCount,
+            anchorDay: input.anchorDay,
             nextRunDate: input.nextRunDate,
           })
           .where(eq(recurringRules.id, id))

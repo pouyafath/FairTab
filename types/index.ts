@@ -87,6 +87,7 @@ export interface RecurringRule {
   accountLabel: string | null
   frequency: RecurringFrequency
   intervalCount: number
+  anchorDay: number | null // day-of-month the schedule is anchored to
   nextRunDate: number // epoch ms
   lastRunDate: number | null // epoch ms
   active: boolean

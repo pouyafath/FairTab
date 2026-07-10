@@ -85,6 +85,7 @@ const backupFixture: BackupData = {
       accountLabel: null,
       frequency: 'monthly',
       intervalCount: 1,
+      anchorDay: 28,
       nextRunDate: 1780000000000,
       lastRunDate: null,
       active: true,
@@ -147,6 +148,7 @@ function createMigratedDatabase() {
     '0006_attachments.sql',
     '0007_recurring_materialization_unique.sql',
     '0008_recurring_rules_due_index.sql',
+    '0009_recurring_anchor_day.sql',
   ]
   for (const file of migrationFiles) {
     db.exec(readFileSync(path.join(migrationsDir, file), 'utf8'))
@@ -373,6 +375,65 @@ describe('database schema', () => {
         title: string
       }
       assert.equal(title.title, 'Dinner')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('serializes concurrent transactional expense writes on the shared connection', async (t) => {
+    let migrated: ReturnType<typeof createMigratedDatabase>
+    try {
+      migrated = createMigratedDatabase()
+    } catch (error) {
+      if (isNativeLoadError(error)) {
+        t.skip('better-sqlite3 native module cannot be loaded in this Node process')
+        return
+      }
+      throw error
+    }
+
+    const { db, cleanup } = migrated
+
+    try {
+      db.exec(`
+        INSERT INTO groups (id, name, token, currency, created_at, is_archived)
+        VALUES (1, 'Trip', 'group123', 'CAD', 1780000000000, 0);
+
+        INSERT INTO group_members (id, group_id, name, email)
+        VALUES
+          (1, 1, 'Alice', NULL),
+          (2, 1, 'Bob', NULL);
+      `)
+
+      const appDb = drizzle(db, { schema: fullSchema }) as unknown as AppDb
+      const repositories = createDrizzleRepositories(appDb)
+
+      const expenseInput = (title: string) => ({
+        groupId: 1,
+        title,
+        amount: 4000,
+        currency: 'CAD',
+        paidById: 1,
+        date: new Date(1780000000000),
+        category: null,
+        notes: null,
+        splitMethod: 'equal' as const,
+        createdAt: new Date(1780000000000),
+        participants: [
+          { memberId: 1, shareValue: 1, amountCents: 2000 },
+          { memberId: 2, shareValue: 1, amountCents: 2000 },
+        ],
+      })
+
+      // Two overlapping BEGINs on the shared connection used to throw
+      // "cannot start a transaction within a transaction".
+      await Promise.all([
+        repositories.expenses.createWithParticipants(expenseInput('Dinner A')),
+        repositories.expenses.createWithParticipants(expenseInput('Dinner B')),
+      ])
+
+      assert.equal(countRows(db, 'expenses'), 2)
+      assert.equal(countRows(db, 'expense_participants'), 4)
     } finally {
       cleanup()
     }

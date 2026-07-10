@@ -31,6 +31,7 @@ export function createRecurringService({ repositories, now }: BackendServiceDeps
         accountLabel: data.accountLabel ?? null,
         frequency: data.frequency,
         intervalCount: data.intervalCount,
+        anchorDay: new Date(data.startDate).getDate(),
         nextRunDate: new Date(data.startDate),
         createdAt: now(),
       })
@@ -63,6 +64,7 @@ export function createRecurringService({ repositories, now }: BackendServiceDeps
         accountLabel: data.accountLabel ?? null,
         frequency: data.frequency,
         intervalCount: data.intervalCount,
+        anchorDay: new Date(data.startDate).getDate(),
         nextRunDate: new Date(data.startDate),
       })
 
@@ -94,6 +96,9 @@ export function createRecurringService({ repositories, now }: BackendServiceDeps
         let runDate = new Date(rule.nextRunDate)
         let lastRun: Date | null = null
         let occurrences = 0
+        // Rules created before anchorDay existed fall back to the stored
+        // date's day (pre-existing drift is not recoverable).
+        const anchorDay = rule.anchorDay ?? runDate.getDate()
 
         while (runDate <= asOf && occurrences < MAX_OCCURRENCES_PER_RUN) {
           occurrences++
@@ -111,7 +116,7 @@ export function createRecurringService({ repositories, now }: BackendServiceDeps
           })
           if (created) count++
           lastRun = runDate
-          runDate = nextDate(runDate, rule.frequency, rule.intervalCount)
+          runDate = nextDate(runDate, rule.frequency, rule.intervalCount, anchorDay)
         }
 
         if (lastRun) {

@@ -49,6 +49,14 @@ describe('nextDate', () => {
   it('clamps Feb 29 → Feb 28 on non-leap year', () => {
     assert.equal(iso(nextDate(d('2024-02-29'), 'yearly', 1)), '2025-02-28')
   })
+
+  it('returns to the anchor day after a clamped short month', () => {
+    assert.equal(iso(nextDate(d('2026-02-28'), 'monthly', 1, 31)), '2026-03-31')
+  })
+
+  it('returns to Feb 29 on the next leap year with a Feb 29 anchor', () => {
+    assert.equal(iso(nextDate(d('2027-02-28'), 'yearly', 1, 29)), '2028-02-29')
+  })
 })
 
 describe('materializeDueRecurring', () => {
@@ -137,6 +145,35 @@ describe('materializeDueRecurring', () => {
 
     const updatedRule = state.recurringRules[0]
     assert.equal(iso(new Date(updatedRule.nextRunDate)), '2026-07-01')
+  })
+
+  it('keeps a month-end rule anchored to its original day across February', async () => {
+    const { repositories, state } = createInMemoryRepositories()
+    const service = createRecurringService({
+      repositories,
+      storage: createInMemoryStorage(),
+      createId: () => 'x',
+      now: () => new Date('2026-04-04T12:00:00Z'),
+    })
+
+    await service.addRecurringRule({
+      type: 'expense',
+      title: 'Rent',
+      amount: 150000,
+      currency: 'CAD',
+      frequency: 'monthly',
+      intervalCount: 1,
+      startDate: new Date('2026-01-31T12:00:00Z').getTime(),
+    })
+    assert.equal(state.recurringRules[0].anchorDay, 31)
+
+    await service.materializeDueRecurring(new Date('2026-04-04T12:00:00Z'))
+
+    // Feb clamps to the 28th, but March must return to the 31st instead of
+    // permanently drifting to the 28th.
+    const dates = state.personalTransactions.map((tx) => iso(new Date(tx.date))).sort()
+    assert.deepEqual(dates, ['2026-01-31', '2026-02-28', '2026-03-31'])
+    assert.equal(iso(new Date(state.recurringRules[0].nextRunDate)), '2026-04-30')
   })
 
   it('caps occurrences per run and resumes from where it stopped', async () => {

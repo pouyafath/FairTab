@@ -138,6 +138,10 @@ export const recurringRules = sqliteTable(
       enum: ['weekly', 'biweekly', 'monthly', 'yearly'],
     }).notNull(),
     intervalCount: integer('interval_count').notNull().default(1),
+    // Day-of-month the rule is anchored to. nextRunDate clamps to short
+    // months (Jan 31 -> Feb 28), so without this a monthly rule would drift
+    // to the 28th forever after its first February.
+    anchorDay: integer('anchor_day'),
     nextRunDate: integer('next_run_date', { mode: 'timestamp_ms' }).notNull(),
     lastRunDate: integer('last_run_date', { mode: 'timestamp_ms' }),
     active: integer('active', { mode: 'boolean' }).notNull().default(true),

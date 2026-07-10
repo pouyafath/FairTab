@@ -482,6 +482,7 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
           accountLabel: input.accountLabel,
           frequency: input.frequency,
           intervalCount: input.intervalCount,
+          anchorDay: input.anchorDay,
           nextRunDate: input.nextRunDate.getTime(),
           lastRunDate: null,
           active: true,
@@ -512,6 +513,7 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
         rule.accountLabel = input.accountLabel
         rule.frequency = input.frequency
         rule.intervalCount = input.intervalCount
+        rule.anchorDay = input.anchorDay
         rule.nextRunDate = input.nextRunDate.getTime()
         return rule
       },

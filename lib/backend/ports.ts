@@ -127,6 +127,7 @@ export interface CreateRecurringRuleRecord {
   accountLabel: string | null
   frequency: RecurringFrequency
   intervalCount: number
+  anchorDay: number | null
   nextRunDate: Date
   createdAt: Date
 }
@@ -141,6 +142,7 @@ export interface UpdateRecurringRuleRecord {
   accountLabel: string | null
   frequency: RecurringFrequency
   intervalCount: number
+  anchorDay: number | null
   nextRunDate: Date
 }
 

@@ -109,6 +109,8 @@ const recurringRuleSchema = z.object({
   accountLabel: optionalTextSchema,
   frequency: z.enum(['weekly', 'biweekly', 'monthly', 'yearly']),
   intervalCount: z.number().int().positive(),
+  // Added after the first backups shipped; defaulted so older files validate.
+  anchorDay: z.number().int().min(1).max(31).nullable().default(null),
   nextRunDate: dateSchema,
   lastRunDate: dateSchema.nullable(),
   active: z.boolean(),
