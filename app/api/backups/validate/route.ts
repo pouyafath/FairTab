@@ -4,7 +4,7 @@ import { requireBackupAuthorization } from '@/lib/backups/auth'
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
-  const unauthorized = requireBackupAuthorization(request)
+  const unauthorized = await requireBackupAuthorization(request)
   if (unauthorized) return unauthorized
 
   let payload: unknown

@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getBackend } from '@/lib/backend/runtime'
+import { MAX_ATTACHMENT_SIZE } from '@/lib/validations/attachment'
 
 export async function POST(
   req: NextRequest,
@@ -32,6 +33,11 @@ export async function POST(
   const file = formData.get('file') as File | null
   if (!file) {
     return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+  }
+
+  // Reject oversized uploads before buffering the whole body into memory.
+  if (file.size > MAX_ATTACHMENT_SIZE) {
+    return NextResponse.json({ error: 'File exceeds 10 MB limit' }, { status: 413 })
   }
 
   const expenseIdRaw = formData.get('expenseId')

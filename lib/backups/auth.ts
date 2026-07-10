@@ -1,4 +1,5 @@
 import 'server-only'
+import { timingSafeEqual } from '@/lib/access'
 
 function readBearerToken(request: Request): string | null {
   const authorization = request.headers.get('authorization')
@@ -8,14 +9,18 @@ function readBearerToken(request: Request): string | null {
   return match?.[1]?.trim() || null
 }
 
-export function requireBackupAuthorization(request: Request): Response | null {
+export async function requireBackupAuthorization(request: Request): Promise<Response | null> {
   const expectedToken = process.env.FAIRTAB_BACKUP_TOKEN
   if (!expectedToken) return null
 
   const urlToken = new URL(request.url).searchParams.get('token')
   const providedToken = readBearerToken(request) ?? urlToken
 
-  if (providedToken === expectedToken) return null
+  // Constant-time compare (same double-HMAC scheme as the PIN gate) so the
+  // token cannot be recovered byte-by-byte through response timing.
+  if (providedToken !== null && (await timingSafeEqual(providedToken, expectedToken))) {
+    return null
+  }
 
   return Response.json(
     {
@@ -29,7 +34,9 @@ export function requireBackupAuthorization(request: Request): Response | null {
   )
 }
 
-export function requireConfiguredBackupAuthorization(request: Request): Response | null {
+export async function requireConfiguredBackupAuthorization(
+  request: Request
+): Promise<Response | null> {
   if (!process.env.FAIRTAB_BACKUP_TOKEN) {
     return Response.json(
       {

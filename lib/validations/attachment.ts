@@ -1,4 +1,16 @@
-const MAX_SIZE = 10 * 1024 * 1024 // 10 MB
+export const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024 // 10 MB
+const MAX_SIZE = MAX_ATTACHMENT_SIZE
+
+// Content types the upload pipeline can produce (magic-byte detected). The
+// serve route clamps to this set so a restored backup row cannot make the
+// server declare an arbitrary Content-Type for a stored file.
+export const SERVEABLE_CONTENT_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'application/pdf',
+])
 
 type MimeInfo = { mime: string; ext: string }
 

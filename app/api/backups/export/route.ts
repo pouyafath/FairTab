@@ -8,7 +8,7 @@ function backupFilename(exportedAt: string): string {
 }
 
 export async function GET(request: Request) {
-  const unauthorized = requireConfiguredBackupAuthorization(request)
+  const unauthorized = await requireConfiguredBackupAuthorization(request)
   if (unauthorized) return unauthorized
 
   const backup = await getBackend().backups.createBackup()
