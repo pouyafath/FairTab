@@ -105,6 +105,8 @@ export interface UpdatePersonalTransactionRecord {
   category: string | null
   note: string | null
   accountLabel: string | null
+  // Set to null to detach a rule-materialized transaction from its rule.
+  sourceRuleId?: number | null
 }
 
 export interface RecordPaidSettlementInput {
@@ -162,6 +164,7 @@ export interface ExpenseRepository {
   delete(expenseId: number): Promise<void>
   getBalanceData(groupId: number): Promise<BalanceData>
   memberHasExpenses(memberId: number): Promise<boolean>
+  groupHasExpenses(groupId: number): Promise<boolean>
 }
 
 export interface PersonalRepository {
@@ -178,6 +181,7 @@ export interface SettlementRepository {
   findById(settlementId: number): Promise<Settlement | null>
   findPaidForGroup(groupId: number): Promise<Settlement[]>
   undo(settlementId: number): Promise<void>
+  memberHasSettlements(memberId: number): Promise<boolean>
 }
 
 export interface RecurringRepository {

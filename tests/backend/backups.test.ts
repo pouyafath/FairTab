@@ -300,6 +300,45 @@ describe('backup service', () => {
     assert.match(validation.errors.map((error) => error.code).join(','), /missing_group/)
   })
 
+  it('round-trips an expense with a zero-share participant and a pre-1970 date', async () => {
+    const { backend } = createTestBackend()
+    const group = await backend.groups.createGroup({ name: 'Edge Trip', currency: 'CAD' })
+    assert.equal(group.success, true)
+    if (!group.success) throw new Error('group was not created')
+    const alice = await backend.groups.addGroupMember(group.data.id, { name: 'Alice' })
+    const bob = await backend.groups.addGroupMember(group.data.id, { name: 'Bob' })
+    if (!alice.success || !bob.success) throw new Error('members were not created')
+
+    // The expense form allows a 0% participant and any past date; both must
+    // survive export -> validate, or backups of the instance become
+    // permanently non-restorable.
+    const expense = await backend.expenses.addExpense(group.data.id, {
+      title: 'Solo dinner recorded in group',
+      amount: 4200,
+      currency: 'CAD',
+      paidById: alice.data.id,
+      date: new Date('1969-06-15T12:00:00Z').getTime(),
+      splitMethod: 'percentage',
+      participants: [
+        { memberId: alice.data.id, shareValue: 100 },
+        { memberId: bob.data.id, shareValue: 0 },
+      ],
+    })
+    assert.equal(expense.success, true)
+
+    const backup = await backend.backups.createBackup()
+    assert.ok(backup.data.expenseParticipants.some((p) => p.shareValue === 0))
+    assert.ok(backup.data.expenses.some((e) => e.date < 0))
+
+    const { backend: target } = createTestBackend(() => 'target01')
+    const validation = await target.backups.validateBackup(backup)
+    assert.equal(validation.valid, true)
+    assert.equal(validation.canRestore, true)
+
+    const result = await target.backups.restoreBackup(backup, { mode: 'empty' })
+    assert.equal(result.restored, true)
+  })
+
   it('rejects a backup with two personal transactions for the same recurring occurrence', async () => {
     const { backend: source } = createTestBackend()
     await seedBackupData(source)

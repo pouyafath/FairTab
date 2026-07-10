@@ -29,6 +29,9 @@ const currencySchema = z.enum(CURRENCIES)
 const optionalTextSchema = z.string().nullable()
 const idSchema = z.number().int().positive()
 const timestampSchema = z.number().int().nonnegative()
+// User-entered dates may legitimately be pre-1970 (negative epoch-ms), so
+// they get a looser schema than server-generated createdAt/paidAt stamps.
+const dateSchema = z.number().int()
 const centsSchema = z.number().int().positive()
 
 const groupSchema = z.object({
@@ -54,7 +57,7 @@ const expenseSchema = z.object({
   amount: centsSchema,
   currency: currencySchema,
   paidById: idSchema,
-  date: timestampSchema,
+  date: dateSchema,
   category: optionalTextSchema,
   notes: optionalTextSchema,
   splitMethod: splitMethodSchema,
@@ -65,7 +68,9 @@ const expenseParticipantSchema = z.object({
   id: idSchema,
   expenseId: idSchema,
   memberId: idSchema,
-  shareValue: z.number().int().positive(),
+  // The expense form allows 0 shares (a 0% participant), so the backup
+  // schema must accept it too or exports stop being restorable.
+  shareValue: z.number().int().nonnegative(),
   amountCents: z.number().int().nonnegative(),
 })
 
@@ -85,7 +90,7 @@ const personalTransactionSchema = z.object({
   title: z.string().min(1),
   amount: centsSchema,
   currency: currencySchema,
-  date: timestampSchema,
+  date: dateSchema,
   category: optionalTextSchema,
   note: optionalTextSchema,
   accountLabel: optionalTextSchema,
@@ -104,8 +109,8 @@ const recurringRuleSchema = z.object({
   accountLabel: optionalTextSchema,
   frequency: z.enum(['weekly', 'biweekly', 'monthly', 'yearly']),
   intervalCount: z.number().int().positive(),
-  nextRunDate: timestampSchema,
-  lastRunDate: timestampSchema.nullable(),
+  nextRunDate: dateSchema,
+  lastRunDate: dateSchema.nullable(),
   active: z.boolean(),
   createdAt: timestampSchema,
 })
@@ -116,7 +121,7 @@ const savingsGoalSchema = z.object({
   targetAmount: centsSchema,
   currentAmount: z.number().int().nonnegative(),
   currency: currencySchema,
-  targetDate: timestampSchema.nullable(),
+  targetDate: dateSchema.nullable(),
   createdAt: timestampSchema,
 })
 

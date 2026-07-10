@@ -173,7 +173,9 @@ export const attachments = sqliteTable(
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
   },
   (table) => [
-    index('attachments_group_id_idx').on(table.groupId),
-    index('attachments_expense_id_idx').on(table.expenseId),
+    // Names match migration 0006, which created these before the schema
+    // declared them; a mismatch would make drizzle-kit emit duplicates.
+    index('idx_attachments_group_id').on(table.groupId),
+    index('idx_attachments_expense_id').on(table.expenseId),
   ]
 )

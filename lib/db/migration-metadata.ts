@@ -1,1 +1,1 @@
-export const EXPECTED_LATEST_MIGRATION = '0007_recurring_materialization_unique.sql'
+export const EXPECTED_LATEST_MIGRATION = '0008_recurring_rules_due_index.sql'

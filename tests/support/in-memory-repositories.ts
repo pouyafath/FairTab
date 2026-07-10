@@ -102,6 +102,17 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
     attachments: initialState?.attachments ?? [],
   }
   const counters = createCounters()
+  // Seeded fixtures carry explicit ids; start counters past them so created
+  // rows never collide with fixture rows the way real SQLite would reject.
+  counters.groupId = nextId(state.groups)
+  counters.memberId = nextId(state.members)
+  counters.expenseId = nextId(state.expenses)
+  counters.expenseParticipantId = nextId(state.expenseParticipants)
+  counters.personalTransactionId = nextId(state.personalTransactions)
+  counters.settlementId = nextId(state.settlements)
+  counters.recurringRuleId = nextId(state.recurringRules)
+  counters.savingsGoalId = nextId(state.savingsGoals)
+  counters.attachmentId = nextId(state.attachments)
 
   function withParticipants(expense: Expense): ExpenseWithParticipants {
     return {
@@ -293,6 +304,10 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
         return state.expenseParticipants.some((p) => p.memberId === memberId)
       },
 
+      async groupHasExpenses(groupId: number): Promise<boolean> {
+        return state.expenses.some((e) => e.groupId === groupId)
+      },
+
       async getBalanceData(groupId: number): Promise<BalanceData> {
         return {
           members: state.members.filter((member) => member.groupId === groupId),
@@ -378,6 +393,7 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
         tx.category = input.category
         tx.note = input.note
         tx.accountLabel = input.accountLabel
+        if (input.sourceRuleId !== undefined) tx.sourceRuleId = input.sourceRuleId
         return tx
       },
 
@@ -444,6 +460,12 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
 
       async undo(settlementId: number): Promise<void> {
         state.settlements = state.settlements.filter((s) => s.id !== settlementId)
+      },
+
+      async memberHasSettlements(memberId: number): Promise<boolean> {
+        return state.settlements.some(
+          (s) => s.fromMemberId === memberId || s.toMemberId === memberId
+        )
       },
     },
 

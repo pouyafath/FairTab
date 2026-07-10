@@ -146,6 +146,7 @@ function createMigratedDatabase() {
     '0005_savings_goals.sql',
     '0006_attachments.sql',
     '0007_recurring_materialization_unique.sql',
+    '0008_recurring_rules_due_index.sql',
   ]
   for (const file of migrationFiles) {
     db.exec(readFileSync(path.join(migrationsDir, file), 'utf8'))
@@ -304,6 +305,74 @@ describe('database schema', () => {
       assert.deepEqual(snapshot.groups.map((group) => group.token), ['oldtrip1'])
       assert.deepEqual(snapshot.groupMembers.map((member) => member.name), ['Old Member'])
       assert.equal(countRows(db, 'expenses'), 0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('rolls back an expense update whose participant insert fails', async (t) => {
+    let migrated: ReturnType<typeof createMigratedDatabase>
+    try {
+      migrated = createMigratedDatabase()
+    } catch (error) {
+      if (isNativeLoadError(error)) {
+        t.skip('better-sqlite3 native module cannot be loaded in this Node process')
+        return
+      }
+      throw error
+    }
+
+    const { db, cleanup } = migrated
+
+    try {
+      db.exec(`
+        INSERT INTO groups (id, name, token, currency, created_at, is_archived)
+        VALUES (1, 'Trip', 'group123', 'CAD', 1780000000000, 0);
+
+        INSERT INTO group_members (id, group_id, name, email)
+        VALUES
+          (1, 1, 'Alice', NULL),
+          (2, 1, 'Bob', NULL);
+
+        INSERT INTO expenses (
+          id, group_id, title, amount, currency, paid_by_id, date, split_method, created_at
+        )
+        VALUES (1, 1, 'Dinner', 4000, 'CAD', 1, 1780000000000, 'equal', 1780000000000);
+
+        INSERT INTO expense_participants (expense_id, member_id, share_value, amount_cents)
+        VALUES
+          (1, 1, 1, 2000),
+          (1, 2, 1, 2000);
+      `)
+
+      const appDb = drizzle(db, { schema: fullSchema }) as unknown as AppDb
+      const repositories = createDrizzleRepositories(appDb)
+
+      // Member 999 violates the participants FK after the old rows were
+      // deleted; without a transaction the expense would survive with zero
+      // participants and corrupt every balance in the group.
+      await assert.rejects(() =>
+        repositories.expenses.updateWithParticipants(1, {
+          title: 'Dinner v2',
+          amount: 4000,
+          currency: 'CAD',
+          paidById: 1,
+          date: new Date(1780000000000),
+          category: null,
+          notes: null,
+          splitMethod: 'equal',
+          participants: [
+            { memberId: 1, shareValue: 1, amountCents: 2000 },
+            { memberId: 999, shareValue: 1, amountCents: 2000 },
+          ],
+        })
+      )
+
+      assert.equal(countRows(db, 'expense_participants'), 2)
+      const title = db.prepare('SELECT title FROM expenses WHERE id = 1').get() as {
+        title: string
+      }
+      assert.equal(title.title, 'Dinner')
     } finally {
       cleanup()
     }

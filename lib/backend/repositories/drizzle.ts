@@ -1,6 +1,7 @@
 import 'server-only'
 
-import { and, asc, desc, eq, lte, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, lte, or, sql } from 'drizzle-orm'
+import { getStorageAdapter } from '@/lib/db'
 import type { AppDb } from '@/lib/db'
 import {
   attachments,
@@ -135,15 +136,30 @@ async function runInSqlTransaction<T>(db: WriteDb, work: () => Promise<T>): Prom
     try {
       await Promise.resolve(db.run(sql.raw('rollback')))
     } catch (rollbackError) {
-      console.error('[fairtab] backup restore rollback failed:', rollbackError)
+      console.error('[fairtab] transaction rollback failed:', rollbackError)
     }
     throw error
   }
 }
 
+// D1 rejects raw BEGIN/COMMIT statements, so multi-statement writes can only
+// be made atomic on the better-sqlite3 path. On D1 the statements run exactly
+// as they did before this wrapper existed.
+async function runAtomicallyWhenSupported<T>(db: WriteDb, work: () => Promise<T>): Promise<T> {
+  if (getStorageAdapter() === 'cloudflare-d1') return work()
+  return runInSqlTransaction(db, work)
+}
+
+// A single multi-row INSERT is capped by SQLite's bound-parameter limit
+// (SQLITE_MAX_VARIABLE_NUMBER, 32766 by default), so large restores must be
+// chunked or a mature instance's backup stops being restorable.
+const INSERT_CHUNK_ROWS = 100
+
 async function insertRows(db: WriteDb, table: unknown, rows: unknown[]) {
-  if (rows.length === 0) return
-  await Promise.resolve(db.insert(table).values(rows).run())
+  for (let start = 0; start < rows.length; start += INSERT_CHUNK_ROWS) {
+    const chunk = rows.slice(start, start + INSERT_CHUNK_ROWS)
+    await Promise.resolve(db.insert(table).values(chunk).run())
+  }
 }
 
 export function createDrizzleRepositories(db: AppDb): AppRepositories {
@@ -236,32 +252,34 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
 
     expenses: {
       async createWithParticipants(input: CreateExpenseRecord): Promise<Expense> {
-        const [expense] = await db
-          .insert(expenses)
-          .values({
-            groupId: input.groupId,
-            title: input.title,
-            amount: input.amount,
-            currency: input.currency,
-            paidById: input.paidById,
-            date: input.date,
-            category: input.category,
-            notes: input.notes,
-            splitMethod: input.splitMethod,
-            createdAt: input.createdAt,
-          })
-          .returning()
+        return runAtomicallyWhenSupported(db as unknown as WriteDb, async () => {
+          const [expense] = await db
+            .insert(expenses)
+            .values({
+              groupId: input.groupId,
+              title: input.title,
+              amount: input.amount,
+              currency: input.currency,
+              paidById: input.paidById,
+              date: input.date,
+              category: input.category,
+              notes: input.notes,
+              splitMethod: input.splitMethod,
+              createdAt: input.createdAt,
+            })
+            .returning()
 
-        await db.insert(expenseParticipants).values(
-          input.participants.map((participant) => ({
-            expenseId: expense.id,
-            memberId: participant.memberId,
-            shareValue: participant.shareValue,
-            amountCents: participant.amountCents,
-          }))
-        )
+          await db.insert(expenseParticipants).values(
+            input.participants.map((participant) => ({
+              expenseId: expense.id,
+              memberId: participant.memberId,
+              shareValue: participant.shareValue,
+              amountCents: participant.amountCents,
+            }))
+          )
 
-        return serializeExpense(expense)
+          return serializeExpense(expense)
+        })
       },
 
       async findForGroup(groupId: number): Promise<ExpenseWithParticipants[]> {
@@ -312,33 +330,35 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
         expenseId: number,
         input: UpdateExpenseRecord
       ): Promise<Expense> {
-        const [expense] = await db
-          .update(expenses)
-          .set({
-            title: input.title,
-            amount: input.amount,
-            currency: input.currency,
-            paidById: input.paidById,
-            date: input.date,
-            category: input.category,
-            notes: input.notes,
-            splitMethod: input.splitMethod,
-          })
-          .where(eq(expenses.id, expenseId))
-          .returning()
-        const updated = requireRow(expense, 'Expense')
+        return runAtomicallyWhenSupported(db as unknown as WriteDb, async () => {
+          const [expense] = await db
+            .update(expenses)
+            .set({
+              title: input.title,
+              amount: input.amount,
+              currency: input.currency,
+              paidById: input.paidById,
+              date: input.date,
+              category: input.category,
+              notes: input.notes,
+              splitMethod: input.splitMethod,
+            })
+            .where(eq(expenses.id, expenseId))
+            .returning()
+          const updated = requireRow(expense, 'Expense')
 
-        await db.delete(expenseParticipants).where(eq(expenseParticipants.expenseId, expenseId))
-        await db.insert(expenseParticipants).values(
-          input.participants.map((participant) => ({
-            expenseId,
-            memberId: participant.memberId,
-            shareValue: participant.shareValue,
-            amountCents: participant.amountCents,
-          }))
-        )
+          await db.delete(expenseParticipants).where(eq(expenseParticipants.expenseId, expenseId))
+          await db.insert(expenseParticipants).values(
+            input.participants.map((participant) => ({
+              expenseId,
+              memberId: participant.memberId,
+              shareValue: participant.shareValue,
+              amountCents: participant.amountCents,
+            }))
+          )
 
-        return serializeExpense(updated)
+          return serializeExpense(updated)
+        })
       },
 
       async delete(expenseId: number): Promise<void> {
@@ -358,6 +378,15 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
           .where(eq(expenseParticipants.memberId, memberId))
           .limit(1)
         return asParticipant.length > 0
+      },
+
+      async groupHasExpenses(groupId: number): Promise<boolean> {
+        const rows = await db
+          .select({ id: expenses.id })
+          .from(expenses)
+          .where(eq(expenses.groupId, groupId))
+          .limit(1)
+        return rows.length > 0
       },
 
       async getBalanceData(groupId: number) {
@@ -431,6 +460,7 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
             category: input.category,
             note: input.note,
             accountLabel: input.accountLabel,
+            ...(input.sourceRuleId !== undefined ? { sourceRuleId: input.sourceRuleId } : {}),
           })
           .where(eq(personalTransactions.id, id))
           .returning()
@@ -519,6 +549,17 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
 
       async undo(settlementId: number): Promise<void> {
         await db.delete(settlements).where(eq(settlements.id, settlementId))
+      },
+
+      async memberHasSettlements(memberId: number): Promise<boolean> {
+        const rows = await db
+          .select({ id: settlements.id })
+          .from(settlements)
+          .where(
+            or(eq(settlements.fromMemberId, memberId), eq(settlements.toMemberId, memberId))
+          )
+          .limit(1)
+        return rows.length > 0
       },
     },
 
