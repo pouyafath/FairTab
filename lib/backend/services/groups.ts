@@ -29,6 +29,19 @@ export function createGroupService({ repositories, createId, now, storage }: Bac
       const parsed = updateGroupSchema.safeParse(formData)
       if (!parsed.success) return validationError<Group>(parsed.error)
 
+      const existing = await repositories.groups.findById(groupId)
+      if (!existing) return failure<Group>('Group not found')
+      if (existing.isArchived) return failure<Group>(ARCHIVED_GROUP_ERROR)
+
+      if (parsed.data.currency && parsed.data.currency !== existing.currency) {
+        const hasExpenses = await repositories.expenses.groupHasExpenses(groupId)
+        if (hasExpenses) {
+          return failure<Group>(
+            'Cannot change the currency of a group that already has expenses. Delete the expenses first or create a new group.'
+          )
+        }
+      }
+
       const group = await repositories.groups.update(groupId, {
         name: parsed.data.name,
         currency: parsed.data.currency,
@@ -96,11 +109,21 @@ export function createGroupService({ repositories, createId, now, storage }: Bac
           error: 'Cannot remove a member who is part of existing expenses. Delete or edit those expenses first.',
         }
       }
+      const hasSettlements = await repositories.settlements.memberHasSettlements(memberId)
+      if (hasSettlements) {
+        return {
+          success: false,
+          error: 'Cannot remove a member with recorded settlements. Undo those settlements first.',
+        }
+      }
       await repositories.groups.removeMember(memberId)
       return { success: true, data: undefined }
     },
 
     async archiveGroup(groupId: number, archive: boolean): Promise<ActionResult<Group>> {
+      const existing = await repositories.groups.findById(groupId)
+      if (!existing) return failure<Group>('Group not found')
+
       const group = await repositories.groups.update(groupId, { isArchived: archive })
       return { success: true, data: group }
     },

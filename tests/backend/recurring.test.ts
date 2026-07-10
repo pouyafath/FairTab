@@ -139,6 +139,62 @@ describe('materializeDueRecurring', () => {
     assert.equal(iso(new Date(updatedRule.nextRunDate)), '2026-07-01')
   })
 
+  it('caps occurrences per run and resumes from where it stopped', async () => {
+    const { repositories, state } = createInMemoryRepositories()
+    const service = createRecurringService({
+      repositories,
+      storage: createInMemoryStorage(),
+      createId: () => 'x',
+      now: () => new Date('2026-06-04T12:00:00Z'),
+    })
+
+    // Weekly rule starting ~6 years back: far more than one run's cap of 200.
+    await service.addRecurringRule({
+      type: 'expense',
+      title: 'Coffee',
+      amount: 500,
+      currency: 'CAD',
+      frequency: 'weekly',
+      intervalCount: 1,
+      startDate: new Date('2020-06-04T12:00:00Z').getTime(),
+    })
+
+    const firstRun = await service.materializeDueRecurring(new Date('2026-06-04T12:00:00Z'))
+    assert.equal(firstRun, 200)
+    assert.equal(state.personalTransactions.length, 200)
+
+    // The rule's nextRunDate advanced past the capped batch, so a second run
+    // continues instead of duplicating.
+    const secondRun = await service.materializeDueRecurring(new Date('2026-06-04T12:00:00Z'))
+    assert.ok(secondRun > 0)
+    assert.equal(state.personalTransactions.length, 200 + secondRun)
+    const dates = new Set(state.personalTransactions.map((tx) => tx.date))
+    assert.equal(dates.size, state.personalTransactions.length)
+  })
+
+  it('rejects a start date with a typo far in the past', async () => {
+    const { repositories } = createInMemoryRepositories()
+    const service = createRecurringService({
+      repositories,
+      storage: createInMemoryStorage(),
+      createId: () => 'x',
+      now: () => new Date('2026-06-04T12:00:00Z'),
+    })
+
+    const result = await service.addRecurringRule({
+      type: 'expense',
+      title: 'Rent',
+      amount: 150000,
+      currency: 'CAD',
+      frequency: 'monthly',
+      intervalCount: 1,
+      startDate: new Date('1996-06-04T12:00:00Z').getTime(),
+    })
+
+    assert.equal(result.success, false)
+    if (!result.success) assert.match(result.error, /2000 or later/)
+  })
+
   it('does not generate for inactive rules', async () => {
     const { repositories, state } = createInMemoryRepositories()
     const service = createRecurringService({

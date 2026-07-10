@@ -47,6 +47,12 @@ export function createPersonalService({ repositories, now }: BackendServiceDeps)
       if (!existing) return { success: false, error: 'Transaction not found' }
 
       const data = parsed.data
+      // Moving a rule-materialized transaction to a new date detaches it from
+      // its rule; otherwise it could collide with another occurrence on the
+      // (source_rule_id, date) unique index, and the vacated date would be
+      // re-materialized on the next run anyway.
+      const detachFromRule = existing.sourceRuleId !== null && data.date !== existing.date
+
       const tx = await repositories.personal.update(id, {
         type: data.type,
         title: data.title,
@@ -56,6 +62,7 @@ export function createPersonalService({ repositories, now }: BackendServiceDeps)
         category: data.category ?? null,
         note: data.note ?? null,
         accountLabel: data.accountLabel ?? null,
+        ...(detachFromRule ? { sourceRuleId: null } : {}),
       })
 
       return { success: true, data: tx }

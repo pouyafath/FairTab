@@ -2,6 +2,8 @@ import { validateAttachment } from '@/lib/validations/attachment'
 import type { ActionResult, Attachment } from '@/types'
 import type { BackendServiceDeps } from './types'
 
+const ARCHIVED_GROUP_ERROR = 'Archived groups are read-only. Unarchive the group to make changes.'
+
 export function createAttachmentService({
   repositories,
   storage,
@@ -15,6 +17,10 @@ export function createAttachmentService({
       filename: string,
       data: Uint8Array
     ): Promise<ActionResult<Attachment>> {
+      const group = await repositories.groups.findById(groupId)
+      if (!group) return { success: false, error: 'Group not found' }
+      if (group.isArchived) return { success: false, error: ARCHIVED_GROUP_ERROR }
+
       // The expense id arrives from the client; without this check a valid
       // token for one group could attach files to another group's expense.
       if (expenseId !== null) {
@@ -39,15 +45,23 @@ export function createAttachmentService({
         return { success: false, error: 'Failed to save file' }
       }
 
-      const attachment = await repositories.attachments.create({
-        groupId,
-        expenseId,
-        storageKey: key,
-        filename: validated.filename,
-        contentType: validated.contentType,
-        size: validated.size,
-        createdAt: now(),
-      })
+      let attachment: Attachment
+      try {
+        attachment = await repositories.attachments.create({
+          groupId,
+          expenseId,
+          storageKey: key,
+          filename: validated.filename,
+          contentType: validated.contentType,
+          size: validated.size,
+          createdAt: now(),
+        })
+      } catch {
+        // Nothing references the saved file if the row never landed; remove
+        // it so failed uploads don't accumulate orphans on the volume.
+        await storage.delete(key).catch(() => {})
+        return { success: false, error: 'Failed to record attachment' }
+      }
 
       return { success: true, data: attachment }
     },
@@ -74,8 +88,13 @@ export function createAttachmentService({
         return { success: false, error: 'Attachment not found' }
       }
 
-      await storage.delete(attachment.storageKey)
+      const group = await repositories.groups.findById(groupId)
+      if (group?.isArchived) return { success: false, error: ARCHIVED_GROUP_ERROR }
+
+      // Delete the row first: a leftover file is harmless, a row pointing at
+      // a deleted file is a broken download link.
       await repositories.attachments.delete(attachmentId)
+      await storage.delete(attachment.storageKey)
       return { success: true, data: undefined }
     },
   }
