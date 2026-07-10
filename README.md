@@ -34,6 +34,11 @@ private or self-hosted personal use.
 | **Smart settlements** | Inline suggestions, payment history, and undo support |
 | **Interac e-Transfer** | One-click copy of a ready-to-send settlement message |
 | **Personal finance** | Add, edit, and delete transactions; review monthly summaries and spending trends |
+| **Recurring transactions** | Weekly, biweekly, monthly, or yearly rules that materialize automatically |
+| **Savings goals** | Track progress toward a target amount with contributions |
+| **Receipt attachments** | Attach receipt images or PDFs to group expenses (Docker/local deployments) |
+| **Backup and restore** | Token-gated full JSON export, dry-run validation, and restore from Settings |
+| **Access gate** | Optional shared PIN (`APP_ACCESS_PIN`) in front of the whole instance |
 | **CSV export** | Download all personal transactions at any time |
 | **Default currency setting** | Pick a device-local default currency for new groups and transactions |
 | **No account needed** | Groups use a shareable token URL; recently visited groups stay in browser storage |

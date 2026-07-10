@@ -224,7 +224,8 @@ public/
 
 ## Product Constraints to Preserve
 
-- There is no authentication or authorization in the current application.
+- There are no user accounts; the only access controls are the optional shared-PIN gate
+  (`APP_ACCESS_PIN`) and the token-gated backup routes.
 - Group tokens are shared secrets; do not expose group data through a token-free route.
 - Personal transactions are instance-wide, not per-user.
 - Group calculations use one currency and do not convert exchange rates.

@@ -86,8 +86,8 @@ No manual steps are needed when upgrading — pull the new image and restart.
 ```
 
 These are plain files on your host. Back them up by copying the `./data`
-directory, or use Settings → Data → **Download backup** for a portable JSON
-export of the database (receipt files stay in `./data/uploads`).
+directory, or use Settings → Backup and restore → **Export** for a portable
+JSON export of the database (receipt files stay in `./data/uploads`).
 
 ---
 

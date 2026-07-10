@@ -23,8 +23,10 @@ Deploy FairTab to Cloudflare Pages for managed cloud hosting. FairTab uses Cloud
 
 - **Receipt attachments are disabled** — there is no local filesystem on Workers; the upload
   UI is hidden and the API returns `501`. Use the Docker deployment if you need receipts.
-- **Backup & restore work**, but D1 has no interactive transactions, so a mid-restore failure
-  can leave partial data — simply re-run the restore.
+- **JSON backup export and dry-run validation work. Restore execution does not** — the
+  restore transaction uses SQL statements D1 rejects, so the request fails before any data
+  is modified. To move data onto D1, seed it with `wrangler d1 execute`; to migrate off,
+  export here and restore into a Docker/local deployment.
 - **Access gate works** — set `APP_ACCESS_PIN` in the Pages project's environment variables.
 
 ---
