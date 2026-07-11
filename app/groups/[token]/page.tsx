@@ -7,10 +7,11 @@ import {
   archiveGroup,
   deleteGroup,
   removeGroupMember,
-  renameGroup,
+  updateGroup,
   updateGroupMember,
 } from '@/lib/actions/groups'
 import { deleteExpense } from '@/lib/actions/expenses'
+import { deleteAttachment } from '@/lib/actions/attachments'
 import { GroupDashboard } from '@/components/groups/group-dashboard'
 import type { Metadata } from 'next'
 
@@ -30,19 +31,26 @@ export default async function GroupPage({ params }: Props) {
   const group = await backend.groups.getGroupByToken(token)
   if (!group) notFound()
 
-  const expenses = await backend.expenses.getGroupExpenses(group.id)
+  const [expenses, paidSettlements] = await Promise.all([
+    backend.expenses.getGroupExpenses(group.id),
+    backend.settlements.getPaidSettlements(group.id),
+  ])
+  const storageEnabled = backend.storage.isEnabled()
 
   return (
     <GroupDashboard
       group={group}
       expenses={expenses}
+      paidSettlements={paidSettlements}
       addMemberAction={addGroupMember}
       deleteExpenseAction={deleteExpense}
-      renameGroupAction={renameGroup}
+      deleteAttachmentAction={deleteAttachment.bind(null, token)}
+      updateGroupAction={updateGroup}
       deleteGroupAction={deleteGroup}
       archiveGroupAction={archiveGroup}
       updateMemberAction={updateGroupMember}
       removeMemberAction={removeGroupMember}
+      storageEnabled={storageEnabled}
     />
   )
 }

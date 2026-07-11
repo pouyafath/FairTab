@@ -11,6 +11,7 @@ import {
   resetRevalidatedPaths,
 } from '../support/next-cache'
 import { createInMemoryRepositories } from '../support/in-memory-repositories'
+import { createInMemoryStorage } from '../support/in-memory-storage'
 
 const fixedNow = new Date('2026-05-29T10:00:00.000Z')
 
@@ -19,6 +20,7 @@ function createActionTestBackend() {
   let id = 0
   const backend = createBackendServices({
     repositories,
+    storage: createInMemoryStorage(),
     createId: () => `group${++id}`,
     now: () => fixedNow,
   })

@@ -1,4 +1,5 @@
 import type {
+  Attachment,
   Expense,
   ExpenseWithParticipants,
   Group,
@@ -6,6 +7,9 @@ import type {
   GroupWithMembers,
   PersonalTransaction,
   RawExpenseData,
+  RecurringFrequency,
+  RecurringRule,
+  SavingsGoal,
   Settlement,
   SplitMethod,
   TransactionType,
@@ -77,11 +81,13 @@ export interface CreatePersonalTransactionRecord {
   category: string | null
   note: string | null
   accountLabel: string | null
+  sourceRuleId: number | null
   createdAt: Date
 }
 
 export interface UpdateGroupRecord {
   name?: string
+  currency?: string
   isArchived?: boolean
 }
 
@@ -99,6 +105,8 @@ export interface UpdatePersonalTransactionRecord {
   category: string | null
   note: string | null
   accountLabel: string | null
+  // Set to null to detach a rule-materialized transaction from its rule.
+  sourceRuleId?: number | null
 }
 
 export interface RecordPaidSettlementInput {
@@ -107,6 +115,35 @@ export interface RecordPaidSettlementInput {
   toMemberId: number
   amount: number
   paidAt: Date
+}
+
+export interface CreateRecurringRuleRecord {
+  type: TransactionType
+  title: string
+  amount: number
+  currency: string
+  category: string | null
+  note: string | null
+  accountLabel: string | null
+  frequency: RecurringFrequency
+  intervalCount: number
+  anchorDay: number | null
+  nextRunDate: Date
+  createdAt: Date
+}
+
+export interface UpdateRecurringRuleRecord {
+  type: TransactionType
+  title: string
+  amount: number
+  currency: string
+  category: string | null
+  note: string | null
+  accountLabel: string | null
+  frequency: RecurringFrequency
+  intervalCount: number
+  anchorDay: number | null
+  nextRunDate: Date
 }
 
 export interface GroupRepository {
@@ -129,10 +166,12 @@ export interface ExpenseRepository {
   delete(expenseId: number): Promise<void>
   getBalanceData(groupId: number): Promise<BalanceData>
   memberHasExpenses(memberId: number): Promise<boolean>
+  groupHasExpenses(groupId: number): Promise<boolean>
 }
 
 export interface PersonalRepository {
   create(input: CreatePersonalTransactionRecord): Promise<PersonalTransaction>
+  createIfAbsent(input: CreatePersonalTransactionRecord): Promise<PersonalTransaction | null>
   findById(id: number): Promise<PersonalTransaction | null>
   findAll(): Promise<PersonalTransaction[]>
   update(id: number, input: UpdatePersonalTransactionRecord): Promise<PersonalTransaction>
@@ -144,6 +183,59 @@ export interface SettlementRepository {
   findById(settlementId: number): Promise<Settlement | null>
   findPaidForGroup(groupId: number): Promise<Settlement[]>
   undo(settlementId: number): Promise<void>
+  memberHasSettlements(memberId: number): Promise<boolean>
+}
+
+export interface RecurringRepository {
+  create(input: CreateRecurringRuleRecord): Promise<RecurringRule>
+  findAll(): Promise<RecurringRule[]>
+  findDue(asOf: Date): Promise<RecurringRule[]>
+  update(id: number, input: UpdateRecurringRuleRecord): Promise<RecurringRule>
+  toggle(id: number, active: boolean): Promise<RecurringRule>
+  advance(id: number, nextRunDate: Date, lastRunDate: Date): Promise<void>
+  delete(id: number): Promise<void>
+}
+
+export interface CreateSavingsGoalRecord {
+  name: string
+  targetAmount: number
+  currentAmount: number
+  currency: string
+  targetDate: Date | null
+  createdAt: Date
+}
+
+export interface UpdateSavingsGoalRecord {
+  name: string
+  targetAmount: number
+  currency: string
+  targetDate: Date | null
+}
+
+export interface SavingsGoalRepository {
+  create(input: CreateSavingsGoalRecord): Promise<SavingsGoal>
+  findAll(): Promise<SavingsGoal[]>
+  update(id: number, input: UpdateSavingsGoalRecord): Promise<SavingsGoal>
+  contribute(id: number, amount: number): Promise<SavingsGoal>
+  delete(id: number): Promise<void>
+}
+
+export interface CreateAttachmentRecord {
+  groupId: number
+  expenseId: number | null
+  storageKey: string
+  filename: string
+  contentType: string
+  size: number
+  createdAt: Date
+}
+
+export interface AttachmentRepository {
+  create(input: CreateAttachmentRecord): Promise<Attachment>
+  findById(id: number): Promise<Attachment | null>
+  findByExpense(expenseId: number): Promise<Attachment[]>
+  findByGroup(groupId: number): Promise<Attachment[]>
+  delete(id: number): Promise<void>
 }
 
 export interface BackupRepository {
@@ -156,6 +248,9 @@ export interface AppRepositories {
   expenses: ExpenseRepository
   personal: PersonalRepository
   settlements: SettlementRepository
+  recurring: RecurringRepository
+  savings: SavingsGoalRepository
+  attachments: AttachmentRepository
   backups: BackupRepository
 }
 

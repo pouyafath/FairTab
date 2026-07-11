@@ -26,16 +26,16 @@ afterEach(() => {
 })
 
 describe('backup route authorization', () => {
-  it('allows export and dry-run routes when no backup token is configured', () => {
+  it('allows export and dry-run routes when no backup token is configured', async () => {
     setBackupToken(undefined)
 
-    assert.equal(requireBackupAuthorization(backupRequest()), null)
+    assert.equal(await requireBackupAuthorization(backupRequest()), null)
   })
 
   it('requires a bearer token when backup auth is configured', async () => {
     setBackupToken('expected-token')
 
-    const response = requireBackupAuthorization(backupRequest())
+    const response = await requireBackupAuthorization(backupRequest())
 
     assert.ok(response)
     assert.equal(response.status, 401)
@@ -46,46 +46,70 @@ describe('backup route authorization', () => {
     })
   })
 
-  it('rejects an incorrect bearer token', () => {
+  it('rejects an incorrect bearer token', async () => {
     setBackupToken('expected-token')
 
-    const response = requireBackupAuthorization(backupRequest({ bearer: 'wrong-token' }))
+    const response = await requireBackupAuthorization(backupRequest({ bearer: 'wrong-token' }))
 
     assert.ok(response)
     assert.equal(response.status, 401)
   })
 
-  it('allows the correct bearer token', () => {
+  it('allows the correct bearer token', async () => {
     setBackupToken('expected-token')
 
-    assert.equal(requireBackupAuthorization(backupRequest({ bearer: 'expected-token' })), null)
+    assert.equal(await requireBackupAuthorization(backupRequest({ bearer: 'expected-token' })), null)
   })
 
-  it('keeps URL token compatibility for backup routes', () => {
+  it('keeps URL token compatibility for backup routes', async () => {
     setBackupToken('expected-token')
 
-    assert.equal(requireBackupAuthorization(backupRequest({ token: 'expected-token' })), null)
+    assert.equal(await requireBackupAuthorization(backupRequest({ token: 'expected-token' })), null)
   })
 
   it('blocks restore routes when no server backup token is configured', async () => {
     setBackupToken(undefined)
 
-    const response = requireConfiguredBackupAuthorization(backupRequest())
+    const response = await requireConfiguredBackupAuthorization(backupRequest())
 
     assert.ok(response)
     assert.equal(response.status, 403)
     assert.deepEqual(await response.json(), {
       error: 'Backup token is not configured',
-      hint: 'Set FAIRTAB_BACKUP_TOKEN before enabling restore execution.',
+      hint: 'Set FAIRTAB_BACKUP_TOKEN before enabling backup export or restore.',
     })
   })
 
-  it('allows restore routes when configured and authorized', () => {
+  it('allows restore routes when configured and authorized', async () => {
     setBackupToken('expected-token')
 
     assert.equal(
-      requireConfiguredBackupAuthorization(backupRequest({ bearer: 'expected-token' })),
+      await requireConfiguredBackupAuthorization(backupRequest({ bearer: 'expected-token' })),
       null
     )
+  })
+
+  it('rejects a token that is a prefix of the expected token', async () => {
+    setBackupToken('expected-token')
+
+    const response = await requireBackupAuthorization(backupRequest({ bearer: 'expected' }))
+
+    assert.ok(response)
+    assert.equal(response.status, 401)
+  })
+})
+
+describe('export route authorization', () => {
+  it('blocks GET /api/backups/export when no backup token is configured', async () => {
+    setBackupToken(undefined)
+
+    const { GET } = await import('@/app/api/backups/export/route')
+    const response = await GET(backupRequest())
+
+    assert.equal(response.status, 403)
+    assert.deepEqual(await response.json(), {
+      error: 'Backup token is not configured',
+      hint: 'Set FAIRTAB_BACKUP_TOKEN before enabling backup export or restore.',
+    })
   })
 })

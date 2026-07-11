@@ -52,6 +52,11 @@ test('creates a group, records an expense, and toggles archive state', async ({ 
   await page.getByRole('option', { name: 'Alice' }).click()
   await page.getByRole('button', { name: /^Add Expense$/i }).click()
 
+  // With file storage enabled (the default in e2e), saving advances to an
+  // optional receipt-upload step; finish it to return to the group.
+  await expect(page.getByText('Expense saved!')).toBeVisible()
+  await page.getByRole('button', { name: /^Done$/i }).click()
+
   await expect(page.getByText('Dinner').first()).toBeVisible()
   await expect(page.getByText('$42.50').first()).toBeVisible()
 

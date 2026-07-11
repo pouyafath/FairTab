@@ -2,6 +2,18 @@ export type SplitMethod = 'equal' | 'exact' | 'percentage' | 'shares'
 
 export type TransactionType = 'income' | 'expense'
 
+export type RecurringFrequency = 'weekly' | 'biweekly' | 'monthly' | 'yearly'
+
+export interface SavingsGoal {
+  id: number
+  name: string
+  targetAmount: number // cents
+  currentAmount: number // cents
+  currency: string
+  targetDate: number | null // epoch ms
+  createdAt: number
+}
+
 export interface Group {
   id: number
   name: string
@@ -60,6 +72,25 @@ export interface PersonalTransaction {
   category: string | null
   note: string | null
   accountLabel: string | null
+  sourceRuleId: number | null
+  createdAt: number
+}
+
+export interface RecurringRule {
+  id: number
+  type: TransactionType
+  title: string
+  amount: number // cents
+  currency: string
+  category: string | null
+  note: string | null
+  accountLabel: string | null
+  frequency: RecurringFrequency
+  intervalCount: number
+  anchorDay: number | null // day-of-month the schedule is anchored to
+  nextRunDate: number // epoch ms
+  lastRunDate: number | null // epoch ms
+  active: boolean
   createdAt: number
 }
 
@@ -78,9 +109,21 @@ export interface SettlementSuggestion {
   amount: number // cents
 }
 
+export interface Attachment {
+  id: number
+  groupId: number
+  expenseId: number | null
+  storageKey: string
+  filename: string
+  contentType: string
+  size: number
+  createdAt: number
+}
+
 export interface ExpenseWithParticipants extends Expense {
   participants: (ExpenseParticipant & { member: GroupMember })[]
   paidBy: GroupMember
+  attachments: Attachment[]
 }
 
 export interface GroupWithMembers extends Group {

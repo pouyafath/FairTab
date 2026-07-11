@@ -32,6 +32,9 @@ const tableLabels: Record<keyof BackupValidationResult['summary'], string> = {
   expenseParticipants: 'Splits',
   settlements: 'Settlements',
   personalTransactions: 'Personal',
+  recurringRules: 'Recurring',
+  savingsGoals: 'Savings',
+  attachments: 'Attachments',
 }
 
 const tableOrder = Object.keys(tableLabels) as BackupTable[]
@@ -354,7 +357,7 @@ export function BackupActions() {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Dry-run validation does not write data. Restore execution requires{' '}
+        Dry-run validation does not write data. Export and restore execution require{' '}
         <code className="rounded bg-muted px-1 py-0.5">FAIRTAB_BACKUP_TOKEN</code>.
       </p>
 

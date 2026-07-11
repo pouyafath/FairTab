@@ -4,8 +4,11 @@ import { createBackendServices } from '@/lib/backend/services'
 import type { BackendServices } from '@/lib/backend/services'
 import { REPLACE_BACKUP_CONFIRMATION } from '@/lib/backups/types'
 import { createInMemoryRepositories } from '../support/in-memory-repositories'
+import { createInMemoryStorage } from '../support/in-memory-storage'
 
 const fixedNow = new Date('2026-05-29T10:00:00.000Z')
+// Minimal valid PNG: 8-byte signature + padding to clear the 12-byte sniff floor.
+const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x00])
 const populatedSummary = {
   groups: 1,
   groupMembers: 2,
@@ -13,6 +16,9 @@ const populatedSummary = {
   expenseParticipants: 2,
   settlements: 1,
   personalTransactions: 1,
+  recurringRules: 1,
+  savingsGoals: 1,
+  attachments: 1,
 }
 const emptySummary = {
   groups: 0,
@@ -21,12 +27,16 @@ const emptySummary = {
   expenseParticipants: 0,
   settlements: 0,
   personalTransactions: 0,
+  recurringRules: 0,
+  savingsGoals: 0,
+  attachments: 0,
 }
 
 function createTestBackend(createId: () => string = () => 'backup01') {
   const { repositories, state } = createInMemoryRepositories()
   const backend = createBackendServices({
     repositories,
+    storage: createInMemoryStorage(),
     createId,
     now: () => fixedNow,
   })
@@ -58,6 +68,7 @@ async function seedBackupData(backend: BackendServices) {
     ],
   })
   assert.equal(expense.success, true)
+  if (!expense.success) throw new Error('expense was not created')
 
   const settlement = await backend.settlements.markSettlementPaid(
     group.data.id,
@@ -76,6 +87,32 @@ async function seedBackupData(backend: BackendServices) {
     category: 'Food & Dining',
   })
   assert.equal(transaction.success, true)
+
+  const rule = await backend.recurring.addRecurringRule({
+    type: 'expense',
+    title: 'Rent',
+    amount: 150000,
+    currency: 'CAD',
+    frequency: 'monthly',
+    intervalCount: 1,
+    startDate: fixedNow.getTime(),
+  })
+  assert.equal(rule.success, true)
+
+  const goal = await backend.savings.addSavingsGoal({
+    name: 'Emergency fund',
+    targetAmount: 500000,
+    currency: 'CAD',
+  })
+  assert.equal(goal.success, true)
+
+  const attachment = await backend.attachments.uploadAttachment(
+    group.data.id,
+    expense.data.id,
+    'receipt.png',
+    PNG_BYTES
+  )
+  assert.equal(attachment.success, true)
 
   return { groupId: group.data.id, groupToken: group.data.token }
 }
@@ -225,5 +262,123 @@ describe('backup service', () => {
     })
     assert.equal(transaction.success, true)
     assert.equal(transaction.success ? transaction.data.id : null, 2)
+  })
+
+  it('round-trips recurring rules, savings goals, and attachments', async () => {
+    const { backend: source } = createTestBackend()
+    await seedBackupData(source)
+    const backup = await source.backups.createBackup()
+
+    assert.equal(backup.rowCounts.recurringRules, 1)
+    assert.equal(backup.rowCounts.savingsGoals, 1)
+    assert.equal(backup.rowCounts.attachments, 1)
+
+    const { backend: target, state } = createTestBackend(() => 'target01')
+    const result = await target.backups.restoreBackup(backup, { mode: 'empty' })
+    assert.equal(result.restored, true)
+
+    assert.equal(state.recurringRules.length, 1)
+    assert.equal(state.recurringRules[0].title, 'Rent')
+    assert.equal(state.savingsGoals.length, 1)
+    assert.equal(state.savingsGoals[0].name, 'Emergency fund')
+    assert.equal(state.attachments.length, 1)
+    // storageKey is preserved verbatim so on-disk files are found after restore.
+    assert.equal(state.attachments[0].storageKey, backup.data.attachments[0].storageKey)
+    assert.equal(state.attachments[0].expenseId, backup.data.expenses[0].id)
+  })
+
+  it('rejects a backup whose attachment references a missing group', async () => {
+    const { backend: source } = createTestBackend()
+    await seedBackupData(source)
+    const backup = await source.backups.createBackup()
+    backup.data.attachments[0].groupId = 999
+
+    const { backend: target } = createTestBackend(() => 'target01')
+    const validation = await target.backups.validateBackup(backup)
+
+    assert.equal(validation.valid, false)
+    assert.match(validation.errors.map((error) => error.code).join(','), /missing_group/)
+  })
+
+  it('round-trips an expense with a zero-share participant and a pre-1970 date', async () => {
+    const { backend } = createTestBackend()
+    const group = await backend.groups.createGroup({ name: 'Edge Trip', currency: 'CAD' })
+    assert.equal(group.success, true)
+    if (!group.success) throw new Error('group was not created')
+    const alice = await backend.groups.addGroupMember(group.data.id, { name: 'Alice' })
+    const bob = await backend.groups.addGroupMember(group.data.id, { name: 'Bob' })
+    if (!alice.success || !bob.success) throw new Error('members were not created')
+
+    // The expense form allows a 0% participant and any past date; both must
+    // survive export -> validate, or backups of the instance become
+    // permanently non-restorable.
+    const expense = await backend.expenses.addExpense(group.data.id, {
+      title: 'Solo dinner recorded in group',
+      amount: 4200,
+      currency: 'CAD',
+      paidById: alice.data.id,
+      date: new Date('1969-06-15T12:00:00Z').getTime(),
+      splitMethod: 'percentage',
+      participants: [
+        { memberId: alice.data.id, shareValue: 100 },
+        { memberId: bob.data.id, shareValue: 0 },
+      ],
+    })
+    assert.equal(expense.success, true)
+
+    const backup = await backend.backups.createBackup()
+    assert.ok(backup.data.expenseParticipants.some((p) => p.shareValue === 0))
+    assert.ok(backup.data.expenses.some((e) => e.date < 0))
+
+    const { backend: target } = createTestBackend(() => 'target01')
+    const validation = await target.backups.validateBackup(backup)
+    assert.equal(validation.valid, true)
+    assert.equal(validation.canRestore, true)
+
+    const result = await target.backups.restoreBackup(backup, { mode: 'empty' })
+    assert.equal(result.restored, true)
+  })
+
+  it('rejects a backup with two personal transactions for the same recurring occurrence', async () => {
+    const { backend: source } = createTestBackend()
+    await seedBackupData(source)
+    const backup = await source.backups.createBackup()
+
+    const ruleId = backup.data.recurringRules[0].id
+    const occurrenceDate = fixedNow.getTime()
+    backup.data.personalTransactions.push(
+      {
+        id: 101,
+        type: 'expense',
+        title: 'Rent',
+        amount: 150000,
+        currency: 'CAD',
+        date: occurrenceDate,
+        category: null,
+        note: null,
+        accountLabel: null,
+        sourceRuleId: ruleId,
+        createdAt: occurrenceDate,
+      },
+      {
+        id: 102,
+        type: 'expense',
+        title: 'Rent',
+        amount: 150000,
+        currency: 'CAD',
+        date: occurrenceDate,
+        category: null,
+        note: null,
+        accountLabel: null,
+        sourceRuleId: ruleId,
+        createdAt: occurrenceDate,
+      }
+    )
+
+    const { backend: target } = createTestBackend(() => 'target01')
+    const validation = await target.backups.validateBackup(backup)
+
+    assert.equal(validation.valid, false)
+    assert.match(validation.errors.map((error) => error.code).join(','), /duplicate/)
   })
 })

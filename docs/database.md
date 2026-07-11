@@ -206,24 +206,43 @@ discover new files automatically.
 
 ## Backup
 
-### Application JSON export
+FairTab has one logical JSON backup: a portable, DB-agnostic document (format
+`fairtab.backup`) covering every table — groups, members, expenses, splits,
+settlements, personal transactions, recurring rules, savings goals, and
+attachment metadata. Receipt **file bytes** are not in the JSON (it stays small
+and DB-agnostic); they live in the uploads directory next to the database, so
+copying the whole `./data` directory covers both the database and the receipts.
 
-Settings -> Data safety includes a full JSON export for groups, members, expenses, expense splits,
-settlements, and personal transactions. This is useful for auditability, off-site copies, and
-checking a backup before a database-file restore.
+It is exposed through token-gated routes under `/api/backups/*` and the
+Settings → **Backup and restore** card.
 
-For production deployments, set `FAIRTAB_BACKUP_TOKEN` so `/api/backups/export` and
-`/api/backups/validate` require a bearer token. Without that variable, those read-only endpoints
-are open to anyone who can reach the app.
+### Export and dry-run validation
 
-Dry-run validation accepts a FairTab backup JSON file and checks shape, duplicate IDs,
-foreign-key references, split totals, suspicious future timestamps, and conflicts with the current
-database. It previews incoming row counts against current row counts and does not write data.
+`FAIRTAB_BACKUP_TOKEN` must be configured for `GET /api/backups/export` —
+without it the route returns 403, since a full export contains every group,
+expense, and personal transaction in the database. `POST /api/backups/validate`
+stays open even when the token is unset: it only echoes row counts and
+conflict descriptions for a file the caller already has, never the current
+database's contents, so it is low-sensitivity enough to leave available on a
+trusted LAN. Set the token (or front FairTab with the access gate) before
+exposing the app beyond your LAN.
 
-### Application JSON restore
+```bash
+curl -fsS -H "Authorization: Bearer $FAIRTAB_BACKUP_TOKEN" \
+  http://localhost:3000/api/backups/export -o fairtab-backup-$(date +%Y%m%d).json
+```
 
-Settings -> Data safety can restore a validated FairTab JSON backup through
-`/api/backups/restore`. Restore execution is intentionally stricter than export or dry-run:
+Dry-run validation (`POST /api/backups/validate`) accepts a FairTab backup JSON
+file and checks shape, duplicate IDs, foreign-key references (including
+attachments → groups/expenses), split totals, suspicious future timestamps, and
+conflicts with the current database. It previews incoming row counts against
+current row counts and does not write data.
+
+### Restore
+
+Settings → **Backup and restore**, or `POST /api/backups/restore`. IDs are
+preserved (so group share URLs keep working). Restore execution is intentionally
+stricter than dry-run:
 
 - `FAIRTAB_BACKUP_TOKEN` must be configured on the server.
 - The request must include `Authorization: Bearer <FAIRTAB_BACKUP_TOKEN>`.
@@ -231,26 +250,30 @@ Settings -> Data safety can restore a validated FairTab JSON backup through
 - Replace restore deletes existing FairTab records first and requires the exact confirmation phrase
   `REPLACE ALL FAIRTAB DATA`.
 
+On SQLite the restore runs inside a transaction (all-or-nothing); on Cloudflare
+D1 interactive transactions are unavailable, so a mid-restore failure there can
+leave partial data — re-run the restore. Restoring onto a fresh host shows
+receipts as unavailable (the serving route 404s) until you copy the `./data`
+uploads back.
+
 Every export, dry-run validation, blocked restore, and completed restore writes a structured
 `[fairtab]` log line with row counts and restore mode. Keep those logs with deployment logs when
 performing a restore drill.
 
-### Local dev
+> The earlier unauthenticated `/api/backup` route (format `fairtab-backup`) has
+> been removed; re-export any old backups through `/api/backups/export`.
+
+### File-level backup
 
 ```bash
+# Local dev
 cp fairtab.db fairtab-backup-$(date +%Y%m%d).db
-```
 
-### Docker self-hosted
-
-The database is in `./data/fairtab.db` (a bind mount, outside the container):
-
-```bash
-# One-off backup
-cp ./data/fairtab.db ./data/fairtab-backup-$(date +%Y%m%d).db
+# Docker self-hosted — ./data holds the SQLite file AND uploaded receipts
+cp -r ./data ./data-backup-$(date +%Y%m%d)
 
 # Automated daily backup (add to crontab)
-0 3 * * * cp ~/FairTab/data/fairtab.db ~/FairTab/data/backup-$(date +\%Y\%m\%d).db
+0 3 * * * cp -r ~/FairTab/data ~/FairTab/data-backup-$(date +\%Y\%m\%d)
 ```
 
 ### Home-server backups

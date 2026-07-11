@@ -3,6 +3,9 @@ import { defineConfig, devices } from '@playwright/test'
 const port = process.env.PORT ?? '3000'
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://localhost:${port}`
 const databaseUrl = process.env.DATABASE_URL ?? './.tmp/fairtab-e2e.db'
+// Export is hard-gated; the dev server this spawns needs a token, and
+// seeded-data.spec.mjs sends this same literal as its bearer header.
+const backupToken = process.env.FAIRTAB_BACKUP_TOKEN ?? 'e2e-fairtab-backup-token'
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -19,7 +22,7 @@ export default defineConfig({
   webServer: process.env.PLAYWRIGHT_BASE_URL
     ? undefined
     : {
-        command: `DATABASE_URL="${databaseUrl}" node scripts/prepare-e2e-db.js && DATABASE_URL="${databaseUrl}" node node_modules/next/dist/bin/next dev --port ${port}`,
+        command: `DATABASE_URL="${databaseUrl}" node scripts/prepare-e2e-db.js && DATABASE_URL="${databaseUrl}" FAIRTAB_BACKUP_TOKEN="${backupToken}" node node_modules/next/dist/bin/next dev --port ${port}`,
         url: baseURL,
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,

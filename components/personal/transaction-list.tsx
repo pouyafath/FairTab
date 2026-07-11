@@ -2,7 +2,7 @@
 
 import { useTransition } from 'react'
 import Link from 'next/link'
-import { Pencil, Trash2, TrendingUp, TrendingDown } from 'lucide-react'
+import { Pencil, Trash2, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency, formatDate } from '@/lib/formatting'
@@ -50,20 +50,28 @@ export function TransactionList({
         >
           <div className="flex min-w-0 items-center gap-3">
             <div
-              className={`rounded-md p-1.5 flex-shrink-0 ${
-                t.type === 'income' ? 'bg-emerald-100' : 'bg-rose-100'
+              className={`rounded-full p-1.5 flex-shrink-0 ${
+                t.type === 'income'
+                  ? 'bg-green-100 dark:bg-green-950'
+                  : 'bg-red-100 dark:bg-red-950'
               }`}
             >
               {t.type === 'income' ? (
-                <TrendingUp className="h-3.5 w-3.5 text-emerald-700" />
+                <TrendingUp className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
               ) : (
-                <TrendingDown className="h-3.5 w-3.5 text-rose-700" />
+                <TrendingDown className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
               )}
             </div>
             <div className="min-w-0">
               <p className="font-medium text-sm truncate">{t.title}</p>
-              <div className="flex items-center gap-2 mt-0.5">
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                 <span className="text-xs text-muted-foreground">{formatDate(t.date)}</span>
+                {t.sourceRuleId !== null && (
+                  <Badge variant="secondary" className="text-xs py-0 gap-1">
+                    <RefreshCw className="h-2.5 w-2.5" />
+                    recurring
+                  </Badge>
+                )}
                 {t.category && (
                   <Badge variant="outline" className="text-xs py-0">
                     {t.category}
@@ -75,7 +83,9 @@ export function TransactionList({
           <div className="flex w-full flex-shrink-0 items-center justify-between gap-2 sm:w-auto sm:justify-end">
             <span
               className={`font-semibold text-sm ${
-                t.type === 'income' ? 'text-emerald-700' : 'text-rose-700'
+                t.type === 'income'
+                  ? 'text-green-600 dark:text-green-400'
+                  : 'text-red-600 dark:text-red-400'
               }`}
             >
               {t.type === 'income' ? '+' : '-'}

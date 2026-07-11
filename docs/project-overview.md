@@ -88,6 +88,11 @@ Important consequences:
   authentication and access control are implemented.
 - FairTab never connects to a bank and never initiates payments.
 
+An optional **site-wide access gate** can lock the whole instance behind a shared PIN: set
+`APP_ACCESS_PIN` in the environment (see [docker.md](docker.md#access-gate-optional)). It gates
+every page and API route for the entire instance — it is not per-user authentication, but it is
+the recommended minimum before making a deployment reachable from the internet.
+
 ---
 
 ## Supported Currencies
@@ -143,11 +148,10 @@ The database adapter is selected at runtime. Local and Docker deployments use
 
 ## Current Constraints
 
-- No authentication, authorization, or user accounts
+- No user accounts; the only access control is the optional shared-PIN gate (`APP_ACCESS_PIN`)
 - No payment processing or bank integrations
 - No automatic currency conversion
-- No recurring transactions
-- No receipt image attachments
+- Receipt attachments are unavailable on Cloudflare Workers deployments (no filesystem)
 - No full-instance data deletion workflow
 
 These constraints are intentional or known roadmap items. Changes that affect them should update

@@ -4,17 +4,18 @@ import { useMemo } from 'react'
 import { CheckCircle2 } from 'lucide-react'
 import { calculateMemberBalances } from '@/lib/calculations/balances'
 import { formatCurrency } from '@/lib/formatting'
-import type { GroupMember, ExpenseWithParticipants } from '@/types'
+import type { GroupMember, ExpenseWithParticipants, Settlement } from '@/types'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 
 interface Props {
   members: GroupMember[]
   expenses: ExpenseWithParticipants[]
+  paidSettlements?: Settlement[]
   currency?: string
 }
 
-export function BalanceSummary({ members, expenses, currency = 'CAD' }: Props) {
+export function BalanceSummary({ members, expenses, paidSettlements = [], currency = 'CAD' }: Props) {
   const balances = useMemo(() => {
     const rawExpenses = expenses.map((e) => ({
       paidById: e.paidById,
@@ -24,8 +25,8 @@ export function BalanceSummary({ members, expenses, currency = 'CAD' }: Props) {
         amountCents: p.amountCents,
       })),
     }))
-    return calculateMemberBalances(members, rawExpenses)
-  }, [members, expenses])
+    return calculateMemberBalances(members, rawExpenses, paidSettlements)
+  }, [members, expenses, paidSettlements])
 
   const totalSpending = expenses.reduce((sum, e) => sum + e.amount, 0)
   const allSettled = expenses.length > 0 && balances.every((b) => b.netBalance === 0)
@@ -42,7 +43,7 @@ export function BalanceSummary({ members, expenses, currency = 'CAD' }: Props) {
         {balances.length === 0 ? (
           <p className="text-sm text-muted-foreground px-6 pb-4">No members yet.</p>
         ) : allSettled ? (
-          <div className="flex items-center gap-3 px-6 py-4 text-emerald-700">
+          <div className="flex items-center gap-3 px-6 py-4 text-green-600 dark:text-green-400">
             <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
             <div>
               <p className="font-medium text-sm">All settled up!</p>
@@ -63,9 +64,9 @@ export function BalanceSummary({ members, expenses, currency = 'CAD' }: Props) {
                   className={cn(
                     'font-semibold text-sm',
                     b.netBalance > 0
-                      ? 'text-emerald-700'
+                      ? 'text-green-600 dark:text-green-400'
                       : b.netBalance < 0
-                        ? 'text-rose-700'
+                        ? 'text-red-600 dark:text-red-400'
                         : 'text-muted-foreground'
                   )}
                 >
