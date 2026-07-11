@@ -78,4 +78,79 @@ describe('settlement calculations', () => {
       { fromMember: members[2], toMember: members[1], amount: 2000 },
     ])
   })
+
+  it('conserves money and reconciles every balance to zero', () => {
+    // The suggested transfers must, when applied, bring every member to a net
+    // of zero and never propose a non-positive transfer — a regression in the
+    // greedy matcher (skipped creditor, sign error) would break this.
+    const cases = [
+      [5000, 2000, -3000, -4000],
+      [100, -100],
+      [3334, -1667, -1667],
+      [1, 1, 1, -3],
+      [-10000, 2500, 2500, 5000],
+      [0, 0, 0, 0],
+    ]
+
+    for (const netBalances of cases) {
+      assert.equal(
+        netBalances.reduce((sum, n) => sum + n, 0),
+        0,
+        'test vector must already balance'
+      )
+      const settlements = calculateSettlements(balancesFromNet(netBalances))
+      const remaining = new Map(netBalances.map((n, index) => [members[index].id, n]))
+      for (const settlement of settlements) {
+        assert.ok(settlement.amount > 0, 'transfers must be positive')
+        remaining.set(settlement.fromMember.id, remaining.get(settlement.fromMember.id)! + settlement.amount)
+        remaining.set(settlement.toMember.id, remaining.get(settlement.toMember.id)! - settlement.amount)
+      }
+      for (const value of remaining.values()) {
+        assert.equal(value, 0, `unreconciled balance for ${JSON.stringify(netBalances)}`)
+      }
+    }
+  })
+
+  it('subtracts a full paid settlement from computed balances', () => {
+    const expenses = [
+      {
+        paidById: members[0].id,
+        totalAmount: 4000,
+        participantShares: [
+          { memberId: members[0].id, amountCents: 2000 },
+          { memberId: members[1].id, amountCents: 2000 },
+        ],
+      },
+    ]
+    const balances = calculateMemberBalances(members.slice(0, 2), expenses, [
+      { fromMemberId: members[1].id, toMemberId: members[0].id, amount: 2000 },
+    ])
+
+    assert.deepEqual(
+      balances.map((balance) => balance.netBalance),
+      [0, 0]
+    )
+    assert.deepEqual(calculateSettlements(balances), [])
+  })
+
+  it('leaves the residual visible after a partial paid settlement', () => {
+    const expenses = [
+      {
+        paidById: members[0].id,
+        totalAmount: 4000,
+        participantShares: [
+          { memberId: members[0].id, amountCents: 2000 },
+          { memberId: members[1].id, amountCents: 2000 },
+        ],
+      },
+    ]
+    const balances = calculateMemberBalances(members.slice(0, 2), expenses, [
+      { fromMemberId: members[1].id, toMemberId: members[0].id, amount: 500 },
+    ])
+
+    assert.deepEqual(
+      balances.map((balance) => balance.netBalance),
+      [1500, -1500]
+    )
+  })
 })
