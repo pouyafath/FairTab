@@ -126,7 +126,7 @@ function ExpenseForm({ group, members, meId, expense }: { group: Group; members:
   let splitError: string | null = null;
   if (amount !== null && amount > 0) {
     try {
-      owed = computeOwed(amount, split.method, entries);
+      owed = computeOwed(amount, split.method, entries, currency);
     } catch (e) {
       splitError = e instanceof SplitError ? e.message : String(e);
     }

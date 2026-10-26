@@ -74,7 +74,18 @@ export function parseSplitwiseCsv(text: string): ImportResult {
   if (headerIndex === -1) {
     throw new Error('This does not look like a Splitwise export. Expected columns: Date, Description, Category, Cost, Currency.');
   }
-  const members = rows[headerIndex].slice(FIXED_COLUMNS.length).map((m) => m.trim()).filter(Boolean);
+  // Member columns, remembering each one's position (blank headers are skipped, not shifted).
+  // Two people with the same name get " (2)", " (3)" so they stay separate.
+  const columns: { name: string; col: number }[] = [];
+  const seen = new Map<string, number>();
+  rows[headerIndex].forEach((header, col) => {
+    const name = header.trim();
+    if (col < FIXED_COLUMNS.length || !name) return;
+    const count = (seen.get(name) ?? 0) + 1;
+    seen.set(name, count);
+    columns.push({ name: count === 1 ? name : `${name} (${count})`, col });
+  });
+  const members = columns.map((c) => c.name);
   if (members.length === 0) throw new Error('No members found in the Splitwise export.');
 
   const entries: ImportedEntry[] = [];
@@ -85,9 +96,15 @@ export function parseSplitwiseCsv(text: string): ImportResult {
     const line = r + 1;
     const [date = '', description = '', category = '', costText = '', currencyRaw = ''] = row.map((c) => c.trim());
     if (row.every((c) => c.trim() === '')) continue;
-    if (!date && /total balance/i.test(description)) continue;
-    if (!date) {
-      skipped.push({ line, reason: 'missing date' });
+    // The summary row at the end ("Total balance") often has a date too; it is not an expense.
+    if (/^total balance$/i.test(description)) continue;
+    const isoDate = toIsoDate(date);
+    if (!isoDate) {
+      skipped.push({ line, reason: date ? 'invalid date' : 'missing date' });
+      continue;
+    }
+    if (!costText) {
+      skipped.push({ line, reason: 'missing cost' });
       continue;
     }
     const currency = currencyRaw.toUpperCase();
@@ -99,8 +116,8 @@ export function parseSplitwiseCsv(text: string): ImportResult {
 
     const nets: { name: string; net: number }[] = [];
     let invalid = false;
-    members.forEach((name, i) => {
-      const value = parseSignedAmount(row[FIXED_COLUMNS.length + i] ?? '0', currency);
+    columns.forEach(({ name, col }) => {
+      const value = parseSignedAmount(row[col] ?? '0', currency);
       if (value === null) invalid = true;
       else nets.push({ name, net: value });
     });
@@ -126,7 +143,7 @@ export function parseSplitwiseCsv(text: string): ImportResult {
       continue;
     }
     entries.push({
-      date,
+      date: isoDate,
       description: description || '(no description)',
       category,
       currency,
@@ -167,6 +184,19 @@ function reconstructShares(cost: number, nets: { name: string; net: number }[]):
     }
   }
   return shares.filter((s) => s.paid > 0 || s.owed > 0);
+}
+
+/** Accepts 2024-01-31 and the M/D/YY or M/D/YYYY dates some Splitwise exports use. */
+function toIsoDate(value: string): string | null {
+  let y: number, m: number, d: number;
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(value);
+  const us = /^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/.exec(value);
+  if (iso) [y, m, d] = [Number(iso[1]), Number(iso[2]), Number(iso[3])];
+  else if (us) [m, d, y] = [Number(us[1]), Number(us[2]), us[3].length === 2 ? 2000 + Number(us[3]) : Number(us[3])];
+  else return null;
+  const date = new Date(Date.UTC(y, m - 1, d));
+  if (date.getUTCFullYear() !== y || date.getUTCMonth() !== m - 1 || date.getUTCDate() !== d) return null;
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 }
 
 function parseSignedAmount(text: string, currency: string): number | null {

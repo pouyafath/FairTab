@@ -44,3 +44,10 @@ example
 
 # secrets
 .env
+
+# Database backups contain everyone's data; never commit them (this repository is public)
+*.sql
+!supabase/**/*.sql
+*.dump
+backup*
+supabase/.temp/

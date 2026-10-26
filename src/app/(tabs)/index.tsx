@@ -40,7 +40,7 @@ export default function Groups() {
         <View>
           {groups.data?.map((group) => {
             const me = members.data?.find((m) => m.group_id === group.id && m.user_id === userId);
-            const count = members.data?.filter((m) => m.group_id === group.id).length ?? 0;
+            const count = members.data?.filter((m) => m.group_id === group.id && !m.left_at).length ?? 0;
             const net = myNet(me?.id, expenses.data?.filter((e) => e.group_id === group.id) ?? []);
             return (
               <ListRow

@@ -1,4 +1,4 @@
-import { allocate } from './money';
+import { allocate, formatMoney } from './money';
 
 export type SplitMethod = 'equal' | 'exact' | 'percent' | 'shares';
 
@@ -16,8 +16,17 @@ export interface SplitEntry {
 
 export class SplitError extends Error {}
 
-/** Returns how much each member owes (in minor units) for an expense of `total`. */
-export function computeOwed(total: number, method: SplitMethod, entries: SplitEntry[]): Record<string, number> {
+/**
+ * Returns how much each member owes (in minor units) for an expense of `total`.
+ * Pass the currency to get error messages with formatted amounts.
+ */
+export function computeOwed(
+  total: number,
+  method: SplitMethod,
+  entries: SplitEntry[],
+  currency?: string,
+): Record<string, number> {
+  const money = (minor: number) => (currency ? formatMoney(minor, currency) : String(minor));
   if (!Number.isInteger(total) || total <= 0) throw new SplitError('Amount must be greater than zero');
   if (entries.length === 0) throw new SplitError('Choose at least one person');
   if (new Set(entries.map((e) => e.memberId)).size !== entries.length) {
@@ -33,7 +42,7 @@ export function computeOwed(total: number, method: SplitMethod, entries: SplitEn
       parts = entries.map((e) => e.value ?? 0);
       if (parts.some((p) => !Number.isInteger(p) || p < 0)) throw new SplitError('Amounts cannot be negative');
       const sum = parts.reduce((a, b) => a + b, 0);
-      if (sum !== total) throw new SplitError(`Amounts add up to ${sum}, not ${total}`);
+      if (sum !== total) throw new SplitError(`Amounts add up to ${money(sum)}, not ${money(total)}`);
       break;
     }
     case 'percent': {

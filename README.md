@@ -42,7 +42,7 @@ supabase/tests/      Database tests (run on a plain local Postgres)
 
 Money is always stored as whole cents (`bigint`), never as floating point numbers.
 Every expense or payment stores, for each person, how much they **paid** and how much they **owed**. The database refuses to save an entry unless paid = owed = amount.
-Security lives in the database: row-level security means people can only read groups they belong to, and all writes go through server functions that check membership and the numbers.
+Security lives in the database: row-level security means people can only read groups they belong to. Expenses, payments and membership changes go through server functions that check membership and the numbers; renaming a group, a person or your own profile is a direct write that row-level security limits to group members.
 
 ## Set up the backend (free, about 20 minutes)
 
@@ -55,7 +55,11 @@ Security lives in the database: row-level security means people can only read gr
    - Host `smtp.gmail.com`, port `587` (or `465`), username: your Gmail address, password: the app password, sender: the same Gmail address.
    - (Resend or Brevo also work, but they need a domain you own.)
 6. Under **Authentication → URL Configuration**, set **Site URL** to where the app will live, e.g. `https://pouyafath.github.io/FairTab/`.
-7. Copy the **Project URL** and the **publishable (anon) key** from **Project Settings → API**. Never use the secret `service_role` key in the app.
+7. Get the two values the app needs. Click **Connect** at the top of the dashboard, or open **Project Settings**:
+   - the **Project URL**, under **Data API**;
+   - the **Publishable key** (starts with `sb_publishable_`), under **API Keys**. If your project only shows legacy keys, use the `anon` key.
+
+   Never use the secret key (`sb_secret_…`) or the `service_role` key in the app.
 
 ## Put it online for free (GitHub Pages)
 
@@ -71,8 +75,8 @@ This repository is public, so GitHub Pages is free. Every push to `main` rebuild
 4. Open `https://pouyafath.github.io/FairTab/`. On a phone, use **Share → Add to Home Screen** to get an app icon.
 
 Good to know:
-- Supabase's free plan **pauses a project after 7 days without activity**. Open the dashboard and click Restore; nothing is lost.
-- The free plan has no backups you can restore yourself. Every now and then run `npx supabase db dump --data-only -f backup.sql` (after `npx supabase login` and `npx supabase link`). Keep the file **out of this public repository**.
+- Supabase's free plan **pauses a project after 7 days without activity**. Open the dashboard and click **Restore** soon. A paused free project can only be restored for a limited time (Supabase has used 90 days and, more recently, up to a year). After that you can only download its backup and load it into a new project.
+- The free plan has no backups you can restore yourself, so keep your own copy now and then. The simplest way: in **Table Editor**, open each table (`groups`, `group_members`, `expenses`, `expense_shares`, `profiles`) and use **Export → CSV**. Advanced: `pg_dump` with the connection string from **Connect**, or `npx supabase db dump` (needs Docker). Save backups **outside this folder** (for example in your Documents): this repository is public, and a backup contains everyone's names and expenses.
 - Optional custom domain: add it under Settings → Pages, then add a repository variable `WEB_URL` (for example `https://fairtab.example.com`) so the app is built for the root of that domain.
 - Other free hosts also work, since the web build is a plain static site: Cloudflare Pages (works with private repositories too), Netlify, Vercel. Point them at `npx expo export --platform web` with output folder `dist`, and make sure unknown paths fall back to `index.html`.
 
@@ -97,5 +101,14 @@ These run automatically on every pull request (`.github/workflows/ci.yml`).
 
 ## Phone apps in the stores (later)
 
-`npx eas-cli@latest build` builds the iOS and Android apps in the cloud, and `eas submit` sends them to the stores. You need an Apple Developer account ($99/year) and a Google Play account ($25 once). Set `EXPO_PUBLIC_WEB_URL` to the website address when building, so invite links shared from the phone app open for friends who don't have it.
+`npx eas-cli@latest build` builds the iOS and Android apps in the cloud, and `eas submit` sends them to the stores. You need an Apple Developer account ($99/year) and a Google Play account ($25 once).
+Cloud builds don't see your `.env` file, so first store the settings in EAS:
+
+```bash
+npx eas-cli@latest env:create --environment production --visibility plaintext --name EXPO_PUBLIC_SUPABASE_URL --value https://YOUR-PROJECT.supabase.co
+npx eas-cli@latest env:create --environment production --visibility plaintext --name EXPO_PUBLIC_SUPABASE_KEY --value YOUR-PUBLISHABLE-KEY
+npx eas-cli@latest env:create --environment production --visibility plaintext --name EXPO_PUBLIC_WEB_URL --value https://pouyafath.github.io/FairTab
+```
+
+`EXPO_PUBLIC_WEB_URL` makes invite links shared from the phone app open in the browser for friends who don't have the app.
 Replace the placeholder icon and splash image in `assets/images/` first.

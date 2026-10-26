@@ -20,12 +20,18 @@ describe('parseAmount', () => {
     ['12.345.678', 'EUR', 1234567800],
     ['1.500', 'IRR', 1500],
     ['0.125', 'USD', 13],
+    ['0,500', 'EUR', 50],
+    ['0.500', 'EUR', 50],
+    ['1234,567', 'EUR', 123457],
+    ['1234.567', 'EUR', 123457],
+    ['12.', 'USD', 1200],
+    ['1 234,56', 'EUR', 123456],
     ['.5', 'USD', 50],
   ])('%s %s -> %i', (input, currency, expected) => {
     expect(parseAmount(input, currency)).toBe(expected);
   });
 
-  it.each(['', 'abc', '-5', '1.2.3x', '12$'])('rejects %j', (input) => {
+  it.each(['', 'abc', '-5', '1.2.3x', '12$', '10.50.', '1..5', '1.000.00', '10,50,', '1,23,456', '1,234.5.6'])('rejects %j', (input) => {
     expect(parseAmount(input, 'USD')).toBeNull();
   });
 });
@@ -62,6 +68,8 @@ describe('computeOwed', () => {
   });
   it('rejects exact amounts that do not add up', () => {
     expect(() => computeOwed(1000, 'exact', [{ memberId: 'a', value: 700 }])).toThrow(SplitError);
+    expect(() => computeOwed(1000, 'exact', [{ memberId: 'a', value: 700 }, { memberId: 'b', value: 350 }], 'USD'))
+      .toThrow('Amounts add up to $10.50, not $10.00');
   });
   it('splits by percent', () => {
     expect(computeOwed(1000, 'percent', [{ memberId: 'a', value: 50 }, { memberId: 'b', value: 25 }, { memberId: 'c', value: 25 }]))
@@ -202,6 +210,36 @@ describe('parseSplitwiseCsv', () => {
     const owed = e.shares.reduce((a, s) => a + s.owed, 0);
     expect(paid).toBe(e.amount);
     expect(owed).toBe(e.amount);
+  });
+
+  it('skips the "Total balance" row even when it has a date (real exports do)', () => {
+    const r = parseSplitwiseCsv([
+      'Date,Description,Category,Cost,Currency,A,B',
+      '2025-05-01,Rent,Rent,1000.00,USD,500.00,-500.00',
+      '2025-05-17,Total balance, , ,USD,500.00,-500.00',
+    ].join('\n'));
+    expect(r.entries).toHaveLength(1);
+    expect(r.skipped).toEqual([]);
+  });
+
+  it('reads M/D/YY dates from older exports', () => {
+    const r = parseSplitwiseCsv('Date,Description,Category,Cost,Currency,A,B\n3/31/19,Pizza,Food,20.00,USD,10.00,-10.00');
+    expect(r.entries[0].date).toBe('2019-03-31');
+    const bad = parseSplitwiseCsv('Date,Description,Category,Cost,Currency,A,B\n2/30/19,Pizza,Food,20.00,USD,10.00,-10.00');
+    expect(bad.skipped).toEqual([{ line: 2, reason: 'invalid date' }]);
+  });
+
+  it('keeps people with the same name apart and handles blank columns', () => {
+    const r = parseSplitwiseCsv('Date,Description,Category,Cost,Currency,Alex,,Alex,Sam\n2024-01-01,Dinner,Food,30.00,USD,20.00,,-10.00,-10.00');
+    expect(r.members).toEqual(['Alex', 'Alex (2)', 'Sam']);
+    const net = Object.fromEntries(r.entries[0].shares.map((s) => [s.name, s.paid - s.owed]));
+    expect(net).toEqual({ Alex: 2000, 'Alex (2)': -1000, Sam: -1000 });
+  });
+
+  it('reports rows with a missing cost instead of importing them', () => {
+    const r = parseSplitwiseCsv('Date,Description,Category,Cost,Currency,A,B\n2024-01-01,Mystery,Food,,USD,10.00,-10.00');
+    expect(r.entries).toHaveLength(0);
+    expect(r.skipped).toEqual([{ line: 2, reason: 'missing cost' }]);
   });
 
   it('rejects files that are not Splitwise exports', () => {

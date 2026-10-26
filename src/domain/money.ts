@@ -30,27 +30,9 @@ function normalizeDigits(input: string): string {
 export function parseAmount(input: string, currency: string): number | null {
   let s = normalizeDigits(input).replace(/[\s٬']/g, '').replace('٫', '.');
   if (!s) return null;
-  const lastDot = s.lastIndexOf('.');
-  const lastComma = s.lastIndexOf(',');
-  if (lastDot !== -1 && lastComma !== -1) {
-    // Whichever separator comes last is the decimal separator.
-    const thousands = lastDot > lastComma ? ',' : '.';
-    s = s.split(thousands).join('');
-    s = s.replace(',', '.');
-  } else if (lastComma !== -1) {
-    const parts = s.split(',');
-    // "1,234,567" is thousands; "12,50" is a decimal comma.
-    s = parts.length > 2 || parts[1].length === 3 && currencyDecimals(currency) !== 3
-      ? parts.join('')
-      : s.replace(',', '.');
-  } else if (lastDot !== -1) {
-    const parts = s.split('.');
-    // "1.234.567" is thousands. "1.234" can only be thousands too when the currency has fewer
-    // than 3 decimals (it is how most of Europe writes 1234), mirroring the comma rule above.
-    if (parts.length > 2 || (parts[1].length === 3 && /^[1-9]\d{0,2}$/.test(parts[0]) && currencyDecimals(currency) < 3)) {
-      s = parts.join('');
-    }
-  }
+  const normalized = normalizeSeparators(s, currencyDecimals(currency));
+  if (normalized === null) return null;
+  s = normalized;
   if (!/^\d+(\.\d*)?$|^\.\d+$/.test(s)) return null;
   const decimals = currencyDecimals(currency);
   const [whole, frac = ''] = s.split('.');
@@ -58,6 +40,38 @@ export function parseAmount(input: string, currency: string): number | null {
     return Math.round(Number(s) * 10 ** decimals);
   }
   return Number(whole || '0') * 10 ** decimals + Number(frac.padEnd(decimals, '0') || '0');
+}
+
+/**
+ * Turns "1,234.56", "1.234,56", "12,50" or "1 234" style input into "1234.56" form.
+ * Thousands separators are only accepted when they are well formed ("1,234,567"), so typos such
+ * as "10.50." or "1..5" are rejected instead of silently becoming a much larger amount.
+ */
+function normalizeSeparators(s: string, decimals: number): string | null {
+  const grouped = (intPart: string, sep: string) =>
+    new RegExp(`^[1-9]\\d{0,2}(\\${sep}\\d{3})+$`).test(intPart);
+  const lastDot = s.lastIndexOf('.');
+  const lastComma = s.lastIndexOf(',');
+  if (lastDot !== -1 && lastComma !== -1) {
+    // Whichever separator comes last is the decimal separator; the other must be thousands.
+    const [decimal, thousands] = lastDot > lastComma ? ['.', ','] : [',', '.'];
+    const at = s.lastIndexOf(decimal);
+    const intPart = s.slice(0, at);
+    const frac = s.slice(at + 1);
+    if (!grouped(intPart, thousands) || !/^\d*$/.test(frac)) return null;
+    return `${intPart.split(thousands).join('')}.${frac}`;
+  }
+  const sep = lastDot !== -1 ? '.' : lastComma !== -1 ? ',' : null;
+  if (!sep) return s;
+  const parts = s.split(sep);
+  if (parts.length > 2) {
+    // "1,234,567" or "1.234.567": only valid as thousands grouping.
+    return grouped(s, sep) ? parts.join('') : null;
+  }
+  // One separator. "1,234" / "1.234" (1-3 digits, then exactly 3) can only be thousands when the
+  // currency has fewer than 3 decimals; anything else is a decimal separator ("12,50", "0.500").
+  if (parts[1].length === 3 && /^[1-9]\d{0,2}$/.test(parts[0]) && decimals < 3) return parts.join('');
+  return `${parts[0]}.${parts[1]}`;
 }
 
 /** Formats minor units for display, e.g. formatMoney(1234, 'USD') -> "$12.34". */

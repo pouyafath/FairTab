@@ -96,7 +96,11 @@ function useRpc<A extends Record<string, unknown>, R = unknown>(fn: string) {
   const invalidate = useInvalidateAll();
   return useMutation({
     mutationFn: async (args: A) => check(await supabase.rpc(fn, args)) as R,
-    onSuccess: () => invalidate(),
+    // Don't wait for the refetch: callers navigate away in their own onSuccess, and waiting
+    // could leave them on a screen whose data no longer exists (e.g. after leaving a group).
+    onSuccess: () => {
+      void invalidate();
+    },
   });
 }
 
@@ -121,6 +125,7 @@ export const useLeaveGroup = () => useRpc<{ p_group_id: string }>('leave_group')
 export const useDeleteGroup = () => useRpc<{ p_group_id: string }>('delete_group');
 export const useRemoveMember = () => useRpc<{ p_member_id: string }>('remove_member');
 export const useRegenerateInvite = () => useRpc<{ p_group_id: string }, string>('regenerate_invite');
+export const useImportMore = () => useRpc<{ p_group_id: string; p_entries: unknown[] }>('import_more');
 export const useImportGroup = () =>
   useRpc<{ p_name: string; p_currency: string; p_members: string[]; p_me: string | null; p_entries: unknown[] }, string>(
     'import_group',
@@ -132,7 +137,9 @@ export function useUpdate<T extends Record<string, unknown>>(table: 'groups' | '
     mutationFn: async ({ id, values }: { id: string; values: T }) => {
       check(await supabase.from(table).update(values as never).eq('id', id));
     },
-    onSuccess: () => invalidate(),
+    onSuccess: () => {
+      void invalidate();
+    },
   });
 }
 
@@ -142,7 +149,9 @@ export function useAddGuest() {
     mutationFn: async (args: { group_id: string; display_name: string }) => {
       check(await supabase.from('group_members').insert(args));
     },
-    onSuccess: () => invalidate(),
+    onSuccess: () => {
+      void invalidate();
+    },
   });
 }
 

@@ -49,7 +49,7 @@ Splitwise facts come from Splitwise's help center and app-store listings, plus t
 | | Languages | 7+ | Same | English (Persian planned) | English |
 | **Running it** | Free hosting today | n/a | n/a | **Ready**: GitHub Pages + Supabase free plan | **Broken**: all 22 recorded cloud deploys failed; needs 3 fixes |
 | | Backups | n/a | JSON download | Your own `supabase db dump` | JSON export/restore (restore likely fails on Cloudflare D1) |
-| | Tests | n/a | n/a | 48 unit tests + database security tests, run in CI | 77 tests (129 on v2); CI red on main |
+| | Tests | n/a | n/a | 64 unit tests + database security tests, run in CI | 77 tests (129 on v2); CI red on main |
 
 ## Why the new app replaced the first FairTab
 
