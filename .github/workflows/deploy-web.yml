@@ -1,0 +1,74 @@
+# Publishes the web version of FairTab to GitHub Pages for free:
+#   https://<your-user>.github.io/<repo>/
+# One-time setup (see README → "Put it online for free"):
+#   1. Settings → Pages → Source: "GitHub Actions".
+#   2. Settings → Secrets and variables → Actions → Variables: add SUPABASE_URL and SUPABASE_KEY
+#      (the public "publishable"/anon key; never the secret/service_role key).
+name: Deploy web app
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  not-configured:
+    if: ${{ vars.SUPABASE_URL == '' || vars.SUPABASE_KEY == '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "::notice::Skipping deploy. Add the SUPABASE_URL and SUPABASE_KEY repository variables to publish the web app (see README)."
+
+  build:
+    if: ${{ vars.SUPABASE_URL != '' && vars.SUPABASE_KEY != '' }}
+    runs-on: ubuntu-latest
+    env:
+      EXPO_PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_KEY: ${{ vars.SUPABASE_KEY }}
+    steps:
+      - name: Work out the site address
+        env:
+          WEB_URL: ${{ vars.WEB_URL }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+        run: |
+          if [ -n "$WEB_URL" ]; then
+            # Custom domain (optional WEB_URL variable, e.g. https://fairtab.example.com): site at the root.
+            echo "EXPO_PUBLIC_WEB_URL=$WEB_URL" >> "$GITHUB_ENV"
+          else
+            # Default GitHub Pages address: the site lives in a sub-folder named after the repository.
+            echo "EXPO_BASE_URL=/$REPO" >> "$GITHUB_ENV"
+            echo "EXPO_PUBLIC_WEB_URL=https://$OWNER.github.io/$REPO" >> "$GITHUB_ENV"
+          fi
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx expo export --platform web
+      # GitHub Pages has no "single page app" mode: serving the app for unknown paths
+      # (e.g. /join/<code>) through 404.html makes invite and group links work.
+      - run: cp dist/index.html dist/404.html && touch dist/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

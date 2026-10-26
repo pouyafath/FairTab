@@ -2,61 +2,33 @@ name: CI
 
 on:
   push:
-    branches: ['**']
-  pull_request:
     branches: [main]
+  pull_request:
 
 jobs:
-  verify:
+  checks:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
-          node-version-file: '.nvmrc'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
-
-      - name: Doctor
-        run: npm run doctor
-
-      - name: Release check
-        run: npm run release:check
-
-  build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build
-
-  docker:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      - uses: actions/checkout@v4
-
-      # Catches Docker-only breakage (npm ci sync, native module compilation,
-      # standalone output copying) that the plain Node job cannot see.
-      - name: Build Docker image
-        run: docker build -t fairtab:ci .
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - name: Database tests (schema, security rules, server functions)
+        run: npm run test:db
