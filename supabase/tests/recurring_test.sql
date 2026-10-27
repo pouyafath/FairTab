@@ -606,4 +606,76 @@ begin
   perform public.delete_group(gid);
 end $$;
 
+-- Rules in an archived group wait (they are not paused) and catch up after unarchiving.
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
+do $$
+declare gid uuid; me uuid; rid uuid;
+begin
+  gid := public.create_group('Archived flat', 'EUR');
+  select id into me from public.group_members where group_id = gid and user_id = auth.uid();
+  perform public.archive_group(gid);
+  -- The rule cannot be created while archived (it would write an expense right away)...
+  begin
+    perform public.create_recurring(gid, 'Gym', 3000, 'EUR',
+      jsonb_build_array(jsonb_build_object('member_id', me, 'paid', 3000, 'owed', 3000)), 'weekly',
+      p_start_on => current_date - 14);
+    raise exception 'FAIL: created a rule in an archived group';
+  exception when insufficient_privilege then null;
+  end;
+  -- ...so create it first, then archive.
+  perform public.unarchive_group(gid);
+  rid := public.create_recurring(gid, 'Gym', 3000, 'EUR',
+    jsonb_build_array(jsonb_build_object('member_id', me, 'paid', 3000, 'owed', 3000)), 'weekly',
+    p_start_on => current_date);
+  perform public.archive_group(gid);
+  -- Changing, pausing or deleting it is refused while archived (read-only).
+  begin
+    perform public.set_recurring_paused(rid, true);
+    raise exception 'FAIL: paused a rule in an archived group';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.delete_recurring(rid);
+    raise exception 'FAIL: deleted a rule in an archived group';
+  exception when insufficient_privilege then null;
+  end;
+  if public.run_recurring() <> 0 then
+    raise exception 'FAIL: recurring added expenses to an archived group';
+  end if;
+  if (select paused from public.recurring_expenses where id = rid) then
+    raise exception 'FAIL: archiving paused the recurring expense';
+  end if;
+  perform public.unarchive_group(gid);
+  perform public.delete_group(gid);
+end $$;
+
+-- run_recurring_all (the scheduler) also leaves archived groups alone.
+reset role;
+do $$
+declare gid uuid; rid uuid; before int;
+begin
+  insert into public.groups (name, created_by) values ('Cron flat', '00000000-0000-0000-0000-00000000000a') returning id into gid;
+  insert into public.group_members (group_id, user_id, display_name)
+    values (gid, '00000000-0000-0000-0000-00000000000a', 'A');
+  insert into public.recurring_expenses (group_id, description, amount, currency, shares, frequency, anchor_day, start_on, next_on, created_by)
+  select gid, 'Cron gym', 1000, 'EUR',
+         jsonb_build_array(jsonb_build_object('member_id', m.id, 'paid', 1000, 'owed', 1000)),
+         'weekly', null, current_date - 7, current_date - 7, '00000000-0000-0000-0000-00000000000a'
+  from public.group_members m where m.group_id = gid
+  returning id into rid;
+  update public.groups set archived_at = now() where id = gid;
+  before := (select count(*) from public.expenses where group_id = gid);
+  perform public.run_recurring_all();
+  if (select count(*) from public.expenses where group_id = gid) <> before
+     or (select paused from public.recurring_expenses where id = rid) then
+    raise exception 'FAIL: scheduler touched an archived group';
+  end if;
+  update public.groups set archived_at = null where id = gid;
+  perform public.run_recurring_all();
+  if (select count(*) from public.expenses where group_id = gid) <> before + 2 then
+    raise exception 'FAIL: scheduler did not catch up after unarchiving (got %)', (select count(*) from public.expenses where group_id = gid) - before;
+  end if;
+  delete from public.groups where id = gid;
+end $$;
+
 \echo 'RECURRING TESTS PASSED'

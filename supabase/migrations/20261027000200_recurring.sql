@@ -170,6 +170,7 @@ $$;
 -- 60 per call, and moves next_on forward. A date that already has its expense is skipped, so running
 -- this twice adds nothing. If the expense can no longer be written (the person who set it up or
 -- someone in it left the group, or the group was deleted), the rule is paused instead of failing.
+-- Rules in archived groups are skipped (not paused) until the group is unarchived.
 -- p_today is "today" (the database's date when left out).
 create function public._materialize_recurring(p_recurring_id uuid, p_today date default null) returns int
 language plpgsql security definer set search_path = '' as $$
@@ -184,6 +185,10 @@ begin
   -- Two runs at the same time take turns: skip a rule another run is adding right now.
   select * into r from public.recurring_expenses where id = p_recurring_id for update skip locked;
   if not found or r.paused then
+    return 0;
+  end if;
+  -- An archived group is read-only: wait (without pausing) until it is unarchived.
+  if exists (select 1 from public.groups where id = r.group_id and archived_at is not null) then
     return 0;
   end if;
 
@@ -238,6 +243,7 @@ begin
   if not public.is_group_member(p_group_id) then
     raise exception 'You are not a member of this group' using errcode = '42501';
   end if;
+  perform public._require_not_archived(p_group_id);
   checked_shares := public._check_recurring(p_group_id, p_amount, p_shares, p_frequency, p_interval, start_date, p_end_on);
 
   insert into public.recurring_expenses (group_id, description, category, notes, amount, currency, shares,
@@ -272,6 +278,7 @@ begin
   if not found or not public.is_group_member(r.group_id) then
     raise exception 'Recurring expense not found' using errcode = 'P0002';
   end if;
+  perform public._require_not_archived(r.group_id);
   perform public._materialize_recurring(r.id);
   select * into r from public.recurring_expenses where id = p_recurring_id;
 
@@ -313,6 +320,7 @@ begin
   if not found or not public.is_group_member(r.group_id) then
     raise exception 'Recurring expense not found' using errcode = 'P0002';
   end if;
+  perform public._require_not_archived(r.group_id);
   if p_paused is null or p_paused = r.paused then
     return;
   end if;
@@ -345,6 +353,8 @@ create function public.delete_recurring(p_recurring_id uuid) returns void
 language plpgsql security definer set search_path = '' as $$
 begin
   perform public.require_user();
+  perform public._require_not_archived(group_id) from public.recurring_expenses
+   where id = p_recurring_id and public.is_group_member(group_id);
   delete from public.recurring_expenses where id = p_recurring_id and public.is_group_member(group_id);
   if not found then
     raise exception 'Recurring expense not found' using errcode = 'P0002';
@@ -367,7 +377,7 @@ begin
     select r.id
     from public.recurring_expenses r
     join public.groups g on g.id = r.group_id
-    where g.deleted_at is null and not r.paused and r.next_on <= today
+    where g.deleted_at is null and g.archived_at is null and not r.paused and r.next_on <= today
       and (r.end_on is null or r.next_on <= r.end_on)
       and exists (select 1 from public.group_members m where m.group_id = r.group_id and m.user_id = uid)
     order by r.id

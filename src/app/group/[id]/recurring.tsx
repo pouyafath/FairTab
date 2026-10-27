@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { Alert, Platform, View } from 'react-native';
 
+import { ArchivedNotice } from '@/components/archive';
 import { Button, Card, Empty, ErrorText, Loading, Screen, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { formatMoney } from '@/domain';
@@ -37,16 +38,20 @@ export default function RecurringScreen() {
   }
 
   const list = (rules.data ?? []).filter((r) => r.group_id === id);
+  const archived = !!group.archived_at;
   const name = (memberId: string) => (memberId === me?.id ? 'You' : membersById.get(memberId)?.display_name ?? 'Someone');
 
   return (
     <Screen refreshing={rules.isRefetching} onRefresh={refresh}>
+      <ArchivedNotice group={group} />
       <T muted>Expenses that are added again by themselves, like rent or subscriptions.</T>
       <ErrorText error={rules.error ?? pause.error ?? remove.error} />
       {list.length === 0 ? (
         <Empty title="No recurring expenses yet">
           <T muted style={{ textAlign: 'center' }}>Add an expense and choose how often it repeats.</T>
-          <Button title="Add expense" onPress={() => router.push({ pathname: '/group/[id]/expense', params: { id } })} />
+          {archived ? null : (
+            <Button title="Add expense" onPress={() => router.push({ pathname: '/group/[id]/expense', params: { id } })} />
+          )}
         </Empty>
       ) : (
         list.map((rule) => {
@@ -70,30 +75,32 @@ export default function RecurringScreen() {
                   resume, the dates you missed are skipped.
                 </T>
               ) : null}
-              <View style={{ flexDirection: 'row', gap: Spacing.two }}>
-                {repeatEnded(rule) ? null : (
+              {archived ? null : (
+                <View style={{ flexDirection: 'row', gap: Spacing.two }}>
+                  {repeatEnded(rule) ? null : (
+                    <View style={{ flex: 1 }}>
+                      <Button
+                        title={rule.paused ? 'Resume' : 'Pause'}
+                        variant="secondary"
+                        loading={pause.isPending && busy(pause)}
+                        onPress={() => pause.mutate({ p_recurring_id: rule.id, p_paused: !rule.paused })}
+                      />
+                    </View>
+                  )}
                   <View style={{ flex: 1 }}>
                     <Button
-                      title={rule.paused ? 'Resume' : 'Pause'}
-                      variant="secondary"
-                      loading={pause.isPending && busy(pause)}
-                      onPress={() => pause.mutate({ p_recurring_id: rule.id, p_paused: !rule.paused })}
+                      title="Delete"
+                      variant="danger"
+                      loading={remove.isPending && busy(remove)}
+                      onPress={() =>
+                        confirm(`Delete "${rule.description}"? Expenses it already added stay.`, () =>
+                          remove.mutate({ p_recurring_id: rule.id }),
+                        )
+                      }
                     />
                   </View>
-                )}
-                <View style={{ flex: 1 }}>
-                  <Button
-                    title="Delete"
-                    variant="danger"
-                    loading={remove.isPending && busy(remove)}
-                    onPress={() =>
-                      confirm(`Delete "${rule.description}"? Expenses it already added stay.`, () =>
-                        remove.mutate({ p_recurring_id: rule.id }),
-                      )
-                    }
-                  />
                 </View>
-              </View>
+              )}
             </Card>
           );
         })

@@ -10,14 +10,25 @@ async function fetchAll<T>(build: (from: number, to: number) => PromiseLike<{ da
   const rows: T[] = [];
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await build(from, from + PAGE - 1);
-    if (error) throw error;
+    if (error) throw friendlyError(error);
     rows.push(...(data ?? []));
     if (!data || data.length < PAGE) return rows;
   }
 }
 
+/**
+ * A newer feature called before its database file was run in Supabase shows up as "function/table not
+ * found". Say what to do instead of showing that technical message.
+ */
+function friendlyError(error: Error & { code?: string }): Error {
+  if (['PGRST202', 'PGRST205', '42883', '42P01', '42703'].includes(error.code ?? '')) {
+    return new Error('This needs a database update: run the new files listed under "Database updates" in the README.');
+  }
+  return error;
+}
+
 function check<T>({ data, error }: { data: T; error: Error | null }): T {
-  if (error) throw error;
+  if (error) throw friendlyError(error);
   return data;
 }
 
