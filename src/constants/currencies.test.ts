@@ -13,9 +13,13 @@ describe('currency list', () => {
     for (const code of all) expect(iso.has(code), code).toBe(true);
   });
   it('includes the currencies people asked for', () => {
-    for (const code of ['CAD', 'USD', 'EUR', 'GBP', 'IRR', 'AED', 'TRY', 'JPY', 'KWD', 'UAH']) {
-      expect(findCurrency(code).name, code).not.toBe('');
-    }
+    const required = [
+      'CAD', 'USD', 'EUR', 'GBP', 'IRR', 'AED', 'TRY', 'AUD', 'NZD', 'JPY', 'CNY', 'HKD', 'SGD', 'INR', 'PKR',
+      'CHF', 'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF', 'MXN', 'BRL', 'ARS', 'CLP', 'COP', 'KRW', 'THB', 'IDR',
+      'MYR', 'PHP', 'VND', 'ZAR', 'EGP', 'SAR', 'QAR', 'KWD', 'BHD', 'OMR', 'ILS', 'RUB', 'UAH',
+    ];
+    expect(required).toHaveLength(43);
+    for (const code of required) expect(findCurrency(code).name, code).not.toBe('');
   });
   it('labels known and unknown codes', () => {
     expect(currencyLabel('CAD')).toBe('CAD · Canadian dollar');
@@ -51,6 +55,17 @@ describe('searchCurrencies', () => {
     expect(codes('', ['IRR', 'EUR']).slice(0, 3)).toEqual(['IRR', 'EUR', 'CAD']);
     expect(codes('dollar', ['AUD', 'EUR'])[0]).toBe('AUD');
     expect(codes('dollar', ['AUD', 'EUR'])).not.toContain('EUR');
+  });
+  it('puts a code typed exactly before pinned codes that only partly match', () => {
+    // "Saudi riyal" contains "aud", but whoever types "aud" means AUD (Enter picks the first result).
+    expect(codes('aud', ['SAR'])).toEqual(['AUD', 'SAR']);
+    expect(codes('AUD ', ['SAR', 'AUD'])).toEqual(['AUD', 'SAR']);
+    // Also for codes that are not in the list: "Canadian" contains "nad", "krona/krone" contain "ron".
+    expect(codes('nad', ['CAD'])).toEqual(['NAD', 'CAD']);
+    expect(codes('ron', ['NOK', 'SEK'])).toEqual(['RON', 'NOK', 'SEK', 'DKK']);
+    // Pinned codes still lead when nothing matches the code exactly.
+    expect(codes('riyal', ['SAR'])).toEqual(['SAR', 'QAR']);
+    expect(codes('ri', ['SAR'])[0]).toBe('SAR');
   });
   it('ignores empty, invalid and repeated pinned codes', () => {
     const list = codes('', [null, undefined, '', 'nope', 'usd', 'USD']);

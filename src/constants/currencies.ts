@@ -81,7 +81,8 @@ function matchRank(c: Currency, q: string): number | null {
 
 /**
  * Currencies whose code or name matches `query` (case-insensitive), best matches first.
- * `pinned` codes (e.g. the current choice, the group's or your default) come before everything else.
+ * A code typed exactly comes first (so pressing Enter picks it), then `pinned` codes
+ * (e.g. the current choice, the group's or your default), then everything else.
  * A query that is a 3-letter code not in the list is offered as a custom entry.
  */
 export function searchCurrencies(
@@ -101,8 +102,11 @@ export function searchCurrencies(
   return candidates
     .flatMap((c, order) => {
       const rank = q ? matchRank(c, q) : 0;
-      return rank === null ? [] : [{ c, order, rank }];
+      return rank === null ? [] : [{ c, order, rank, exact: c.code.toLowerCase() === q }];
     })
-    .sort((a, b) => pinnedOrder(a.c) - pinnedOrder(b.c) || a.rank - b.rank || a.order - b.order)
+    .sort(
+      (a, b) =>
+        Number(b.exact) - Number(a.exact) || pinnedOrder(a.c) - pinnedOrder(b.c) || a.rank - b.rank || a.order - b.order,
+    )
     .map((m) => m.c);
 }
