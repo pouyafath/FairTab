@@ -5,10 +5,13 @@ services:
     container_name: fairtab
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      # Override FAIRTAB_PORT_BINDING in .env to restrict to a specific interface.
+      # Default: localhost only. Production example: 100.72.25.41:3000:3000
+      - "${FAIRTAB_PORT_BINDING:-127.0.0.1:3000:3000}"
     volumes:
-      # SQLite database file lives here — back up this directory
-      - ./data:/data
+      # Override FAIRTAB_DATA_DIR in .env to store the database outside the repo.
+      # Default: ./data (gitignored). Production example: /srv/data/fairtab
+      - "${FAIRTAB_DATA_DIR:-./data}:/data"
     environment:
       NODE_ENV: production
       DATABASE_URL: /data/fairtab.db
