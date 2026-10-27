@@ -17,6 +17,11 @@ const shares = (...rows: [string, number, number][]) => rows.map(([member_id, pa
 // Newest first, the way the app loads them.
 const expenses: ExportExpense[] = [
   {
+    // Same text as the summary row's label; it must still come back as an expense.
+    kind: 'expense', description: 'Total balance', category: 'General', amount: 2000, currency: 'USD', spent_on: '2024-03-01',
+    expense_shares: shares(['b', 2000, 1000], ['a2', 0, 1000]),
+  },
+  {
     kind: 'expense', description: '-crafted', category: '@cmd', amount: 1000, currency: 'USD', spent_on: '2024-02-01',
     expense_shares: shares(['d', 1000, 500], ['a', 0, 500]),
   },
@@ -55,8 +60,8 @@ describe('toSplitwiseCsv', () => {
 
   it('writes one row per entry, oldest first, with paid - owed per member', () => {
     const rows = parseCsv(csv);
-    expect(rows.slice(1, 7).map((r) => r[1])).toEqual([
-      'Dinner', 'Hotel', 'Payment', 'Wine, "the good one"\nand cheese', 'Sushi', "'-crafted",
+    expect(rows.slice(1, 8).map((r) => r[1])).toEqual([
+      'Dinner', 'Hotel', 'Payment', 'Wine, "the good one"\nand cheese', 'Sushi', "'-crafted", "'Total balance",
     ]);
     expect(rows[1]).toEqual(['2024-01-05', 'Dinner', 'Food & Dining', '30.00', 'USD', '20.00', '-10.00', '-10.00', '0.00', '0.00']);
     expect(rows[3]).toEqual(['2024-01-07', 'Payment', 'Payment', '10.00', 'USD', '0.00', '10.00', '-10.00', '0.00', '0.00']);
@@ -68,7 +73,7 @@ describe('toSplitwiseCsv', () => {
     expect(rows.slice(-3)).toEqual([
       ['', 'Total balance', '', '', 'EUR', '-22.75', '0.00', '22.75', '0.00', '0.00'],
       ['', 'Total balance', '', '', 'JPY', '0', '-400', '-400', '800', '0'],
-      ['', 'Total balance', '', '', 'USD', '41.66', '6.67', '-53.33', '0.00', '5.00'],
+      ['', 'Total balance', '', '', 'USD', '41.66', '16.67', '-53.33', '-10.00', '5.00'],
     ]);
   });
 
@@ -85,7 +90,7 @@ describe('toSplitwiseCsv', () => {
     for (const start of ['=', '+', '-', '@', '\t', '\r']) {
       const one = toSplitwiseCsv({
         members: [{ id: 'x', name: `${start}x` }, { id: 'y', name: 'y' }],
-        expenses: [{ ...expenses[5], description: `${start}desc`, category: `${start}cat`, expense_shares: shares(['x', 3000, 0], ['y', 0, 3000]) }],
+        expenses: [{ ...expenses[6], description: `${start}desc`, category: `${start}cat`, expense_shares: shares(['x', 3000, 0], ['y', 0, 3000]) }],
       });
       const [header, row] = parseCsv(one);
       // Names are trimmed first, so a leading tab or line break simply disappears.
@@ -103,7 +108,7 @@ describe('toSplitwiseCsv', () => {
   });
 
   it('still adds up when an entry mentions someone missing from the member list', () => {
-    const one = toSplitwiseCsv({ members: [{ id: 'a', name: 'Alice' }], expenses: [expenses[5]] });
+    const one = toSplitwiseCsv({ members: [{ id: 'a', name: 'Alice' }], expenses: [expenses[6]] });
     expect(parseCsv(one)[0].slice(5)).toEqual(['Alice', 'Unknown person', 'Unknown person (2)']);
     expect(parseSplitwiseCsv(one).entries).toHaveLength(1);
   });
@@ -130,6 +135,21 @@ describe('toSplitwiseCsv', () => {
     });
     expect(result.entries[2].description).toBe('Payment');
     expect(result.entries[3].description).toBe('Wine, "the good one"\nand cheese');
+    expect(result.entries[6].description).toBe("'Total balance");
+  });
+
+  it('keeps an expense called "Total balance" when imported again (the importer skips the summary row by that name)', () => {
+    for (const description of ['Total balance', ' total BALANCE ', '\tTotal balance']) {
+      const one = toSplitwiseCsv({
+        members: [{ id: 'a', name: 'Alice' }, { id: 'b', name: 'Bob' }],
+        expenses: [{ ...expenses[6], description, expense_shares: shares(['a', 3000, 1500], ['b', 0, 1500]) }],
+      });
+      expect(parseCsv(one)[1][1]).toBe(`'${description}`);
+      const result = parseSplitwiseCsv(one);
+      expect(result.skipped).toEqual([]);
+      expect(result.entries).toHaveLength(1);
+      expect(result.entries[0].shares).toEqual([{ name: 'Alice', paid: 3000, owed: 1500 }, { name: 'Bob', paid: 0, owed: 1500 }]);
+    }
   });
 
   it('has totals that match the balances in the app', () => {
@@ -152,8 +172,8 @@ describe('toSplitwiseCsv', () => {
     const one = toSplitwiseCsv({
       members: [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }],
       expenses: [
-        { ...expenses[5], amount: 5, currency: 'KWD', expense_shares: shares(['a', 5, 0], ['b', 0, 5]) },
-        { ...expenses[5], amount: 123456789, currency: 'CAD', expense_shares: shares(['a', 123456789, 0], ['b', 0, 123456789]) },
+        { ...expenses[6], amount: 5, currency: 'KWD', expense_shares: shares(['a', 5, 0], ['b', 0, 5]) },
+        { ...expenses[6], amount: 123456789, currency: 'CAD', expense_shares: shares(['a', 123456789, 0], ['b', 0, 123456789]) },
       ],
     });
     const rows = parseCsv(one);

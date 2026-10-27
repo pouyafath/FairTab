@@ -50,7 +50,7 @@ export function toSplitwiseCsv({ members, expenses }: { members: ExportMember[];
     for (let i = 0; i < nets.length; i++) total[i] += nets[i];
     rows.push([
       e.spent_on,
-      safeText(e.description),
+      safeDescription(e.description),
       safeText(e.kind === 'payment' ? 'Payment' : e.category ?? ''),
       toDecimal(e.amount, e.currency),
       e.currency,
@@ -91,6 +91,11 @@ function toDecimal(minor: number, currency: string): string {
  */
 function safeText(value: string): string {
   return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+}
+
+/** The importer skips a row described as "Total balance" (that is the summary row), so a real one gets the same '. */
+function safeDescription(value: string): string {
+  return /^total balance$/i.test(value.trim()) ? `'${value}` : safeText(value);
 }
 
 function csvCell(value: string): string {
