@@ -19,6 +19,7 @@ FairTab is a Splitwise alternative. One codebase runs on **iOS, Android and the 
 - Expenses with **one or several payers**, split **equally, by exact amounts, by percent or by shares**. Rounding is fair, so splits always add up to the cent.
 - **Categories and notes** on expenses.
 - **Multiple currencies**, with balances kept separately per currency.
+- **Currency picker:** search common currencies by name or code ("euro", "CAD"). Any other 3-letter code works too.
 - Balances, **simplified debts** (on/off per group), and recording payments to settle up.
 - A **"Copy Interac e-Transfer message"** button for CAD groups (and a plain payment message for other currencies).
 - **Friends tab:** your balance with each person, added up across all groups.

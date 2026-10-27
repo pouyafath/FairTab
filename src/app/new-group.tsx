@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 
+import { CurrencyPicker } from '@/components/currency-picker';
 import { Button, ErrorText, Field, Screen } from '@/components/ui';
 import { useUserId } from '@/lib/auth';
 import { useCreateGroup, useProfile } from '@/lib/queries';
@@ -16,12 +17,11 @@ export default function NewGroup() {
   return (
     <Screen>
       <Field label="Group name" value={name} onChangeText={setName} placeholder="Flat, Trip to Rome…" maxLength={100} autoFocus />
-      <Field
+      <CurrencyPicker
         label="Currency"
         value={effectiveCurrency}
-        onChangeText={(v) => setCurrency(v.toUpperCase())}
-        autoCapitalize="characters"
-        maxLength={3}
+        onChange={setCurrency}
+        pinned={[profile.data?.default_currency]}
         error={validCurrency ? undefined : 'Use a 3-letter code'}
       />
       <ErrorText error={create.error} />
