@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { notFound } from 'next/navigation'
-import { getGroupByToken } from '@/lib/actions/groups'
+import { getBackend } from '@/lib/backend/runtime'
 import { addExpense } from '@/lib/actions/expenses'
 import { ExpenseForm } from '@/components/expenses/expense-form'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -15,13 +15,33 @@ export const metadata: Metadata = { title: 'Add Expense' }
 
 export default async function NewExpensePage({ params }: Props) {
   const { token } = await params
-  const group = await getGroupByToken(token)
+  const group = await getBackend().groups.getGroupByToken(token)
   if (!group) notFound()
+
+  if (group.isArchived) {
+    return (
+      <div className="container max-w-md py-12">
+        <Card className="overflow-hidden">
+          <CardHeader>
+            <CardTitle>Add Expense</CardTitle>
+            <CardDescription>
+              This group is archived. Unarchive it before adding expenses.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <a href={`/groups/${token}`} className="text-primary underline">
+              Back to group
+            </a>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   if (group.members.length === 0) {
     return (
-      <div className="container py-12 max-w-md">
-        <Card>
+      <div className="container max-w-md py-12">
+        <Card className="overflow-hidden">
           <CardHeader>
             <CardTitle>Add Expense</CardTitle>
             <CardDescription>
@@ -39,15 +59,14 @@ export default async function NewExpensePage({ params }: Props) {
   }
 
   return (
-    <div className="container py-12 max-w-lg">
-      <Card>
+    <div className="container max-w-lg py-12">
+      <Card className="overflow-hidden">
         <CardHeader>
           <CardTitle>Add Expense</CardTitle>
           <CardDescription>{group.name}</CardDescription>
         </CardHeader>
         <CardContent>
           <ExpenseForm
-            groupId={group.id}
             groupToken={group.token}
             members={group.members}
             defaultCurrency={group.currency}

@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CURRENCIES } from '@/lib/constants'
-import { readDefaultCurrency } from '@/lib/settings'
+import { useDefaultCurrency } from '@/lib/settings'
 import type { CreateGroupAction } from '@/types/actions'
 
 interface Props {
@@ -26,7 +26,10 @@ export function NewGroupForm({ createGroupAction }: Props) {
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [name, setName] = useState('')
-  const [currency, setCurrency] = useState(readDefaultCurrency)
+  const defaultCurrency = useDefaultCurrency()
+  // null = user has not picked one; follow the stored default
+  const [currencyOverride, setCurrencyOverride] = useState<string | null>(null)
+  const currency = currencyOverride ?? defaultCurrency
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -58,8 +61,8 @@ export function NewGroupForm({ createGroupAction }: Props) {
 
       <div className="space-y-2">
         <Label>Default Currency</Label>
-        <Select value={currency} onValueChange={setCurrency}>
-          <SelectTrigger>
+        <Select value={currency} onValueChange={setCurrencyOverride}>
+          <SelectTrigger aria-label="Default currency">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -85,9 +88,11 @@ export function NewGroupForm({ createGroupAction }: Props) {
         </Alert>
       )}
 
-      <Button type="submit" disabled={isPending || !name.trim()} className="w-full">
-        {isPending ? 'Creating...' : 'Create Group'}
-      </Button>
+      <div className="sticky bottom-0 -mx-6 border-t bg-card/95 px-6 py-4 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">
+        <Button type="submit" disabled={isPending || !name.trim()} className="w-full">
+          {isPending ? 'Creating...' : 'Create Group'}
+        </Button>
+      </div>
     </form>
   )
 }

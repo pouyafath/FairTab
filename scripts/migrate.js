@@ -16,6 +16,14 @@ const path = require('path')
 
 const dbPath = process.env.DATABASE_URL ?? './fairtab.db'
 const migrationsDir = path.join(__dirname, '..', 'migrations')
+const startedAt = Date.now()
+const summary = {
+  database: dbPath,
+  migrationsDir,
+  applied: [],
+  baselined: [],
+  skipped: [],
+}
 
 console.log(`[fairtab] migrate: ${dbPath}`)
 
@@ -60,6 +68,7 @@ if (applied.size === 0) {
     console.log(`[fairtab]   baseline ${baseline} (pre-existing schema, not re-run)`)
     insertMigration.run(baseline, Date.now())
     applied.add(baseline)
+    summary.baselined.push(baseline)
   }
 }
 
@@ -72,13 +81,21 @@ let count = 0
 for (const file of files) {
   if (applied.has(file)) {
     console.log(`[fairtab]   skip  ${file}`)
+    summary.skipped.push(file)
     continue
   }
   console.log(`[fairtab]   apply ${file}`)
   const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8')
   runMigration(file, sql)
+  summary.applied.push(file)
   count++
 }
 
 db.close()
 console.log(`[fairtab] migration complete (${count} applied, ${applied.size} skipped)`)
+console.log(
+  `[fairtab] migration summary ${JSON.stringify({
+    ...summary,
+    durationMs: Date.now() - startedAt,
+  })}`
+)

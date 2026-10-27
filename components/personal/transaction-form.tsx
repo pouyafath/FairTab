@@ -19,7 +19,7 @@ import {
   PERSONAL_INCOME_CATEGORIES,
   PERSONAL_EXPENSE_CATEGORIES,
 } from '@/lib/constants'
-import { readDefaultCurrency } from '@/lib/settings'
+import { useDefaultCurrency } from '@/lib/settings'
 import type { PersonalTransaction, TransactionType } from '@/types'
 import type { AddPersonalTransactionAction, UpdatePersonalTransactionAction } from '@/types/actions'
 
@@ -40,7 +40,11 @@ export function TransactionForm({ addTransactionAction, updateTransactionAction,
   const [amountStr, setAmountStr] = useState(
     transaction ? (transaction.amount / 100).toFixed(2) : ''
   )
-  const [currency, setCurrency] = useState(transaction?.currency ?? readDefaultCurrency())
+  const defaultCurrency = useDefaultCurrency()
+  // null = user has not picked one; follow the transaction's currency when
+  // editing, otherwise the stored default
+  const [currencyOverride, setCurrencyOverride] = useState<string | null>(null)
+  const currency = currencyOverride ?? transaction?.currency ?? defaultCurrency
   const [date, setDate] = useState(
     transaction
       ? new Date(transaction.date).toISOString().split('T')[0]
@@ -101,9 +105,9 @@ export function TransactionForm({ addTransactionAction, updateTransactionAction,
               className={`rounded-md border py-2.5 text-sm font-medium transition-colors capitalize ${
                 type === t
                   ? t === 'income'
-                    ? 'bg-green-600 text-white border-green-600'
-                    : 'bg-destructive text-white border-destructive'
-                  : 'bg-background hover:bg-muted'
+                    ? 'border-emerald-700 bg-emerald-700 text-white'
+                    : 'border-rose-700 bg-rose-700 text-white'
+                  : 'bg-card/80 hover:bg-muted'
               }`}
             >
               {t}
@@ -139,8 +143,8 @@ export function TransactionForm({ addTransactionAction, updateTransactionAction,
         </div>
         <div className="space-y-2">
           <Label>Currency</Label>
-          <Select value={currency} onValueChange={setCurrency}>
-            <SelectTrigger>
+          <Select value={currency} onValueChange={setCurrencyOverride}>
+            <SelectTrigger aria-label="Transaction currency">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -167,7 +171,7 @@ export function TransactionForm({ addTransactionAction, updateTransactionAction,
       <div className="space-y-2">
         <Label>Category</Label>
         <Select value={category} onValueChange={setCategory}>
-          <SelectTrigger>
+          <SelectTrigger aria-label="Transaction category">
             <SelectValue placeholder="Select category (optional)" />
           </SelectTrigger>
           <SelectContent>
@@ -206,7 +210,7 @@ export function TransactionForm({ addTransactionAction, updateTransactionAction,
         </Alert>
       )}
 
-      <div className="flex gap-3">
+      <div className="sticky bottom-0 -mx-6 flex gap-3 border-t bg-card/95 px-6 py-4 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">
         <Button type="button" variant="outline" onClick={() => router.push('/personal')}>
           Cancel
         </Button>

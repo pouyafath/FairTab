@@ -1,6 +1,9 @@
 import { calculateMemberBalances, calculateSettlements } from '@/lib/calculations/balances'
 import type { ActionResult, MemberBalance, Settlement, SettlementSuggestion } from '@/types'
 import type { BackendServiceDeps } from './types'
+import { failure } from './result'
+
+const ARCHIVED_GROUP_ERROR = 'Archived groups are read-only. Unarchive the group to make changes.'
 
 export function createSettlementService({ repositories, now }: BackendServiceDeps) {
   return {
@@ -30,6 +33,22 @@ export function createSettlementService({ repositories, now }: BackendServiceDep
       toMemberId: number,
       amount: number
     ): Promise<ActionResult<void>> {
+      if (!Number.isInteger(amount) || amount <= 0) {
+        return failure<void>('Settlement amount must be a positive amount in cents')
+      }
+      if (fromMemberId === toMemberId) {
+        return failure<void>('A member cannot settle with themselves')
+      }
+
+      const group = await repositories.groups.findById(groupId)
+      if (!group) return failure<void>('Group not found')
+      if (group.isArchived) return failure<void>(ARCHIVED_GROUP_ERROR)
+
+      const memberIds = new Set(group.members.map((member) => member.id))
+      if (!memberIds.has(fromMemberId) || !memberIds.has(toMemberId)) {
+        return failure<void>('Member not found in this group')
+      }
+
       await repositories.settlements.recordPaid({
         groupId,
         fromMemberId,
@@ -42,6 +61,13 @@ export function createSettlementService({ repositories, now }: BackendServiceDep
     },
 
     async undoSettlement(settlementId: number): Promise<ActionResult<void>> {
+      const settlement = await repositories.settlements.findById(settlementId)
+      if (!settlement) return failure<void>('Settlement not found')
+
+      const group = await repositories.groups.findById(settlement.groupId)
+      if (!group) return failure<void>('Group not found')
+      if (group.isArchived) return failure<void>(ARCHIVED_GROUP_ERROR)
+
       await repositories.settlements.undo(settlementId)
       return { success: true, data: undefined }
     },

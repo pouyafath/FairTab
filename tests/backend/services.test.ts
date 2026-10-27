@@ -55,6 +55,7 @@ describe('backend services', () => {
         token: 'group123',
         currency: 'CAD',
         createdAt: fixedNow.getTime(),
+        isArchived: false,
       },
     })
 
@@ -166,6 +167,57 @@ describe('backend services', () => {
       { fromMember: members[1], toMember: members[0], amount: 3000 },
       { fromMember: members[2], toMember: members[0], amount: 3000 },
     ])
+  })
+
+  it('rejects expense payloads with members outside the group or duplicate participants', async () => {
+    const { backend, state } = createTestBackend()
+    const { groupId, members } = await createGroupWithMembers(backend, ['Alice', 'Bob'])
+    const { members: otherMembers } = await createGroupWithMembers(backend, ['Mallory'])
+
+    const outsiderPayer = await backend.expenses.addExpense(groupId, {
+      title: 'Dinner',
+      amount: 4000,
+      currency: 'CAD',
+      paidById: otherMembers[0].id,
+      date: fixedNow.getTime(),
+      splitMethod: 'equal',
+      participants: members.map((member) => ({ memberId: member.id, shareValue: 1 })),
+    })
+    assert.equal(outsiderPayer.success, false)
+    if (!outsiderPayer.success) assert.match(outsiderPayer.error, /Paid-by/)
+
+    const outsiderParticipant = await backend.expenses.addExpense(groupId, {
+      title: 'Dinner',
+      amount: 4000,
+      currency: 'CAD',
+      paidById: members[0].id,
+      date: fixedNow.getTime(),
+      splitMethod: 'equal',
+      participants: [
+        { memberId: members[0].id, shareValue: 1 },
+        { memberId: otherMembers[0].id, shareValue: 1 },
+      ],
+    })
+    assert.equal(outsiderParticipant.success, false)
+    if (!outsiderParticipant.success) assert.match(outsiderParticipant.error, /belong/)
+
+    const duplicateParticipant = await backend.expenses.addExpense(groupId, {
+      title: 'Dinner',
+      amount: 4000,
+      currency: 'CAD',
+      paidById: members[0].id,
+      date: fixedNow.getTime(),
+      splitMethod: 'equal',
+      participants: [
+        { memberId: members[0].id, shareValue: 1 },
+        { memberId: members[0].id, shareValue: 1 },
+      ],
+    })
+    assert.equal(duplicateParticipant.success, false)
+    if (!duplicateParticipant.success) assert.match(duplicateParticipant.error, /only appear once/)
+
+    assert.equal(state.expenses.length, 0)
+    assert.equal(state.expenseParticipants.length, 0)
   })
 
   it('edits an expense and recalculates participant shares', async () => {
@@ -357,11 +409,16 @@ describe('backend services', () => {
   it('removes a member who has no expenses', async () => {
     const { backend, state } = createTestBackend()
     const { groupId, members } = await createGroupWithMembers(backend, ['Alice', 'Bob'])
+    const { members: otherMembers } = await createGroupWithMembers(backend, ['Mallory'])
 
     const result = await backend.groups.removeMember(groupId, members[1].id)
     assert.equal(result.success, true)
-    assert.equal(state.members.length, 1)
-    assert.equal(state.members[0].name, 'Alice')
+    assert.equal(state.members.some((member) => member.id === members[1].id), false)
+
+    const crossGroupRemove = await backend.groups.removeMember(groupId, otherMembers[0].id)
+    assert.equal(crossGroupRemove.success, false)
+    if (!crossGroupRemove.success) assert.match(crossGroupRemove.error, /not found in this group/)
+    assert.equal(state.members.some((member) => member.id === otherMembers[0].id), true)
   })
 
   it('blocks removing a member who is referenced in expenses', async () => {
@@ -421,6 +478,12 @@ describe('backend services', () => {
     if (expense.success) await backend.personal.deletePersonalTransaction(expense.data.id)
 
     assert.equal((await backend.personal.getPersonalTransactions()).length, 1)
+
+    if (expense.success) {
+      const deleteAgain = await backend.personal.deletePersonalTransaction(expense.data.id)
+      assert.equal(deleteAgain.success, false)
+      if (!deleteAgain.success) assert.match(deleteAgain.error, /not found/)
+    }
   })
 
   it('edits a personal transaction and updates all fields', async () => {
@@ -507,6 +570,194 @@ describe('backend services', () => {
     await backend.settlements.undoSettlement(paid[0].id)
     const restored = await backend.settlements.getSettlementSuggestions(groupId)
     assert.equal(restored.length, 1)
+    assert.equal(state.settlements.length, 0)
+  })
+
+  it('archives and unarchives a group', async () => {
+    const { backend } = createTestBackend()
+    const { groupId } = await createGroupWithMembers(backend, ['Sarah'])
+
+    const archived = await backend.groups.archiveGroup(groupId, true)
+    assert.equal(archived.success, true)
+    if (archived.success) assert.equal(archived.data.isArchived, true)
+
+    const fetched = await backend.groups.getGroupByToken('group123')
+    assert.equal(fetched?.isArchived, true)
+
+    const unarchived = await backend.groups.archiveGroup(groupId, false)
+    assert.equal(unarchived.success, true)
+    if (unarchived.success) assert.equal(unarchived.data.isArchived, false)
+  })
+
+  it('blocks member, expense, and settlement mutations for archived groups', async () => {
+    const { backend, state } = createTestBackend()
+    const { groupId, members } = await createGroupWithMembers(backend, ['Sarah', 'Mike'])
+
+    const createdExpense = await backend.expenses.addExpense(groupId, {
+      title: 'Dinner',
+      amount: 4000,
+      currency: 'CAD',
+      paidById: members[0].id,
+      date: fixedNow.getTime(),
+      splitMethod: 'equal',
+      participants: members.map((member) => ({ memberId: member.id, shareValue: 1 })),
+    })
+    assert.equal(createdExpense.success, true)
+    if (!createdExpense.success) return
+
+    const paidSettlement = await backend.settlements.markSettlementPaid(
+      groupId,
+      members[1].id,
+      members[0].id,
+      2000
+    )
+    assert.equal(paidSettlement.success, true)
+
+    const archived = await backend.groups.archiveGroup(groupId, true)
+    assert.equal(archived.success, true)
+
+    const addMember = await backend.groups.addGroupMember(groupId, { name: 'Taylor' })
+    assert.equal(addMember.success, false)
+    if (!addMember.success) assert.match(addMember.error, /read-only/)
+
+    const updateMember = await backend.groups.updateMember(members[0].id, {
+      name: 'Sara',
+    })
+    assert.equal(updateMember.success, false)
+    if (!updateMember.success) assert.match(updateMember.error, /read-only/)
+
+    const removeMember = await backend.groups.removeMember(groupId, members[1].id)
+    assert.equal(removeMember.success, false)
+    if (!removeMember.success) assert.match(removeMember.error, /read-only/)
+
+    const addExpense = await backend.expenses.addExpense(groupId, {
+      title: 'Taxi',
+      amount: 3000,
+      currency: 'CAD',
+      paidById: members[0].id,
+      date: fixedNow.getTime(),
+      splitMethod: 'equal',
+      participants: members.map((member) => ({ memberId: member.id, shareValue: 1 })),
+    })
+    assert.equal(addExpense.success, false)
+    if (!addExpense.success) assert.match(addExpense.error, /read-only/)
+
+    const updateExpense = await backend.expenses.updateExpense(createdExpense.data.id, {
+      title: 'Dinner updated',
+      amount: 5000,
+      currency: 'CAD',
+      paidById: members[0].id,
+      date: fixedNow.getTime(),
+      splitMethod: 'equal',
+      participants: members.map((member) => ({ memberId: member.id, shareValue: 1 })),
+    })
+    assert.equal(updateExpense.success, false)
+    if (!updateExpense.success) assert.match(updateExpense.error, /read-only/)
+
+    const deleteExpense = await backend.expenses.deleteExpense(createdExpense.data.id)
+    assert.equal(deleteExpense.success, false)
+    if (!deleteExpense.success) assert.match(deleteExpense.error, /read-only/)
+
+    const markSettlementPaid = await backend.settlements.markSettlementPaid(
+      groupId,
+      members[1].id,
+      members[0].id,
+      2000
+    )
+    assert.equal(markSettlementPaid.success, false)
+    if (!markSettlementPaid.success) assert.match(markSettlementPaid.error, /read-only/)
+
+    const undoSettlement = await backend.settlements.undoSettlement(state.settlements[0].id)
+    assert.equal(undoSettlement.success, false)
+    if (!undoSettlement.success) assert.match(undoSettlement.error, /read-only/)
+
+    assert.equal(state.members.length, 2)
+    assert.equal(state.expenses.length, 1)
+    assert.equal(state.settlements.length, 1)
+  })
+
+  it('rejects expenses with zero or negative amounts', async () => {
+    const { backend } = createTestBackend()
+    const { groupId, members } = await createGroupWithMembers(backend, ['Sarah', 'Mike'])
+
+    for (const amount of [0, -5000]) {
+      const result = await backend.expenses.addExpense(groupId, {
+        title: 'Bad amount',
+        amount,
+        currency: 'CAD',
+        paidById: members[0].id,
+        date: fixedNow.getTime(),
+        splitMethod: 'equal',
+        participants: members.map((member) => ({ memberId: member.id, shareValue: 1 })),
+      })
+      assert.equal(result.success, false)
+      if (!result.success) assert.match(result.error, /positive|greater than/i)
+    }
+  })
+
+  it('rejects personal transactions with zero or negative amounts', async () => {
+    const { backend } = createTestBackend()
+
+    for (const amount of [0, -100]) {
+      const result = await backend.personal.addPersonalTransaction({
+        type: 'expense',
+        title: 'Bad amount',
+        amount,
+        currency: 'CAD',
+        date: fixedNow.getTime(),
+      })
+      assert.equal(result.success, false)
+      if (!result.success) assert.match(result.error, /positive|greater than/i)
+    }
+  })
+
+  it('rejects invalid settlement payments', async () => {
+    const { backend, state } = createTestBackend()
+    const { members } = await createGroupWithMembers(backend, ['Sarah', 'Mike'])
+    const { members: otherMembers } = await createGroupWithMembers(backend, ['Taylor'])
+    const groupId = 1
+
+    const zero = await backend.settlements.markSettlementPaid(
+      groupId,
+      members[0].id,
+      members[1].id,
+      0
+    )
+    assert.equal(zero.success, false)
+
+    const negative = await backend.settlements.markSettlementPaid(
+      groupId,
+      members[0].id,
+      members[1].id,
+      -500
+    )
+    assert.equal(negative.success, false)
+
+    const fractional = await backend.settlements.markSettlementPaid(
+      groupId,
+      members[0].id,
+      members[1].id,
+      12.5
+    )
+    assert.equal(fractional.success, false)
+
+    const selfPay = await backend.settlements.markSettlementPaid(
+      groupId,
+      members[0].id,
+      members[0].id,
+      1000
+    )
+    assert.equal(selfPay.success, false)
+
+    const crossGroupMember = await backend.settlements.markSettlementPaid(
+      groupId,
+      members[0].id,
+      otherMembers[0].id,
+      1000
+    )
+    assert.equal(crossGroupMember.success, false)
+    if (!crossGroupMember.success) assert.match(crossGroupMember.error, /not found in this group/)
+
     assert.equal(state.settlements.length, 0)
   })
 })

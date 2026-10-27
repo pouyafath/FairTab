@@ -19,6 +19,7 @@ export function GroupTokenSearch() {
   return (
     <form onSubmit={handleSubmit} className="flex gap-2">
       <Input
+        aria-label="Group token"
         placeholder="Enter group token to find a group"
         value={token}
         onChange={(e) => setToken(e.target.value)}

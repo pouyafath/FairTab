@@ -65,8 +65,8 @@ export function calculateSettlements(balances: MemberBalance[]): SettlementSugge
     credit.balance -= amount
     debt.balance += amount
 
-    if (credit.balance < 1) ci++
-    if (Math.abs(debt.balance) < 1) di++
+    if (credit.balance <= 0) ci++
+    if (debt.balance >= 0) di++
   }
 
   return settlements

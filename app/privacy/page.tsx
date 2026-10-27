@@ -39,9 +39,9 @@ export default function PrivacyPage() {
   ]
 
   return (
-    <div className="container py-12 max-w-2xl">
+    <div className="container max-w-3xl py-12">
       <div className="text-center mb-10">
-        <div className="inline-flex rounded-full bg-primary/10 p-4 mb-4">
+        <div className="inline-flex rounded-lg bg-primary/10 p-4 mb-4">
           <Shield className="h-8 w-8 text-primary" />
         </div>
         <h1 className="text-3xl font-bold">Privacy Policy</h1>
@@ -54,7 +54,7 @@ export default function PrivacyPage() {
         {sections.map(({ icon: Icon, title, body }) => (
           <Card key={title}>
             <CardHeader className="pb-2 flex flex-row items-start gap-4 space-y-0">
-              <div className="rounded-full bg-muted p-2 flex-shrink-0 mt-1">
+              <div className="rounded-lg bg-primary/10 p-2 flex-shrink-0 mt-1 text-primary">
                 <Icon className="h-4 w-4" />
               </div>
               <CardTitle className="text-base">{title}</CardTitle>

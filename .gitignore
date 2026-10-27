@@ -5,6 +5,9 @@ node_modules/
 
 # Testing
 /coverage
+/playwright-report
+/test-results
+/.tmp/
 
 # Next.js
 /.next/
@@ -41,3 +44,5 @@ fairtab.db-wal
 
 # Docker data volume (self-hosted)
 data/
+
+.open-next

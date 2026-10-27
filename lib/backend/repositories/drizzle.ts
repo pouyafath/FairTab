@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { desc, eq } from 'drizzle-orm'
+import { and, asc, desc, eq, sql } from 'drizzle-orm'
 import type { AppDb } from '@/lib/db'
 import {
   expenseParticipants,
@@ -31,11 +31,26 @@ import type {
   Settlement,
 } from '@/types'
 
-function toEpochMs(value: Date | number | string | null): number {
-  if (value === null) return 0
+type WriteDb = {
+  insert: (table: unknown) => {
+    values: (values: unknown) => { run: () => unknown }
+  }
+  delete: (table: unknown) => { run: () => unknown }
+  run: (query: unknown) => unknown
+}
+
+function toEpochMs(value: Date | number | string): number {
   if (value instanceof Date) return value.getTime()
   if (typeof value === 'number') return value
   return new Date(value).getTime()
+}
+
+// .returning() yields an empty array when the WHERE clause matched no rows;
+// destructuring that into `undefined` would surface as a confusing TypeError
+// deep in a serializer. Fail with a clear message instead.
+function requireRow<T>(row: T | undefined, entity: string): T {
+  if (row === undefined) throw new Error(`${entity} not found`)
+  return row
 }
 
 function serializeGroup(row: typeof groups.$inferSelect): Group {
@@ -66,6 +81,34 @@ function serializeExpenseParticipant(
   return row
 }
 
+function serializeSettlement(row: typeof settlements.$inferSelect): Settlement {
+  return {
+    ...row,
+    paidAt: row.paidAt ? toEpochMs(row.paidAt) : null,
+  }
+}
+
+async function runInSqlTransaction<T>(db: WriteDb, work: () => Promise<T>): Promise<T> {
+  await Promise.resolve(db.run(sql.raw('begin')))
+  try {
+    const result = await work()
+    await Promise.resolve(db.run(sql.raw('commit')))
+    return result
+  } catch (error) {
+    try {
+      await Promise.resolve(db.run(sql.raw('rollback')))
+    } catch (rollbackError) {
+      console.error('[fairtab] backup restore rollback failed:', rollbackError)
+    }
+    throw error
+  }
+}
+
+async function insertRows(db: WriteDb, table: unknown, rows: unknown[]) {
+  if (rows.length === 0) return
+  await Promise.resolve(db.insert(table).values(rows).run())
+}
+
 export function createDrizzleRepositories(db: AppDb): AppRepositories {
   return {
     groups: {
@@ -87,13 +130,47 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
         }
       },
 
+      async findById(groupId: number): Promise<GroupWithMembers | null> {
+        const group = await db.query.groups.findFirst({
+          where: eq(groups.id, groupId),
+          with: { members: true },
+        })
+        if (!group) return null
+
+        return {
+          ...serializeGroup(group),
+          members: group.members,
+        }
+      },
+
+      async findByMemberId(memberId: number): Promise<GroupWithMembers | null> {
+        const member = await db.query.groupMembers.findFirst({
+          where: eq(groupMembers.id, memberId),
+        })
+        if (!member) return null
+
+        const group = await db.query.groups.findFirst({
+          where: eq(groups.id, member.groupId),
+          with: { members: true },
+        })
+        if (!group) return null
+
+        return {
+          ...serializeGroup(group),
+          members: group.members,
+        }
+      },
+
       async update(groupId: number, input: UpdateGroupRecord): Promise<Group> {
+        const setFields: Record<string, unknown> = {}
+        if (input.name !== undefined) setFields.name = input.name
+        if (input.isArchived !== undefined) setFields.isArchived = input.isArchived
         const [group] = await db
           .update(groups)
-          .set({ name: input.name })
+          .set(setFields)
           .where(eq(groups.id, groupId))
           .returning()
-        return serializeGroup(group)
+        return serializeGroup(requireRow(group, 'Group'))
       },
 
       async delete(groupId: number): Promise<void> {
@@ -111,7 +188,7 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
           .set({ name: input.name, email: input.email })
           .where(eq(groupMembers.id, memberId))
           .returning()
-        return member
+        return requireRow(member, 'Member')
       },
 
       async removeMember(memberId: number): Promise<void> {
@@ -207,6 +284,7 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
           })
           .where(eq(expenses.id, expenseId))
           .returning()
+        const updated = requireRow(expense, 'Expense')
 
         await db.delete(expenseParticipants).where(eq(expenseParticipants.expenseId, expenseId))
         await db.insert(expenseParticipants).values(
@@ -218,7 +296,7 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
           }))
         )
 
-        return serializeExpense(expense)
+        return serializeExpense(updated)
       },
 
       async delete(expenseId: number): Promise<void> {
@@ -301,7 +379,7 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
           })
           .where(eq(personalTransactions.id, id))
           .returning()
-        return serializePersonalTransaction(tx)
+        return serializePersonalTransaction(requireRow(tx, 'Transaction'))
       },
 
       async delete(id: number): Promise<void> {
@@ -321,20 +399,106 @@ export function createDrizzleRepositories(db: AppDb): AppRepositories {
         })
       },
 
+      async findById(settlementId: number): Promise<Settlement | null> {
+        const row = await db.query.settlements.findFirst({
+          where: eq(settlements.id, settlementId),
+        })
+        if (!row) return null
+
+        return serializeSettlement(row)
+      },
+
       async findPaidForGroup(groupId: number): Promise<Settlement[]> {
         const rows = await db
           .select()
           .from(settlements)
-          .where(eq(settlements.groupId, groupId))
+          .where(and(eq(settlements.groupId, groupId), eq(settlements.isPaid, true)))
           .orderBy(desc(settlements.paidAt))
-        return rows.map((row) => ({
-          ...row,
-          paidAt: row.paidAt ? toEpochMs(row.paidAt) : null,
-        }))
+        return rows.map(serializeSettlement)
       },
 
       async undo(settlementId: number): Promise<void> {
         await db.delete(settlements).where(eq(settlements.id, settlementId))
+      },
+    },
+
+    backups: {
+      async readSnapshot() {
+        const [
+          groupRows,
+          memberRows,
+          expenseRows,
+          participantRows,
+          settlementRows,
+          personalRows,
+        ] = await Promise.all([
+          db.select().from(groups).orderBy(asc(groups.id)),
+          db.select().from(groupMembers).orderBy(asc(groupMembers.id)),
+          db.select().from(expenses).orderBy(asc(expenses.id)),
+          db.select().from(expenseParticipants).orderBy(asc(expenseParticipants.id)),
+          db.select().from(settlements).orderBy(asc(settlements.id)),
+          db.select().from(personalTransactions).orderBy(asc(personalTransactions.id)),
+        ])
+
+        return {
+          groups: groupRows.map(serializeGroup),
+          groupMembers: memberRows,
+          expenses: expenseRows.map(serializeExpense),
+          expenseParticipants: participantRows.map(serializeExpenseParticipant),
+          settlements: settlementRows.map(serializeSettlement),
+          personalTransactions: personalRows.map(serializePersonalTransaction),
+        }
+      },
+
+      async restoreSnapshot(data, options) {
+        const writer = db as unknown as WriteDb
+        await runInSqlTransaction(writer, async () => {
+          if (options.replace) {
+            await Promise.resolve(writer.delete(expenseParticipants).run())
+            await Promise.resolve(writer.delete(settlements).run())
+            await Promise.resolve(writer.delete(expenses).run())
+            await Promise.resolve(writer.delete(groupMembers).run())
+            await Promise.resolve(writer.delete(groups).run())
+            await Promise.resolve(writer.delete(personalTransactions).run())
+          }
+
+          await insertRows(
+            writer,
+            groups,
+            data.groups.map((group) => ({
+              ...group,
+              createdAt: new Date(group.createdAt),
+            }))
+          )
+          await insertRows(writer, groupMembers, data.groupMembers)
+          await insertRows(
+            writer,
+            expenses,
+            data.expenses.map((expense) => ({
+              ...expense,
+              date: new Date(expense.date),
+              createdAt: new Date(expense.createdAt),
+            }))
+          )
+          await insertRows(writer, expenseParticipants, data.expenseParticipants)
+          await insertRows(
+            writer,
+            settlements,
+            data.settlements.map((settlement) => ({
+              ...settlement,
+              paidAt: settlement.paidAt === null ? null : new Date(settlement.paidAt),
+            }))
+          )
+          await insertRows(
+            writer,
+            personalTransactions,
+            data.personalTransactions.map((transaction) => ({
+              ...transaction,
+              date: new Date(transaction.date),
+              createdAt: new Date(transaction.createdAt),
+            }))
+          )
+        })
       },
     },
   }

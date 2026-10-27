@@ -24,6 +24,20 @@ function resolveExistingFile(basePath) {
 }
 
 export async function resolve(specifier, context, nextResolve) {
+  if (specifier === 'server-only') {
+    return {
+      url: pathToFileURL(path.join(projectRoot, 'node_modules/server-only/empty.js')).href,
+      shortCircuit: true,
+    }
+  }
+
+  if (specifier === 'next/cache') {
+    return {
+      url: pathToFileURL(path.join(projectRoot, 'tests/support/next-cache.ts')).href,
+      shortCircuit: true,
+    }
+  }
+
   if (specifier.startsWith('@/')) {
     const resolved = resolveExistingFile(path.join(projectRoot, specifier.slice(2)))
     if (resolved) return { url: pathToFileURL(resolved).href, shortCircuit: true }
@@ -42,6 +56,15 @@ export async function resolve(specifier, context, nextResolve) {
 }
 
 export async function load(url, context, nextLoad) {
+  if (url.endsWith('.json')) {
+    const source = await readFile(fileURLToPath(url), 'utf8')
+    return {
+      format: 'module',
+      source: `export default ${source}`,
+      shortCircuit: true,
+    }
+  }
+
   if (url.endsWith('.ts') || url.endsWith('.tsx')) {
     const source = await readFile(fileURLToPath(url), 'utf8')
     const transpiled = ts.transpileModule(source, {

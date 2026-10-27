@@ -7,6 +7,7 @@ export interface Group {
   name: string
   token: string
   currency: string
+  isArchived: boolean
   createdAt: number
 }
 

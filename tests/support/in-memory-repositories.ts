@@ -55,6 +55,10 @@ function createCounters(): Counters {
   }
 }
 
+function nextId<T extends { id: number }>(rows: T[]): number {
+  return rows.reduce((max, row) => Math.max(max, row.id), 0) + 1
+}
+
 function participantRows(
   input: CreateExpenseRecord,
   counters: Counters
@@ -99,6 +103,7 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
           id: counters.groupId++,
           name: input.name,
           token: input.token,
+          isArchived: false,
           currency: input.currency,
           createdAt: input.createdAt.getTime(),
         }
@@ -116,9 +121,38 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
         }
       },
 
+      async findById(groupId: number): Promise<GroupWithMembers | null> {
+        const group = state.groups.find((candidate) => candidate.id === groupId)
+        if (!group) return null
+
+        return {
+          ...group,
+          members: state.members.filter((member) => member.groupId === group.id),
+        }
+      },
+
+      async findByMemberId(memberId: number): Promise<GroupWithMembers | null> {
+        const member = state.members.find((candidate) => candidate.id === memberId)
+        if (!member) return null
+
+        const group = state.groups.find((candidate) => candidate.id === member.groupId)
+        if (!group) return null
+
+        return {
+          ...group,
+          members: state.members.filter((candidate) => candidate.groupId === group.id),
+        }
+      },
+
       async update(groupId: number, input: UpdateGroupRecord): Promise<Group> {
-        const group = state.groups.find((g) => g.id === groupId)!
-        group.name = input.name
+        const group = state.groups.find((g) => g.id === groupId)
+        if (!group) throw new Error('Group not found')
+        if (input.name !== undefined) {
+          group.name = input.name
+        }
+        if (input.isArchived !== undefined) {
+          group.isArchived = input.isArchived
+        }
         return group
       },
 
@@ -145,7 +179,8 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
       },
 
       async updateMember(memberId: number, input: UpdateMemberRecord): Promise<GroupMember> {
-        const member = state.members.find((m) => m.id === memberId)!
+        const member = state.members.find((m) => m.id === memberId)
+        if (!member) throw new Error('Member not found')
         member.name = input.name
         member.email = input.email
         return member
@@ -193,7 +228,8 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
         expenseId: number,
         input: UpdateExpenseRecord
       ): Promise<Expense> {
-        const expense = state.expenses.find((candidate) => candidate.id === expenseId)!
+        const expense = state.expenses.find((candidate) => candidate.id === expenseId)
+        if (!expense) throw new Error('Expense not found')
         expense.title = input.title
         expense.amount = input.amount
         expense.currency = input.currency
@@ -277,7 +313,8 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
       },
 
       async update(id: number, input: UpdatePersonalTransactionRecord): Promise<PersonalTransaction> {
-        const tx = state.personalTransactions.find((t) => t.id === id)!
+        const tx = state.personalTransactions.find((t) => t.id === id)
+        if (!tx) throw new Error('Transaction not found')
         tx.type = input.type
         tx.title = input.title
         tx.amount = input.amount
@@ -307,12 +344,60 @@ export function createInMemoryRepositories(initialState?: Partial<InMemoryReposi
         })
       },
 
+      async findById(settlementId: number): Promise<Settlement | null> {
+        return state.settlements.find((settlement) => settlement.id === settlementId) ?? null
+      },
+
       async findPaidForGroup(groupId: number): Promise<Settlement[]> {
-        return state.settlements.filter((s) => s.groupId === groupId && s.isPaid)
+        return state.settlements
+          .filter((s) => s.groupId === groupId && s.isPaid)
+          .sort((a, b) => (b.paidAt ?? 0) - (a.paidAt ?? 0))
       },
 
       async undo(settlementId: number): Promise<void> {
         state.settlements = state.settlements.filter((s) => s.id !== settlementId)
+      },
+    },
+
+    backups: {
+      async readSnapshot() {
+        return {
+          groups: [...state.groups].sort((a, b) => a.id - b.id),
+          groupMembers: [...state.members].sort((a, b) => a.id - b.id),
+          expenses: [...state.expenses].sort((a, b) => a.id - b.id),
+          expenseParticipants: [...state.expenseParticipants].sort((a, b) => a.id - b.id),
+          settlements: [...state.settlements].sort((a, b) => a.id - b.id),
+          personalTransactions: [...state.personalTransactions].sort((a, b) => a.id - b.id),
+        }
+      },
+
+      async restoreSnapshot(data, options) {
+        if (options.replace) {
+          state.groups = []
+          state.members = []
+          state.expenses = []
+          state.expenseParticipants = []
+          state.personalTransactions = []
+          state.settlements = []
+        }
+
+        state.groups.push(...data.groups.map((group) => ({ ...group })))
+        state.members.push(...data.groupMembers.map((member) => ({ ...member })))
+        state.expenses.push(...data.expenses.map((expense) => ({ ...expense })))
+        state.expenseParticipants.push(
+          ...data.expenseParticipants.map((participant) => ({ ...participant }))
+        )
+        state.settlements.push(...data.settlements.map((settlement) => ({ ...settlement })))
+        state.personalTransactions.push(
+          ...data.personalTransactions.map((transaction) => ({ ...transaction }))
+        )
+
+        counters.groupId = nextId(state.groups)
+        counters.memberId = nextId(state.members)
+        counters.expenseId = nextId(state.expenses)
+        counters.expenseParticipantId = nextId(state.expenseParticipants)
+        counters.personalTransactionId = nextId(state.personalTransactions)
+        counters.settlementId = nextId(state.settlements)
       },
     },
   }

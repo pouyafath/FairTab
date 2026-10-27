@@ -15,29 +15,29 @@ export function SummaryCards({ summary, currency = 'CAD' }: Props) {
       label: 'Income',
       value: summary.totalIncome,
       icon: TrendingUp,
-      color: 'text-green-600',
-      bg: 'bg-green-50',
+      color: 'text-emerald-700',
+      bg: 'bg-emerald-100',
     },
     {
       label: 'Expenses',
       value: summary.totalExpenses,
       icon: TrendingDown,
-      color: 'text-red-600',
-      bg: 'bg-red-50',
+      color: 'text-rose-700',
+      bg: 'bg-rose-100',
     },
     {
       label: 'Net Balance',
       value: summary.netSavings,
       icon: Wallet,
-      color: summary.netSavings >= 0 ? 'text-blue-600' : 'text-red-600',
-      bg: summary.netSavings >= 0 ? 'bg-blue-50' : 'bg-red-50',
+      color: summary.netSavings >= 0 ? 'text-primary' : 'text-rose-700',
+      bg: summary.netSavings >= 0 ? 'bg-primary/10' : 'bg-rose-100',
     },
   ]
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       {cards.map(({ label, value, icon: Icon, color, bg }) => (
-        <Card key={label}>
+        <Card key={label} className="overflow-hidden">
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div>
@@ -47,7 +47,7 @@ export function SummaryCards({ summary, currency = 'CAD' }: Props) {
                   {formatCurrency(value, currency)}
                 </p>
               </div>
-              <div className={cn('rounded-full p-3', bg)}>
+              <div className={cn('rounded-lg p-3', bg)}>
                 <Icon className={cn('h-5 w-5', color)} />
               </div>
             </div>

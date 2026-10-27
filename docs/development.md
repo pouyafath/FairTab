@@ -12,6 +12,11 @@ node --version   # v20.x.x
 npm --version    # 10.x.x
 ```
 
+If you use a Node version manager, run `nvm use` from the repo root. `.nvmrc` pins the project to
+Node 20. Use a normal system Node.js/npm install for builds and browser QA; embedded Node runtimes
+without `npm` on `PATH` can run some direct binaries, but they cannot install dependencies,
+Playwright browsers, or reliably resolve native Next.js packages.
+
 ---
 
 ## Setup
@@ -37,7 +42,11 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-The repo includes `.npmrc` with `legacy-peer-deps=true` because `@cloudflare/next-on-pages@1.13.16` has not updated its peer range for Next.js 16 yet. Keep that install behavior until the Cloudflare adapter is upgraded or replaced during server/deployment work.
+Install Playwright's browser binary before running browser E2E locally:
+
+```bash
+npx playwright install chromium
+```
 
 ---
 
@@ -49,13 +58,21 @@ The repo includes `.npmrc` with `legacy-peer-deps=true` because `@cloudflare/nex
 | `npm run build` | Production build (creates `.next/` and `.next/standalone/`) |
 | `npm run start` | Run the production build locally |
 | `npm run test` | Run backend service tests with in-memory repositories, no server or DB |
+| `npm run verify` | Run lint, typecheck, tests, migration smoke, and Chromium E2E |
+| `npm run test:e2e:prepare` | Reset, migrate, and seed the isolated E2E database |
+| `npm run test:e2e` | Run non-visual Playwright browser E2E specs against `./.tmp/fairtab-e2e.db` |
+| `npm run test:e2e:visual` | Run opt-in Playwright visual snapshot specs against `./.tmp/fairtab-e2e.db` |
+| `npm run deploy:smoke` | Check `/`, `/groups`, `/personal`, and `/api/health` on a running app |
+| `npm run release:check` | Run direct release verification: whitespace, doctor, lint, typecheck, backend tests, migration verifier, Chromium E2E, build, and optional smoke |
+| `npm run release:report` | Print changed paths grouped by release review area |
 | `npm run typecheck` | TypeScript type check (no emit) |
 | `npm run lint` | Run ESLint |
+| `npm run db:verify-migrations` | Verify migrations with a temporary `better-sqlite3` database |
 | `npm run db:push` | Sync Drizzle schema → SQLite (creates `fairtab.db` if missing) |
 | `npm run db:studio` | Open Drizzle Studio at [http://localhost:4983](http://localhost:4983) |
 | `npm run db:generate` | Generate SQL migration files from schema changes |
-| `npm run db:migrate` | Apply `migrations/0001_initial.sql` (used by Docker, not needed for dev) |
-| `npm run pages:build` | Build for Cloudflare Pages (`next build` + `@cloudflare/next-on-pages`) |
+| `npm run db:migrate` | Apply pending `migrations/*.sql` files idempotently |
+| `npm run pages:build` | Build for Cloudflare Workers (`@opennextjs/cloudflare`) |
 
 ---
 
@@ -65,6 +82,8 @@ The repo includes `.npmrc` with `legacy-peer-deps=true` because `@cloudflare/nex
 |---|---|---|
 | `DATABASE_URL` | `./fairtab.db` | Path to the SQLite database file |
 | `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` | Public URL (used in PWA manifest) |
+| `FAIRTAB_BACKUP_TOKEN` | unset | Optional bearer token for full JSON backup export and restore dry-run routes; required before JSON restore execution is enabled |
+| `SMOKE_REQUIRE_BACKUP_AUTH` | unset | Set to `1` when deploy smoke should fail if `/api/health` reports missing backup authorization |
 
 For local dev, the defaults in `.env.example` work without any changes.
 
@@ -92,18 +111,21 @@ app/                          Pages and API routes (Next.js App Router)
   layout.tsx                  Root layout: Inter font, Toaster, PWA
   page.tsx                    Landing page
   groups/
-    page.tsx                  Groups list (recent from localStorage)
+    page.tsx                  Recent groups and token lookup
     new/page.tsx              Create group form
     [token]/
       page.tsx                Group dashboard (force-dynamic)
       expenses/new/page.tsx   Add expense form
+      expenses/[expenseId]/edit/page.tsx
+                                Edit expense form
       settlements/page.tsx    Settle up view
   personal/
     page.tsx                  Personal finance dashboard
     transactions/new/page.tsx Add income/expense
+    transactions/[id]/edit/   Edit an existing transaction
   api/health/route.ts         Health check endpoint
   privacy/page.tsx            Privacy policy (static)
-  settings/page.tsx           Settings placeholder
+  settings/page.tsx           Device-local default currency settings
 
 components/
   ui/                         shadcn/ui base components
@@ -112,16 +134,21 @@ components/
     site-footer.tsx
   groups/
     recent-groups.tsx         Client: reads localStorage
+    group-token-search.tsx    Client: opens a group from its token
     group-dashboard.tsx       Client: tabs for balances/expenses/settle
     balance-summary.tsx       Client: member net balances
     add-member-dialog.tsx     Client: dialog with injected add-member action
+    group-settings-dialog.tsx Client: rename/delete group dialog
+    member-list.tsx           Client: edit/remove group members
     new-group-form.tsx        Client: create-group form with injected action
     settlements-view.tsx      Client: copy Interac, mark paid
+    settlement-preview.tsx    Client: inline settlement suggestions
   expenses/
-    expense-form.tsx          Client: full split UI with injected add-expense action
-    expense-list.tsx          Client: collapsible expense cards
+    expense-form.tsx          Client: split UI for add/edit expense actions
+    expense-list.tsx          Client: collapsible expense cards with edit/delete actions
   personal/
     personal-dashboard.tsx    Client: month filter, export, tabs
+    spending-trend.tsx        Client: monthly expense trend
     summary-cards.tsx         Income / expenses / net cards
     transaction-list.tsx      List with injected delete action
     transaction-form.tsx      Client: add income/expense with injected action
@@ -129,10 +156,10 @@ components/
 
 lib/
   actions/                    Thin Next.js Server Action adapters
-    groups.ts                 createGroup, getGroupByToken, addGroupMember
-    expenses.ts               addExpense, getGroupExpenses
-    settlements.ts            getGroupBalances, getSettlementSuggestions, markSettlementPaid
-    personal.ts               addPersonalTransaction, getPersonalTransactions, deletePersonalTransaction
+    groups.ts                 create, rename, delete groups; add, update, remove members
+    expenses.ts               add, get, update, delete group expenses
+    settlements.ts            balances, suggestions, paid history, mark paid, undo
+    personal.ts               add, get, update, delete personal transactions
   backend/
     ports.ts                  Repository contracts used by services and tests
     runtime.ts                Wires Drizzle repositories, nanoid, and clock
@@ -195,6 +222,18 @@ public/
 - **`getDb()`** — never import `db` directly; always call `getDb()` inside the function body
 - TypeScript strict mode is enforced — no `any` except the documented DB singleton
 
+## Product Constraints to Preserve
+
+- There is no authentication or authorization in the current application.
+- Group tokens are shared secrets; do not expose group data through a token-free route.
+- Personal transactions are instance-wide, not per-user.
+- Group calculations use one currency and do not convert exchange rates.
+- Personal summaries do not convert mixed currencies.
+- Payment settlement is recorded manually; FairTab never initiates a payment.
+
+User-facing changes to these constraints must update
+[project-overview.md](project-overview.md), [architecture.md](architecture.md), and the README.
+
 ## Parallel Development
 
 - Frontend developers can build reusable components with `tests/fixtures/` data and typed action stubs.
@@ -215,9 +254,8 @@ These tests exercise backend services through in-memory repositories, so they do
 
 To verify a broader change:
 
-1. Run `npm run test` — backend behavior must pass without server setup
-2. Run `npm run typecheck` — zero errors required
-3. Run `npm run build` — production build must succeed
-4. Manually test the affected user flow
+1. Run `npm run release:check` — lint, typecheck, backend tests, migration verification, Chromium E2E, and build
+2. Run `SMOKE_BASE_URL=http://localhost:3000 npm run release:check` against a running build or dev server when release smoke is needed
+3. Manually test the affected user flow
 
 See [docs/contributing.md](contributing.md) for how to add tests.

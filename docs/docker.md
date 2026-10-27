@@ -4,6 +4,17 @@ FairTab ships with a multi-stage `Dockerfile` and a `docker-compose.yml` for eas
 
 ---
 
+## Before You Deploy
+
+FairTab currently has no authentication or authorization. Anyone who can reach the instance can
+open the shared personal dashboard, and anyone with a group token can manage that group. Restrict
+network access or place FairTab behind an access-control layer when the deployment is not limited
+to trusted users.
+
+See [project-overview.md](project-overview.md#data-and-trust-model) for details.
+
+---
+
 ## Quick Start
 
 ```bash
@@ -32,24 +43,25 @@ Stage 2 (runner):   node:20-alpine
   ├─ .next/standalone/      (minimal server + node_modules)
   ├─ .next/static/          (hashed CSS/JS assets)
   ├─ public/                (PWA icons, manifest, service worker)
-  ├─ migrations/            (SQL used on first start)
-  └─ scripts/migrate.js     (runs the SQL via better-sqlite3)
+  ├─ migrations/            (SQL applied by the migration runner)
+  └─ scripts/migrate.js     (idempotent runner via better-sqlite3)
 ```
 
 The final image is ~200 MB. `better-sqlite3` (a native module) is built inside the Alpine container so it works without any extra libraries in the runner stage.
 
-### First-Start Database Init
+### Database Migrations
 
-`docker-entrypoint.sh` runs before `node server.js`:
+`docker-entrypoint.sh` runs `node /app/scripts/migrate.js` on **every** container
+start, before `node server.js`. The runner is idempotent:
 
-```sh
-if [ ! -f "$DATABASE_URL" ]; then
-  node /app/scripts/migrate.js   # creates tables from migrations/0001_initial.sql
-fi
-exec node server.js
-```
+- Applied files are recorded in a `_migrations` table inside the database.
+- On each boot, every `migrations/*.sql` file is applied in lexical order,
+  skipping any already recorded — so upgrading the image automatically applies
+  new migrations exactly once.
+- Databases created before the `_migrations` table existed are detected and
+  baselined: the initial schema is recorded as applied without being re-run.
 
-On subsequent starts the database file exists, so the check is skipped instantly.
+No manual steps are needed when upgrading — pull the new image and restart.
 
 ### Database Location
 
@@ -170,21 +182,11 @@ docker compose up -d
 
 ---
 
-## Running Behind Nginx (Recommended for HTTPS)
+## Home-Server Operation
 
-See [docs/self-hosting.md](self-hosting.md#step-8--nginx-reverse-proxy--https-ssl) for the complete Nginx + Certbot + Let's Encrypt setup.
-
-Nginx config summary:
-
-```nginx
-location / {
-    proxy_pass         http://localhost:3000;
-    proxy_http_version 1.1;
-    proxy_set_header   Host $host;
-    proxy_set_header   X-Real-IP $remote_addr;
-    proxy_set_header   X-Forwarded-Proto $scheme;
-}
-```
+Host-level VPN, firewall, reverse proxy, TLS, monitoring, and backup configuration belongs in
+[pouyafath/Phomeserver](https://github.com/pouyafath/Phomeserver). This repository documents the
+FairTab container and application behavior only.
 
 ---
 
