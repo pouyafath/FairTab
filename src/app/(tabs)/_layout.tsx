@@ -4,6 +4,7 @@ import type { ComponentProps } from 'react';
 import type { ColorValue } from 'react-native';
 
 import { useTheme } from '@/hooks/use-theme';
+import { useRecurringRunner } from '@/lib/use-recurring-runner';
 
 type SymbolName = ComponentProps<typeof SymbolView>['name'];
 
@@ -16,6 +17,7 @@ function icon(name: SymbolName) {
 
 export default function TabsLayout() {
   const theme = useTheme();
+  useRecurringRunner();
   return (
     <Tabs screenOptions={{ tabBarActiveTintColor: theme.primary }}>
       <Tabs.Screen

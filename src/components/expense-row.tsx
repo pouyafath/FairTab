@@ -36,6 +36,7 @@ export function ExpenseRow({
   subtitle = [expense.spent_on, groupName, expense.kind === 'expense' ? expense.category : null, subtitle]
     .filter(Boolean)
     .join(' · ');
+  if (expense.recurring_id) subtitle = `↻ repeats · ${subtitle}`;
 
   return (
     <ListRow

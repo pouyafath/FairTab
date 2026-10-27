@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Alert, Platform, View } from 'react-native';
 
 import { ReadOnlyExpense } from '@/components/read-only-expense';
+import { RepeatCard } from '@/components/repeat-card';
 import { Button, Card, Chip, ChipRow, ErrorText, Field, ListRow, Loading, Screen, T } from '@/components/ui';
 import { CATEGORIES } from '@/constants/categories';
 import { Spacing } from '@/constants/theme';
@@ -15,8 +16,9 @@ import {
   type SplitEntry,
   type SplitMethod,
 } from '@/domain';
+import type { RepeatFrequency } from '@/domain/recurring';
 import { isValidDate, todayLocal } from '@/lib/dates';
-import { useDeleteExpense, useSaveExpense } from '@/lib/queries';
+import { useCreateRecurring, useDeleteExpense, useSaveExpense } from '@/lib/queries';
 import type { Expense, Group, Member } from '@/lib/types';
 import { useGroup } from '@/lib/use-group';
 
@@ -92,8 +94,10 @@ function ExpenseForm({ group, members, meId, expense }: { group: Group; members:
     Object.fromEntries(payers.map((s) => [s.member_id, toInputString(s.paid, expense!.currency)])),
   );
   const [split, setSplit] = useState<SplitState>(() => initialSplit(members, expense));
+  const [repeat, setRepeat] = useState<RepeatFrequency | null>(null);
   const save = useSaveExpense();
   const remove = useDeleteExpense();
+  const createRecurring = useCreateRecurring();
 
   const validCurrency = /^[A-Z]{3}$/.test(currency);
   const amount = validCurrency ? parseAmount(amountText, currency) : null;
@@ -153,6 +157,25 @@ function ExpenseForm({ group, members, meId, expense }: { group: Group; members:
     };
     for (const [memberId, value] of Object.entries(paid)) share(memberId).paid = value;
     for (const [memberId, value] of Object.entries(owed)) share(memberId).owed = value;
+    if (repeat && !expense) {
+      // The recurring expense adds this first one itself (now, or on the date if it is in the future).
+      createRecurring.mutate(
+        {
+          p_group_id: group.id,
+          p_description: description.trim(),
+          p_amount: amount,
+          p_currency: currency,
+          p_shares: [...shares.values()],
+          p_category: category,
+          p_notes: notes.trim() || null,
+          p_frequency: repeat,
+          p_start_on: date,
+          p_today: todayLocal(),
+        },
+        { onSuccess: () => router.back() },
+      );
+      return;
+    }
     save.mutate(
       {
         p_group_id: group.id,
@@ -284,9 +307,10 @@ function ExpenseForm({ group, members, meId, expense }: { group: Group; members:
         </ChipRow>
       </Card>
       <Field label="Notes (optional)" value={notes} onChangeText={setNotes} maxLength={1000} multiline style={{ minHeight: 72, textAlignVertical: 'top', paddingTop: 12 }} />
+      {expense ? null : <RepeatCard value={repeat} onChange={setRepeat} startOn={date} />}
 
-      <ErrorText error={save.error ?? remove.error} />
-      <Button title={expense ? 'Save changes' : 'Add expense'} onPress={onSave} disabled={!canSave} loading={save.isPending} />
+      <ErrorText error={save.error ?? remove.error ?? createRecurring.error} />
+      <Button title={expense ? 'Save changes' : 'Add expense'} onPress={onSave} disabled={!canSave} loading={save.isPending || createRecurring.isPending} />
       {expense ? <Button title="Delete expense" variant="danger" onPress={onDelete} loading={remove.isPending} /> : null}
     </Screen>
   );

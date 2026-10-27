@@ -43,8 +43,32 @@ export interface Expense {
   spent_on: string;
   created_by: string | null;
   created_at: string;
+  /** Set when a recurring expense added this one. */
+  recurring_id?: string | null;
   expense_shares: ShareRow[];
 }
 
 /** An expense or payment someone deleted; it can be restored from "Recently deleted". */
 export type DeletedExpense = Expense & { deleted_at: string };
+
+/** A rule that adds the same expense on a schedule (rent, subscriptions). */
+export interface RecurringExpense {
+  id: string;
+  group_id: string;
+  description: string;
+  category: string | null;
+  notes: string | null;
+  amount: number;
+  currency: string;
+  shares: ShareRow[];
+  frequency: 'weekly' | 'monthly' | 'yearly';
+  interval_count: number;
+  anchor_day: number | null;
+  start_on: string;
+  /** The next date whose expense has not been added yet. */
+  next_on: string;
+  end_on: string | null;
+  paused: boolean;
+  created_by: string | null;
+  created_at: string;
+}
