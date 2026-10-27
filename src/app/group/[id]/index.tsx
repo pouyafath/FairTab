@@ -106,6 +106,7 @@ export default function GroupScreen() {
         </View>
       )}
 
+      <Button title="Recurring expenses" variant="secondary" onPress={() => router.push({ pathname: '/group/[id]/recurring', params: { id } })} />
       <Button title="Group settings & invite" variant="secondary" onPress={() => router.push({ pathname: '/group/[id]/settings', params: { id } })} />
     </Screen>
   );

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { supabase } from '@/lib/supabase';
-import type { Expense, Group, Member, Profile } from '@/lib/types';
+import type { Expense, Group, Member, Profile, RecurringExpense } from '@/lib/types';
 
 const EXPENSE_COLUMNS = '*, expense_shares(member_id, paid, owed)';
 const PAGE = 1000; // Supabase returns at most 1000 rows per request by default.
@@ -27,6 +27,7 @@ export const keys = {
   members: ['members'] as const,
   profiles: ['profiles'] as const,
   expenses: ['expenses'] as const,
+  recurring: ['recurring'] as const,
 };
 
 export function useProfile(userId: string) {
@@ -86,6 +87,15 @@ export function useExpenses() {
   });
 }
 
+/** Recurring expenses (rent, subscriptions) in all my groups, next date first. */
+export function useRecurringExpenses() {
+  return useQuery({
+    queryKey: keys.recurring,
+    queryFn: async () =>
+      check(await supabase.from('recurring_expenses').select('*').order('next_on').order('id')) as RecurringExpense[],
+  });
+}
+
 /** Refetch everything after a change. Data is small, so this keeps things simple and correct. */
 export function useInvalidateAll() {
   const client = useQueryClient();
@@ -130,6 +140,25 @@ export const useImportGroup = () =>
   useRpc<{ p_name: string; p_currency: string; p_members: string[]; p_me: string | null; p_entries: unknown[] }, string>(
     'import_group',
   );
+
+/** An expense plus a schedule. p_start_on is the first date (today when left out). */
+export interface CreateRecurringArgs extends Record<string, unknown> {
+  p_group_id: string;
+  p_description: string;
+  p_amount: number;
+  p_currency: string;
+  p_shares: { member_id: string; paid: number; owed: number }[];
+  p_frequency: 'weekly' | 'monthly' | 'yearly';
+  p_interval?: number;
+  p_start_on?: string | null;
+  p_end_on?: string | null;
+  p_category?: string | null;
+  p_notes?: string | null;
+}
+
+export const useCreateRecurring = () => useRpc<CreateRecurringArgs, string>('create_recurring');
+export const useSetRecurringPaused = () => useRpc<{ p_recurring_id: string; p_paused: boolean }>('set_recurring_paused');
+export const useDeleteRecurring = () => useRpc<{ p_recurring_id: string }>('delete_recurring');
 
 export function useUpdate<T extends Record<string, unknown>>(table: 'groups' | 'group_members' | 'profiles') {
   const invalidate = useInvalidateAll();

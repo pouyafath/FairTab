@@ -45,6 +45,7 @@ function RootStack() {
         <Stack.Screen name="group/[id]/expense" options={{ title: 'Expense', presentation: 'modal' }} />
         <Stack.Screen name="group/[id]/settle" options={{ title: 'Record a payment', presentation: 'modal' }} />
         <Stack.Screen name="group/[id]/settings" options={{ title: 'Group settings' }} />
+        <Stack.Screen name="group/[id]/recurring" options={{ title: 'Recurring expenses' }} />
         <Stack.Screen name="new-group" options={{ title: 'New group', presentation: 'modal' }} />
         <Stack.Screen name="import" options={{ title: 'Import from Splitwise' }} />
       </Stack.Protected>

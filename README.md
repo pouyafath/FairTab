@@ -18,6 +18,7 @@ FairTab is a Splitwise alternative. One codebase runs on **iOS, Android and the 
 - An invite link. People who open it can join, or pick their name ("I am Sara") to take over expenses already added for them.
 - Expenses with **one or several payers**, split **equally, by exact amounts, by percent or by shares**. Rounding is fair, so splits always add up to the cent.
 - **Categories and notes** on expenses.
+- **Recurring expenses** (rent, subscriptions): added again by themselves every week, month or year. Pause, resume or delete them any time.
 - **Multiple currencies**, with balances kept separately per currency.
 - Balances, **simplified debts** (on/off per group), and recording payments to settle up.
 - A **"Copy Interac e-Transfer message"** button for CAD groups (and a plain payment message for other currencies).
@@ -60,6 +61,17 @@ Security lives in the database: row-level security means people can only read gr
    - the **Publishable key** (starts with `sb_publishable_`), under **API Keys**. If your project only shows legacy keys, use the `anon` key.
 
    Never use the secret key (`sb_secret_…`) or the `service_role` key in the app.
+
+## Database updates
+
+Already set up the backend? Run each new file below in the SQL Editor, in order (open it on GitHub, click Raw, copy everything, paste, Run):
+
+- `supabase/migrations/20261027000200_recurring.sql`: adds recurring expenses (rent, subscriptions); the app adds the ones that are due whenever someone opens it.
+  Optional, to add them every day even when nobody opens the app: go to **Database → Extensions**, turn on **pg_cron**, then run this once in the SQL Editor (it runs daily at 06:15 UTC):
+
+  ```sql
+  select cron.schedule('fairtab-recurring', '15 6 * * *', 'select public.run_recurring_all()');
+  ```
 
 ## Put it online for free (GitHub Pages)
 
