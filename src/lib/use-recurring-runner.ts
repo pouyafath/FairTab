@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 
 import { useUserId } from '@/lib/auth';
+import { todayLocal } from '@/lib/dates';
 import { keys } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
 
@@ -28,7 +29,8 @@ export function useRecurringRunner() {
       running = true;
       lastRun.current = { userId, at: Date.now() };
       try {
-        const { data, error } = await supabase.rpc('run_recurring');
+        // The device's date, so a date that is "today" here is added today (the database uses UTC).
+        const { data, error } = await supabase.rpc('run_recurring', { p_today: todayLocal() });
         if (error) throw error;
         // Something was added: refresh everything. Otherwise only the rules may have moved on.
         void client.invalidateQueries(Number(data) > 0 ? undefined : { queryKey: keys.recurring });

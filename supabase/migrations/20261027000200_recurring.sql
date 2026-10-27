@@ -170,9 +170,11 @@ $$;
 -- 60 per call, and moves next_on forward. A date that already has its expense is skipped, so running
 -- this twice adds nothing. If the expense can no longer be written (the person who set it up or
 -- someone in it left the group, or the group was deleted), the rule is paused instead of failing.
-create function public._materialize_recurring(p_recurring_id uuid) returns int
+-- p_today is "today" (the database's date when left out).
+create function public._materialize_recurring(p_recurring_id uuid, p_today date default null) returns int
 language plpgsql security definer set search_path = '' as $$
 declare
+  today date := coalesce(p_today, current_date);
   r public.recurring_expenses;
   d date;
   eid uuid;
@@ -186,7 +188,7 @@ begin
   end if;
 
   d := r.next_on;
-  while d <= current_date and (r.end_on is null or d <= r.end_on) and steps < 60 loop
+  while d <= today and (r.end_on is null or d <= r.end_on) and steps < 60 loop
     steps := steps + 1;
     if not exists (select 1 from public.expenses where recurring_id = r.id and occurrence_on = d) then
       begin
@@ -217,15 +219,19 @@ $$;
 ------------------------------------------------------------------------------
 
 -- Creates a recurring expense and adds the expenses already due (the first one, when it starts today).
+-- p_today is the app's own date: the database's date is UTC, so without it a rule starting "today"
+-- would add nothing for people ahead of UTC (and a day early for people behind it). It can be at most
+-- one day off, like any real time zone.
 create function public.create_recurring(
   p_group_id uuid, p_description text, p_amount bigint, p_currency text, p_shares jsonb,
   p_frequency text, p_interval int default 1, p_start_on date default null, p_end_on date default null,
-  p_category text default null, p_notes text default null
+  p_category text default null, p_notes text default null, p_today date default null
 ) returns uuid
 language plpgsql security definer set search_path = '' as $$
 declare
   uid uuid := public.require_user();
-  start_date date := coalesce(p_start_on, current_date);
+  today date := least(greatest(coalesce(p_today, current_date), current_date - 1), current_date + 1);
+  start_date date := coalesce(p_start_on, today);
   checked_shares jsonb;
   rid uuid;
 begin
@@ -241,7 +247,7 @@ begin
           start_date, p_end_on, uid)
   returning id into rid;
 
-  perform public._materialize_recurring(rid);
+  perform public._materialize_recurring(rid, today);
   return rid;
 end;
 $$;
@@ -347,11 +353,13 @@ end;
 $$;
 
 -- Adds the due expenses of every recurring expense in the caller's groups and returns how many were
--- added. The app calls this after sign-in and when it comes back to the foreground.
-create function public.run_recurring() returns int
+-- added. The app calls this after sign-in and when it comes back to the foreground, with its own
+-- date as p_today (see create_recurring).
+create function public.run_recurring(p_today date default null) returns int
 language plpgsql security definer set search_path = '' as $$
 declare
   uid uuid := public.require_user();
+  today date := least(greatest(coalesce(p_today, current_date), current_date - 1), current_date + 1);
   rid uuid;
   total int := 0;
 begin
@@ -359,12 +367,12 @@ begin
     select r.id
     from public.recurring_expenses r
     join public.groups g on g.id = r.group_id
-    where g.deleted_at is null and not r.paused and r.next_on <= current_date
+    where g.deleted_at is null and not r.paused and r.next_on <= today
       and (r.end_on is null or r.next_on <= r.end_on)
       and exists (select 1 from public.group_members m where m.group_id = r.group_id and m.user_id = uid)
     order by r.id
   loop
-    total := total + public._materialize_recurring(rid);
+    total := total + public._materialize_recurring(rid, today);
   end loop;
   return total;
 end;
@@ -397,18 +405,18 @@ revoke execute on function
   public.recurring_next_date(date, text, int, int),
   public._recurring_first_on_or_after(date, text, int, int, date),
   public._check_recurring(uuid, bigint, jsonb, text, int, date, date),
-  public._materialize_recurring(uuid),
-  public.create_recurring(uuid, text, bigint, text, jsonb, text, int, date, date, text, text),
+  public._materialize_recurring(uuid, date),
+  public.create_recurring(uuid, text, bigint, text, jsonb, text, int, date, date, text, text, date),
   public.update_recurring(uuid, text, bigint, text, jsonb, text, int, date, date, text, text),
   public.set_recurring_paused(uuid, boolean),
   public.delete_recurring(uuid),
-  public.run_recurring(),
+  public.run_recurring(date),
   public.run_recurring_all()
 from public, anon, authenticated;
 grant execute on function
-  public.create_recurring(uuid, text, bigint, text, jsonb, text, int, date, date, text, text),
+  public.create_recurring(uuid, text, bigint, text, jsonb, text, int, date, date, text, text, date),
   public.update_recurring(uuid, text, bigint, text, jsonb, text, int, date, date, text, text),
   public.set_recurring_paused(uuid, boolean),
   public.delete_recurring(uuid),
-  public.run_recurring()
+  public.run_recurring(date)
 to authenticated;

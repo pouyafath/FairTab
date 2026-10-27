@@ -27,7 +27,7 @@ begin
     'public.recurring_next_date(date,text,int,int)',
     'public._recurring_first_on_or_after(date,text,int,int,date)',
     'public._check_recurring(uuid,bigint,jsonb,text,int,date,date)',
-    'public._materialize_recurring(uuid)',
+    'public._materialize_recurring(uuid,date)',
     'public.run_recurring_all()'
   ] loop
     if has_function_privilege('authenticated', fn, 'execute') or has_function_privilege('anon', fn, 'execute') then
@@ -35,11 +35,11 @@ begin
     end if;
   end loop;
   foreach fn in array array[
-    'public.create_recurring(uuid,text,bigint,text,jsonb,text,int,date,date,text,text)',
+    'public.create_recurring(uuid,text,bigint,text,jsonb,text,int,date,date,text,text,date)',
     'public.update_recurring(uuid,text,bigint,text,jsonb,text,int,date,date,text,text)',
     'public.set_recurring_paused(uuid,boolean)',
     'public.delete_recurring(uuid)',
-    'public.run_recurring()'
+    'public.run_recurring(date)'
   ] loop
     if not has_function_privilege('authenticated', fn, 'execute') then
       raise exception 'FAIL: % should be callable by signed-in users', fn;
@@ -129,6 +129,17 @@ begin
     raise exception 'FAIL: next_on/anchor_day after the end date';
   end if;
 
+  -- The same in a leap year, whatever this year is.
+  rid := public.create_recurring(gid, 'Rent 2024', 1000, 'EUR', jsonb_build_array(
+      jsonb_build_object('member_id', me, 'paid', 1000, 'owed', 1000)),
+    'monthly', 1, '2024-01-31', '2024-03-31');
+  insert into ctx values ('leap', rid);
+  select array_agg(spent_on order by spent_on) into dates from public.expenses where recurring_id = rid;
+  if dates is distinct from array['2024-01-31', '2024-02-29', '2024-03-31']::date[] then
+    raise exception 'FAIL: monthly rule from Jan 31 in a leap year added %', dates;
+  end if;
+  rid := (select v from ctx where k = 'monthly')::uuid;
+
   -- Running again adds nothing.
   n := public.run_recurring();
   if n <> 0 or (select count(*) from public.expenses where recurring_id = rid) <> 3 then
@@ -159,16 +170,22 @@ reset role;
 update public.recurring_expenses set next_on = start_on where id = (select v from ctx where k = 'monthly')::uuid;
 do $$
 declare
-  rid uuid := (select v from ctx where k = 'monthly')::uuid;
+  rid uuid;
   first_id uuid;
 begin
-  -- And the unique index refuses a second expense for the same rule and date.
-  select id into first_id from public.expenses where recurring_id = rid order by spent_on limit 1;
-  begin
-    update public.expenses set occurrence_on = occurrence_on + 28 where id = first_id;
-    raise exception 'FAIL: two expenses for the same rule and date';
-  exception when unique_violation then null;
-  end;
+  -- And the unique index refuses a second expense for the same rule and date (moving the first
+  -- date onto the second one, which is Feb 28 or Feb 29).
+  foreach rid in array array[(select v from ctx where k = 'monthly'), (select v from ctx where k = 'leap')]::uuid[] loop
+    select id into first_id from public.expenses where recurring_id = rid order by occurrence_on limit 1;
+    begin
+      update public.expenses
+         set occurrence_on = (select occurrence_on from public.expenses where recurring_id = rid
+                              order by occurrence_on offset 1 limit 1)
+       where id = first_id;
+      raise exception 'FAIL: two expenses for the same rule and date';
+    exception when unique_violation then null;
+    end;
+  end loop;
 end $$;
 set role authenticated;
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
@@ -461,7 +478,7 @@ declare
   rid uuid;
 begin
   gid := public.join_group((select v from ctx where k = 'code'));
-  if (select count(*) from public.recurring_expenses) <> 4 then
+  if (select count(*) from public.recurring_expenses) <> 5 then
     raise exception 'FAIL: a member cannot see the group''s rules';
   end if;
   rid := public.create_recurring(gid, 'Streaming', 1500, 'EUR', jsonb_build_array(
@@ -531,6 +548,62 @@ begin
   if n <> 0 or not (select paused from public.recurring_expenses where id = rid) then
     raise exception 'FAIL: a deleted group''s rule was not paused';
   end if;
+end $$;
+
+-- "Today" is the app's date (passed as p_today), not the database's UTC date, but at most one day off.
+-- (Alice's other group is deleted by now, so run_recurring only sees this new group.)
+set role authenticated;
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
+do $$
+declare
+  me uuid;
+  gid uuid;
+  shares jsonb;
+  rid uuid;
+  n int;
+begin
+  gid := public.create_group('Time zones', 'EUR');
+  select id into me from public.group_members where group_id = gid and user_id = auth.uid();
+  shares := jsonb_build_array(jsonb_build_object('member_id', me, 'paid', 500, 'owed', 500));
+  -- Ahead of UTC it is already tomorrow: a rule starting on the app's today adds its first expense now.
+  rid := public.create_recurring(gid, 'Ahead', 500, 'EUR', shares, 'weekly',
+    p_start_on => current_date + 1, p_today => current_date + 1);
+  if (select count(*) from public.expenses where recurring_id = rid and spent_on = current_date + 1) <> 1
+     or (select next_on from public.recurring_expenses where id = rid) is distinct from current_date + 8 then
+    raise exception 'FAIL: a rule starting on the app''s today did not add its first expense';
+  end if;
+  -- Without p_today the database's date is used; run_recurring with the app's date then adds it.
+  rid := public.create_recurring(gid, 'Default', 500, 'EUR', shares, 'weekly', p_start_on => current_date + 1);
+  if exists (select 1 from public.expenses where recurring_id = rid) then
+    raise exception 'FAIL: a rule starting tomorrow added an expense without p_today';
+  end if;
+  n := public.run_recurring(current_date + 1);
+  if n <> 1 or (select count(*) from public.expenses where recurring_id = rid and spent_on = current_date + 1) <> 1 then
+    raise exception 'FAIL: run_recurring did not use the app''s date';
+  end if;
+  -- Behind UTC it is still yesterday: a rule starting on the database's today waits.
+  rid := public.create_recurring(gid, 'Behind', 500, 'EUR', shares, 'weekly',
+    p_start_on => current_date, p_today => current_date - 1);
+  if exists (select 1 from public.expenses where recurring_id = rid)
+     or public.run_recurring(current_date - 1) <> 0 then
+    raise exception 'FAIL: a rule starting after the app''s today added an expense';
+  end if;
+  if public.run_recurring() <> 1 then
+    raise exception 'FAIL: run_recurring without p_today did not use the database''s date';
+  end if;
+  -- A date more than one day off counts as one day off.
+  rid := public.create_recurring(gid, 'Far', 500, 'EUR', shares, 'weekly',
+    p_start_on => current_date + 2, p_today => current_date + 30);
+  if exists (select 1 from public.expenses where recurring_id = rid)
+     or public.run_recurring(current_date + 30) <> 0 then
+    raise exception 'FAIL: p_today more than one day ahead was accepted';
+  end if;
+  rid := public.create_recurring(gid, 'Past', 500, 'EUR', shares, 'weekly',
+    p_start_on => current_date - 1, p_today => current_date - 30);
+  if (select count(*) from public.expenses where recurring_id = rid) <> 1 then
+    raise exception 'FAIL: p_today more than one day behind was accepted';
+  end if;
+  perform public.delete_group(gid);
 end $$;
 
 \echo 'RECURRING TESTS PASSED'

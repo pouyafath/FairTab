@@ -168,6 +168,7 @@ function ExpenseForm({ group, members, meId, expense }: { group: Group; members:
           p_notes: notes.trim() || null,
           p_frequency: repeat,
           p_start_on: date,
+          p_today: todayLocal(),
         },
         { onSuccess: () => router.back() },
       );

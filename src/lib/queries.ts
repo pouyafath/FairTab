@@ -141,7 +141,10 @@ export const useImportGroup = () =>
     'import_group',
   );
 
-/** An expense plus a schedule. p_start_on is the first date (today when left out). */
+/**
+ * An expense plus a schedule. p_start_on is the first date (today when left out). p_today is the
+ * device's date, so "today" means the same day here and in the database (which uses UTC).
+ */
 export interface CreateRecurringArgs extends Record<string, unknown> {
   p_group_id: string;
   p_description: string;
@@ -154,6 +157,7 @@ export interface CreateRecurringArgs extends Record<string, unknown> {
   p_end_on?: string | null;
   p_category?: string | null;
   p_notes?: string | null;
+  p_today?: string | null;
 }
 
 export const useCreateRecurring = () => useRpc<CreateRecurringArgs, string>('create_recurring');
