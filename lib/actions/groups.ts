@@ -19,14 +19,14 @@ export async function createGroup(formData: unknown): Promise<ActionResult<Group
   return result
 }
 
-export async function renameGroup(
+export async function updateGroup(
   token: string,
   formData: unknown
 ): Promise<ActionResult<Group>> {
   const group = await findGroupForToken(token)
   if (!group) return GROUP_NOT_FOUND
 
-  const result = await getBackend().groups.renameGroup(group.id, formData)
+  const result = await getBackend().groups.updateGroup(group.id, formData)
   if (result.success) revalidateGroup(token)
   return result
 }

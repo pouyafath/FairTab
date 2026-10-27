@@ -11,7 +11,7 @@ const restoreRequestSchema = z.object({
 })
 
 export async function POST(request: Request) {
-  const unauthorized = requireConfiguredBackupAuthorization(request)
+  const unauthorized = await requireConfiguredBackupAuthorization(request)
   if (unauthorized) return unauthorized
 
   let payload: unknown

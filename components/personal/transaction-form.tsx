@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { dateInputToTimestamp, dollarsToCentsString } from '@/lib/formatting'
+import { dateInputToTimestamp, dollarsToCentsString, timestampToDateInput } from '@/lib/formatting'
 import {
   CURRENCIES,
   PERSONAL_INCOME_CATEGORIES,
@@ -22,6 +22,9 @@ import {
 import { useDefaultCurrency } from '@/lib/settings'
 import type { PersonalTransaction, TransactionType } from '@/types'
 import type { AddPersonalTransactionAction, UpdatePersonalTransactionAction } from '@/types/actions'
+
+// Sentinel for the "Custom…" select entry; never stored
+const CUSTOM_CATEGORY = '__custom__'
 
 interface Props {
   addTransactionAction?: AddPersonalTransactionAction
@@ -46,15 +49,20 @@ export function TransactionForm({ addTransactionAction, updateTransactionAction,
   const [currencyOverride, setCurrencyOverride] = useState<string | null>(null)
   const currency = currencyOverride ?? transaction?.currency ?? defaultCurrency
   const [date, setDate] = useState(
-    transaction
-      ? new Date(transaction.date).toISOString().split('T')[0]
-      : new Date().toISOString().split('T')[0]
+    transaction ? timestampToDateInput(transaction.date) : timestampToDateInput(new Date())
   )
-  const [category, setCategory] = useState(transaction?.category ?? '')
+  const categories = type === 'income' ? PERSONAL_INCOME_CATEGORIES : PERSONAL_EXPENSE_CATEGORIES
+
+  const initialCategory = transaction?.category ?? ''
+  const initialIsCustom =
+    initialCategory !== '' && !(categories as readonly string[]).includes(initialCategory)
+  const [categoryChoice, setCategoryChoice] = useState(
+    initialIsCustom ? CUSTOM_CATEGORY : initialCategory
+  )
+  const [customCategory, setCustomCategory] = useState(initialIsCustom ? initialCategory : '')
+  const category = categoryChoice === CUSTOM_CATEGORY ? customCategory.trim() : categoryChoice
   const [note, setNote] = useState(transaction?.note ?? '')
   const [accountLabel, setAccountLabel] = useState(transaction?.accountLabel ?? '')
-
-  const categories = type === 'income' ? PERSONAL_INCOME_CATEGORIES : PERSONAL_EXPENSE_CATEGORIES
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -101,13 +109,13 @@ export function TransactionForm({ addTransactionAction, updateTransactionAction,
             <button
               key={t}
               type="button"
-              onClick={() => { setType(t); setCategory('') }}
+              onClick={() => { setType(t); setCategoryChoice(''); setCustomCategory('') }}
               className={`rounded-md border py-2.5 text-sm font-medium transition-colors capitalize ${
                 type === t
                   ? t === 'income'
-                    ? 'border-emerald-700 bg-emerald-700 text-white'
-                    : 'border-rose-700 bg-rose-700 text-white'
-                  : 'bg-card/80 hover:bg-muted'
+                    ? 'bg-green-600 dark:bg-green-700 text-white border-green-600 dark:border-green-700'
+                    : 'bg-destructive text-white border-destructive'
+                  : 'bg-background hover:bg-muted'
               }`}
             >
               {t}
@@ -170,7 +178,7 @@ export function TransactionForm({ addTransactionAction, updateTransactionAction,
 
       <div className="space-y-2">
         <Label>Category</Label>
-        <Select value={category} onValueChange={setCategory}>
+        <Select value={categoryChoice} onValueChange={setCategoryChoice}>
           <SelectTrigger aria-label="Transaction category">
             <SelectValue placeholder="Select category (optional)" />
           </SelectTrigger>
@@ -180,8 +188,18 @@ export function TransactionForm({ addTransactionAction, updateTransactionAction,
                 {c}
               </SelectItem>
             ))}
+            <SelectItem value={CUSTOM_CATEGORY}>Custom…</SelectItem>
           </SelectContent>
         </Select>
+        {categoryChoice === CUSTOM_CATEGORY && (
+          <Input
+            placeholder="Your category"
+            maxLength={50}
+            value={customCategory}
+            onChange={(e) => setCustomCategory(e.target.value)}
+            autoFocus
+          />
+        )}
       </div>
 
       <div className="space-y-2">

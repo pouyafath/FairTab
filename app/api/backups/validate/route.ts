@@ -4,7 +4,7 @@ import { requireBackupAuthorization } from '@/lib/backups/auth'
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
-  const unauthorized = requireBackupAuthorization(request)
+  const unauthorized = await requireBackupAuthorization(request)
   if (unauthorized) return unauthorized
 
   let payload: unknown
@@ -22,6 +22,9 @@ export async function POST(request: Request) {
           expenseParticipants: 0,
           settlements: 0,
           personalTransactions: 0,
+          recurringRules: 0,
+          savingsGoals: 0,
+          attachments: 0,
         },
         errors: [{ code: 'invalid_json', message: 'Request body must be valid JSON.' }],
         warnings: [],

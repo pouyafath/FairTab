@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Plus, Download, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,11 +18,26 @@ import { SummaryCards } from './summary-cards'
 import { CategoryBreakdown } from './category-breakdown'
 import { SpendingTrend } from './spending-trend'
 import { TransactionList } from './transaction-list'
+import { RecurringRules } from './recurring-rules'
+import { SavingsGoals } from './savings-goals'
 import { calculatePersonalSummary } from '@/lib/calculations/personal'
 import { generateCSV } from '@/lib/calculations/export'
 import { formatMonth } from '@/lib/formatting'
-import type { PersonalTransaction, PersonalSummary } from '@/types'
+import type { PersonalTransaction, PersonalSummary, RecurringRule, SavingsGoal } from '@/types'
 import type { DeletePersonalTransactionAction } from '@/types/actions'
+import type {
+  addRecurringRule as AddRuleAction,
+  updateRecurringRule as UpdateRuleAction,
+  toggleRecurringRule as ToggleRuleAction,
+  deleteRecurringRule as DeleteRuleAction,
+  runRecurringAction as RunRecurringAction,
+} from '@/lib/actions/recurring'
+import type {
+  addSavingsGoal as AddGoalAction,
+  updateSavingsGoal as UpdateGoalAction,
+  contributeSavingsGoal as ContributeAction,
+  deleteSavingsGoal as DeleteGoalAction,
+} from '@/lib/actions/savings'
 
 interface Props {
   transactions: PersonalTransaction[]
@@ -29,6 +45,17 @@ interface Props {
   currentYear: number
   currentMonth: number
   deleteTransactionAction: DeletePersonalTransactionAction
+  rules: RecurringRule[]
+  addRecurringRuleAction: typeof AddRuleAction
+  updateRecurringRuleAction: typeof UpdateRuleAction
+  toggleRecurringRuleAction: typeof ToggleRuleAction
+  deleteRecurringRuleAction: typeof DeleteRuleAction
+  runRecurringAction: typeof RunRecurringAction
+  savingsGoals: SavingsGoal[]
+  addSavingsGoalAction: typeof AddGoalAction
+  updateSavingsGoalAction: typeof UpdateGoalAction
+  contributeSavingsGoalAction: typeof ContributeAction
+  deleteSavingsGoalAction: typeof DeleteGoalAction
 }
 
 function getMonthOptions() {
@@ -51,13 +78,33 @@ export function PersonalDashboard({
   currentYear,
   currentMonth,
   deleteTransactionAction,
+  rules,
+  addRecurringRuleAction,
+  updateRecurringRuleAction,
+  toggleRecurringRuleAction,
+  deleteRecurringRuleAction,
+  runRecurringAction,
+  savingsGoals,
+  addSavingsGoalAction,
+  updateSavingsGoalAction,
+  contributeSavingsGoalAction,
+  deleteSavingsGoalAction,
 }: Props) {
+  const router = useRouter()
   const monthOptions = useMemo(() => getMonthOptions(), [])
   const [selectedKey, setSelectedKey] = useState(`${currentYear}-${currentMonth}`)
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
 
   const [selYear, selMonth] = selectedKey.split('-').map(Number)
+
+  // Materialize any overdue recurring transactions on first mount
+  useEffect(() => {
+    runRecurringAction().then((count) => {
+      if (count > 0) router.refresh()
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const summary = useMemo(
     () =>
@@ -190,6 +237,23 @@ export function PersonalDashboard({
         </div>
       </div>
 
+      {/* First-run empty state */}
+      {transactions.length === 0 && (
+        <div className="rounded-lg border border-dashed p-8 text-center space-y-3">
+          <p className="font-medium">No transactions yet</p>
+          <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+            Add your first income or expense, or set up a recurring rule below so rent, salary,
+            and subscriptions record themselves every month.
+          </p>
+          <Button asChild size="sm">
+            <Link href="/personal/transactions/new">
+              <Plus className="h-4 w-4 mr-2" />
+              Add your first transaction
+            </Link>
+          </Button>
+        </div>
+      )}
+
       {/* Summary cards */}
       <SummaryCards summary={summary} />
 
@@ -202,6 +266,29 @@ export function PersonalDashboard({
 
       {/* Category breakdown */}
       {summary.byCategory.length > 0 && <CategoryBreakdown byCategory={summary.byCategory} />}
+
+      {/* Recurring rules + savings goals */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-lg border p-4 bg-card">
+          <RecurringRules
+            rules={rules}
+            addAction={addRecurringRuleAction}
+            updateAction={updateRecurringRuleAction}
+            toggleAction={toggleRecurringRuleAction}
+            deleteAction={deleteRecurringRuleAction}
+          />
+        </div>
+
+        <div className="rounded-lg border p-4 bg-card">
+          <SavingsGoals
+            goals={savingsGoals}
+            addAction={addSavingsGoalAction}
+            updateAction={updateSavingsGoalAction}
+            contributeAction={contributeSavingsGoalAction}
+            deleteAction={deleteSavingsGoalAction}
+          />
+        </div>
+      </div>
 
       {/* Transaction list */}
       <div className="page-panel p-4 sm:p-5">

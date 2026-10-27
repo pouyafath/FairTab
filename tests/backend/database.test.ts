@@ -69,6 +69,49 @@ const backupFixture: BackupData = {
       category: 'Food & Dining',
       note: null,
       accountLabel: null,
+      sourceRuleId: null,
+      createdAt: 1780000000000,
+    },
+  ],
+  recurringRules: [
+    {
+      id: 20,
+      type: 'expense',
+      title: 'Restored rent',
+      amount: 150000,
+      currency: 'CAD',
+      category: null,
+      note: null,
+      accountLabel: null,
+      frequency: 'monthly',
+      intervalCount: 1,
+      anchorDay: 28,
+      nextRunDate: 1780000000000,
+      lastRunDate: null,
+      active: true,
+      createdAt: 1780000000000,
+    },
+  ],
+  savingsGoals: [
+    {
+      id: 21,
+      name: 'Restored fund',
+      targetAmount: 500000,
+      currentAmount: 12000,
+      currency: 'CAD',
+      targetDate: null,
+      createdAt: 1780000000000,
+    },
+  ],
+  attachments: [
+    {
+      id: 22,
+      groupId: 7,
+      expenseId: 10,
+      storageKey: '7/restored.png',
+      filename: 'restored.png',
+      contentType: 'image/png',
+      size: 1234,
       createdAt: 1780000000000,
     },
   ],
@@ -100,6 +143,12 @@ function createMigratedDatabase() {
     '0001_initial.sql',
     '0002_add_is_archived.sql',
     '0003_add_integrity_indexes.sql',
+    '0004_recurring_rules.sql',
+    '0005_savings_goals.sql',
+    '0006_attachments.sql',
+    '0007_recurring_materialization_unique.sql',
+    '0008_recurring_rules_due_index.sql',
+    '0009_recurring_anchor_day.sql',
   ]
   for (const file of migrationFiles) {
     db.exec(readFileSync(path.join(migrationsDir, file), 'utf8'))
@@ -209,6 +258,10 @@ describe('database schema', () => {
       assert.deepEqual(snapshot.personalTransactions.map((tx) => tx.title), [
         'Restored groceries',
       ])
+      assert.deepEqual(snapshot.recurringRules.map((rule) => rule.title), ['Restored rent'])
+      assert.deepEqual(snapshot.savingsGoals.map((goal) => goal.name), ['Restored fund'])
+      assert.equal(snapshot.attachments.length, 1)
+      assert.equal(snapshot.attachments[0].storageKey, '7/restored.png')
       assert.equal(countRows(db, 'groups'), 1)
     } finally {
       cleanup()
@@ -254,6 +307,215 @@ describe('database schema', () => {
       assert.deepEqual(snapshot.groups.map((group) => group.token), ['oldtrip1'])
       assert.deepEqual(snapshot.groupMembers.map((member) => member.name), ['Old Member'])
       assert.equal(countRows(db, 'expenses'), 0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('rolls back an expense update whose participant insert fails', async (t) => {
+    let migrated: ReturnType<typeof createMigratedDatabase>
+    try {
+      migrated = createMigratedDatabase()
+    } catch (error) {
+      if (isNativeLoadError(error)) {
+        t.skip('better-sqlite3 native module cannot be loaded in this Node process')
+        return
+      }
+      throw error
+    }
+
+    const { db, cleanup } = migrated
+
+    try {
+      db.exec(`
+        INSERT INTO groups (id, name, token, currency, created_at, is_archived)
+        VALUES (1, 'Trip', 'group123', 'CAD', 1780000000000, 0);
+
+        INSERT INTO group_members (id, group_id, name, email)
+        VALUES
+          (1, 1, 'Alice', NULL),
+          (2, 1, 'Bob', NULL);
+
+        INSERT INTO expenses (
+          id, group_id, title, amount, currency, paid_by_id, date, split_method, created_at
+        )
+        VALUES (1, 1, 'Dinner', 4000, 'CAD', 1, 1780000000000, 'equal', 1780000000000);
+
+        INSERT INTO expense_participants (expense_id, member_id, share_value, amount_cents)
+        VALUES
+          (1, 1, 1, 2000),
+          (1, 2, 1, 2000);
+      `)
+
+      const appDb = drizzle(db, { schema: fullSchema }) as unknown as AppDb
+      const repositories = createDrizzleRepositories(appDb)
+
+      // Member 999 violates the participants FK after the old rows were
+      // deleted; without a transaction the expense would survive with zero
+      // participants and corrupt every balance in the group.
+      await assert.rejects(() =>
+        repositories.expenses.updateWithParticipants(1, {
+          title: 'Dinner v2',
+          amount: 4000,
+          currency: 'CAD',
+          paidById: 1,
+          date: new Date(1780000000000),
+          category: null,
+          notes: null,
+          splitMethod: 'equal',
+          participants: [
+            { memberId: 1, shareValue: 1, amountCents: 2000 },
+            { memberId: 999, shareValue: 1, amountCents: 2000 },
+          ],
+        })
+      )
+
+      assert.equal(countRows(db, 'expense_participants'), 2)
+      const title = db.prepare('SELECT title FROM expenses WHERE id = 1').get() as {
+        title: string
+      }
+      assert.equal(title.title, 'Dinner')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('serializes concurrent transactional expense writes on the shared connection', async (t) => {
+    let migrated: ReturnType<typeof createMigratedDatabase>
+    try {
+      migrated = createMigratedDatabase()
+    } catch (error) {
+      if (isNativeLoadError(error)) {
+        t.skip('better-sqlite3 native module cannot be loaded in this Node process')
+        return
+      }
+      throw error
+    }
+
+    const { db, cleanup } = migrated
+
+    try {
+      db.exec(`
+        INSERT INTO groups (id, name, token, currency, created_at, is_archived)
+        VALUES (1, 'Trip', 'group123', 'CAD', 1780000000000, 0);
+
+        INSERT INTO group_members (id, group_id, name, email)
+        VALUES
+          (1, 1, 'Alice', NULL),
+          (2, 1, 'Bob', NULL);
+      `)
+
+      const appDb = drizzle(db, { schema: fullSchema }) as unknown as AppDb
+      const repositories = createDrizzleRepositories(appDb)
+
+      const expenseInput = (title: string) => ({
+        groupId: 1,
+        title,
+        amount: 4000,
+        currency: 'CAD',
+        paidById: 1,
+        date: new Date(1780000000000),
+        category: null,
+        notes: null,
+        splitMethod: 'equal' as const,
+        createdAt: new Date(1780000000000),
+        participants: [
+          { memberId: 1, shareValue: 1, amountCents: 2000 },
+          { memberId: 2, shareValue: 1, amountCents: 2000 },
+        ],
+      })
+
+      // Two overlapping BEGINs on the shared connection used to throw
+      // "cannot start a transaction within a transaction".
+      await Promise.all([
+        repositories.expenses.createWithParticipants(expenseInput('Dinner A')),
+        repositories.expenses.createWithParticipants(expenseInput('Dinner B')),
+      ])
+
+      assert.equal(countRows(db, 'expenses'), 2)
+      assert.equal(countRows(db, 'expense_participants'), 4)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('enforces one personal transaction per recurring rule occurrence date', async (t) => {
+    let migrated: ReturnType<typeof createMigratedDatabase>
+    try {
+      migrated = createMigratedDatabase()
+    } catch (error) {
+      if (isNativeLoadError(error)) {
+        t.skip('better-sqlite3 native module cannot be loaded in this Node process')
+        return
+      }
+      throw error
+    }
+
+    const { db, cleanup } = migrated
+
+    try {
+      const appDb = drizzle(db, { schema: fullSchema }) as unknown as AppDb
+      const repositories = createDrizzleRepositories(appDb)
+      const occurrenceDate = new Date(1780000000000)
+
+      const first = await repositories.personal.createIfAbsent({
+        type: 'expense',
+        title: 'Rent',
+        amount: 150000,
+        currency: 'CAD',
+        date: occurrenceDate,
+        category: null,
+        note: null,
+        accountLabel: null,
+        sourceRuleId: 99,
+        createdAt: occurrenceDate,
+      })
+      assert.ok(first)
+
+      const duplicate = await repositories.personal.createIfAbsent({
+        type: 'expense',
+        title: 'Rent',
+        amount: 150000,
+        currency: 'CAD',
+        date: occurrenceDate,
+        category: null,
+        note: null,
+        accountLabel: null,
+        sourceRuleId: 99,
+        createdAt: occurrenceDate,
+      })
+      assert.equal(duplicate, null)
+      assert.equal(countRows(db, 'personal_transactions'), 1)
+
+      const nextOccurrence = await repositories.personal.createIfAbsent({
+        type: 'expense',
+        title: 'Rent',
+        amount: 150000,
+        currency: 'CAD',
+        date: new Date(occurrenceDate.getTime() + 86400000),
+        category: null,
+        note: null,
+        accountLabel: null,
+        sourceRuleId: 99,
+        createdAt: occurrenceDate,
+      })
+      assert.ok(nextOccurrence)
+      assert.equal(countRows(db, 'personal_transactions'), 2)
+
+      const manualEntry = await repositories.personal.create({
+        type: 'expense',
+        title: 'Manual entry',
+        amount: 500,
+        currency: 'CAD',
+        date: occurrenceDate,
+        category: null,
+        note: null,
+        accountLabel: null,
+        sourceRuleId: null,
+        createdAt: occurrenceDate,
+      })
+      assert.ok(manualEntry)
+      assert.equal(countRows(db, 'personal_transactions'), 3)
     } finally {
       cleanup()
     }

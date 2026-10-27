@@ -9,13 +9,17 @@ services:
       # Default: localhost only. Production example: 100.72.25.41:3000:3000
       - "${FAIRTAB_PORT_BINDING:-127.0.0.1:3000:3000}"
     volumes:
-      # Override FAIRTAB_DATA_DIR in .env to store the database outside the repo.
+      # SQLite database and uploaded receipts live here — back up this directory.
+      # Override FAIRTAB_DATA_DIR in .env to store them outside the repo.
       # Default: ./data (gitignored). Production example: /srv/data/fairtab
       - "${FAIRTAB_DATA_DIR:-./data}:/data"
     environment:
       NODE_ENV: production
       DATABASE_URL: /data/fairtab.db
+      UPLOADS_DIR: /data/uploads
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      # Optional site-wide PIN gate — set APP_ACCESS_PIN in .env to enable
+      APP_ACCESS_PIN: ${APP_ACCESS_PIN:-}
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s

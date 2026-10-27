@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useMemo, useTransition } from 'react'
+import { useState, useMemo, useTransition, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { Paperclip, Upload, X, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -26,8 +27,8 @@ import {
   timestampToDateInput,
 } from '@/lib/formatting'
 import { GROUP_CATEGORIES, SPLIT_METHODS } from '@/lib/constants'
-import type { GroupMember, SplitMethod, ExpenseWithParticipants } from '@/types'
-import type { AddExpenseAction, UpdateExpenseAction } from '@/types/actions'
+import type { Attachment, GroupMember, SplitMethod, ExpenseWithParticipants } from '@/types'
+import type { AddExpenseAction, DeleteAttachmentAction, UpdateExpenseAction } from '@/types/actions'
 
 interface Props {
   groupToken: string
@@ -36,11 +37,18 @@ interface Props {
   addExpenseAction?: AddExpenseAction
   updateExpenseAction?: UpdateExpenseAction
   expense?: ExpenseWithParticipants
+  storageEnabled?: boolean
+  deleteAttachmentAction?: DeleteAttachmentAction
 }
 
 function initialShareValue(p: { shareValue: number }, method: SplitMethod): string {
   return method === 'exact' ? centsToInputString(p.shareValue) : String(p.shareValue)
 }
+
+const ACCEPT_TYPES = '.jpg,.jpeg,.png,.webp,.heic,.pdf'
+
+// Sentinel for the "Custom…" select entry; never stored
+const CUSTOM_CATEGORY = '__custom__'
 
 export function ExpenseForm({
   groupToken,
@@ -49,11 +57,23 @@ export function ExpenseForm({
   addExpenseAction,
   updateExpenseAction,
   expense,
+  storageEnabled,
+  deleteAttachmentAction,
 }: Props) {
   const router = useRouter()
   const isEdit = Boolean(expense)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+
+  // After new expense is saved, we store its id for the upload step
+  const [savedExpenseId, setSavedExpenseId] = useState<number | null>(null)
+
+  // Upload state
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadedFiles, setUploadedFiles] = useState<Attachment[]>(expense?.attachments ?? [])
+  const [deletingId, setDeletingId] = useState<number | null>(null)
 
   // Form state
   const [title, setTitle] = useState(expense?.title ?? '')
@@ -65,13 +85,19 @@ export function ExpenseForm({
     expense ? String(expense.paidById) : ''
   )
   const [date, setDate] = useState(
-    expense ? timestampToDateInput(expense.date) : new Date().toISOString().split('T')[0]
+    expense ? timestampToDateInput(expense.date) : timestampToDateInput(new Date())
   )
-  const [category, setCategory] = useState<string>(expense?.category ?? '')
+  const initialCategory = expense?.category ?? ''
+  const initialIsCustom =
+    initialCategory !== '' && !(GROUP_CATEGORIES as readonly string[]).includes(initialCategory)
+  const [categoryChoice, setCategoryChoice] = useState<string>(
+    initialIsCustom ? CUSTOM_CATEGORY : initialCategory
+  )
+  const [customCategory, setCustomCategory] = useState(initialIsCustom ? initialCategory : '')
+  const category = categoryChoice === CUSTOM_CATEGORY ? customCategory.trim() : categoryChoice
   const [notes, setNotes] = useState(expense?.notes ?? '')
   const [splitMethod, setSplitMethod] = useState<SplitMethod>(expense?.splitMethod ?? 'equal')
 
-  // Participant state: memberId → checked (equal) or raw shareValue string
   const [checkedMembers, setCheckedMembers] = useState<Set<number>>(
     expense
       ? new Set(expense.participants.map((p) => p.memberId))
@@ -90,7 +116,6 @@ export function ExpenseForm({
 
   const totalCents = dollarsToCentsString(amountStr)
 
-  // Compute preview splits
   const preview = useMemo(() => {
     if (totalCents <= 0) return null
     try {
@@ -180,25 +205,149 @@ export function ExpenseForm({
     }
 
     startTransition(async () => {
-      const result =
-        isEdit && expense && updateExpenseAction
-          ? await updateExpenseAction(groupToken, expense.id, payload)
-          : addExpenseAction
-            ? await addExpenseAction(groupToken, payload)
-            : null
-
-      if (!result) {
-        setError('No action available')
-        return
-      }
-
-      if (result.success) {
-        router.push(`/groups/${groupToken}`)
-        router.refresh()
-      } else {
-        setError(result.error)
+      if (isEdit && expense && updateExpenseAction) {
+        const result = await updateExpenseAction(groupToken, expense.id, payload)
+        if (result.success) {
+          router.push(`/groups/${groupToken}`)
+          router.refresh()
+        } else {
+          setError(result.error)
+        }
+      } else if (addExpenseAction) {
+        const result = await addExpenseAction(groupToken, payload)
+        if (result.success) {
+          // With storage enabled, stay on the form so receipts can be attached
+          // to the just-created expense; navigation happens via Done.
+          if (storageEnabled) {
+            setSavedExpenseId(result.data.id)
+          } else {
+            router.push(`/groups/${groupToken}`)
+            router.refresh()
+          }
+        } else {
+          setError(result.error)
+        }
       }
     })
+  }
+
+  async function handleFileUpload(files: FileList | null) {
+    if (!files || files.length === 0) return
+    const expenseId = savedExpenseId ?? expense?.id
+    if (!expenseId) return
+
+    setUploadError(null)
+    setUploading(true)
+
+    for (const file of Array.from(files)) {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('expenseId', String(expenseId))
+
+      try {
+        const resp = await fetch(`/api/groups/${groupToken}/attachments`, {
+          method: 'POST',
+          body: formData,
+        })
+        const json = await resp.json()
+        if (!resp.ok) {
+          setUploadError(json.error ?? 'Upload failed')
+        } else {
+          setUploadedFiles((prev) => [...prev, json.attachment as Attachment])
+        }
+      } catch {
+        setUploadError('Upload failed — check your connection')
+      }
+    }
+
+    setUploading(false)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  async function handleDeleteUpload(attachment: Attachment) {
+    if (!deleteAttachmentAction) return
+    setDeletingId(attachment.id)
+    const result = await deleteAttachmentAction(attachment.id)
+    setDeletingId(null)
+    if (result.success) {
+      setUploadedFiles((prev) => prev.filter((a) => a.id !== attachment.id))
+    } else {
+      setUploadError(result.error)
+    }
+  }
+
+  // After saving a new expense: show receipt upload step
+  if (savedExpenseId !== null) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 text-green-600">
+          <CheckCircle2 className="h-5 w-5" />
+          <span className="font-medium">Expense saved!</span>
+        </div>
+
+        <div className="space-y-3">
+          <Label className="text-base font-medium">Attach receipts (optional)</Label>
+
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={uploading}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              {uploading ? 'Uploading…' : 'Choose file'}
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ACCEPT_TYPES}
+              multiple
+              className="hidden"
+              onChange={(e) => handleFileUpload(e.target.files)}
+            />
+          </div>
+
+          {uploadError && (
+            <Alert variant="destructive">
+              <AlertDescription>{uploadError}</AlertDescription>
+            </Alert>
+          )}
+
+          {uploadedFiles.length > 0 && (
+            <div className="space-y-1.5">
+              {uploadedFiles.map((a) => (
+                <div key={a.id} className="flex items-center gap-2 text-sm">
+                  <Paperclip className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                  <span className="flex-1 truncate">{a.filename}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteUpload(a)}
+                    disabled={deletingId === a.id}
+                    className="text-muted-foreground hover:text-destructive flex-shrink-0"
+                    aria-label="Remove"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <Button
+          type="button"
+          onClick={() => {
+            router.push(`/groups/${groupToken}`)
+            router.refresh()
+          }}
+          className="w-full"
+        >
+          Done
+        </Button>
+      </div>
+    )
   }
 
   const splitPlaceholder: Record<SplitMethod, string> = {
@@ -271,12 +420,17 @@ export function ExpenseForm({
               value={date}
               onChange={(e) => setDate(e.target.value)}
             />
+            {date > timestampToDateInput(new Date()) && (
+              <p className="text-xs text-amber-600 dark:text-amber-500">
+                This date is in the future — double-check it&apos;s intended.
+              </p>
+            )}
           </div>
         </div>
 
         <div className="space-y-2">
           <Label>Category</Label>
-          <Select value={category} onValueChange={setCategory}>
+          <Select value={categoryChoice} onValueChange={setCategoryChoice}>
             <SelectTrigger aria-label="Expense category">
               <SelectValue placeholder="Select category (optional)" />
             </SelectTrigger>
@@ -286,8 +440,18 @@ export function ExpenseForm({
                   {c}
                 </SelectItem>
               ))}
+              <SelectItem value={CUSTOM_CATEGORY}>Custom…</SelectItem>
             </SelectContent>
           </Select>
+          {categoryChoice === CUSTOM_CATEGORY && (
+            <Input
+              placeholder="Your category"
+              maxLength={50}
+              value={customCategory}
+              onChange={(e) => setCustomCategory(e.target.value)}
+              autoFocus
+            />
+          )}
         </div>
 
         <div className="space-y-2">
@@ -321,7 +485,6 @@ export function ExpenseForm({
           </Select>
         </div>
 
-        {/* Participants */}
         <div className="space-y-2">
           <Label>Participants</Label>
           <Card>
@@ -356,7 +519,6 @@ export function ExpenseForm({
                       className="w-28 text-right"
                     />
                   )}
-                  {/* Preview amount */}
                   {preview && (
                     <span className="text-sm text-muted-foreground w-20 text-right">
                       {formatCurrency(
@@ -389,6 +551,72 @@ export function ExpenseForm({
           )}
         </div>
       </div>
+
+      {/* Receipts section — shown on edit when storage is enabled */}
+      {isEdit && storageEnabled && (
+        <>
+          <Separator />
+          <div className="space-y-3">
+            <Label className="text-base font-medium">Receipts</Label>
+
+            {uploadedFiles.length > 0 && (
+              <div className="space-y-1.5">
+                {uploadedFiles.map((a) => (
+                  <div key={a.id} className="flex items-center gap-2 text-sm">
+                    <Paperclip className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                    <a
+                      href={`/api/groups/${groupToken}/attachments/${a.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary underline truncate flex-1"
+                    >
+                      {a.filename}
+                    </a>
+                    {deleteAttachmentAction && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteUpload(a)}
+                        disabled={deletingId === a.id}
+                        className="text-muted-foreground hover:text-destructive flex-shrink-0"
+                        aria-label="Remove receipt"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={uploading}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                {uploading ? 'Uploading…' : 'Add receipt'}
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={ACCEPT_TYPES}
+                multiple
+                className="hidden"
+                onChange={(e) => handleFileUpload(e.target.files)}
+              />
+            </div>
+
+            {uploadError && (
+              <Alert variant="destructive">
+                <AlertDescription>{uploadError}</AlertDescription>
+              </Alert>
+            )}
+          </div>
+        </>
+      )}
 
       {error && (
         <Alert variant="destructive">

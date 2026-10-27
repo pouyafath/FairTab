@@ -58,6 +58,8 @@ export default async function NewExpensePage({ params }: Props) {
     )
   }
 
+  const storageEnabled = getBackend().storage.isEnabled()
+
   return (
     <div className="container max-w-lg py-12">
       <Card className="overflow-hidden">
@@ -71,6 +73,7 @@ export default async function NewExpensePage({ params }: Props) {
             members={group.members}
             defaultCurrency={group.currency}
             addExpenseAction={addExpense}
+            storageEnabled={storageEnabled}
           />
         </CardContent>
       </Card>

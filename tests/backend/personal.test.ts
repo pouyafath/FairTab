@@ -15,6 +15,7 @@ const transactions: PersonalTransaction[] = [
     category: 'Salary',
     note: null,
     accountLabel: 'Chequing',
+    sourceRuleId: null,
     createdAt: Date.UTC(2026, 4, 15, 12),
   },
   {
@@ -27,6 +28,7 @@ const transactions: PersonalTransaction[] = [
     category: 'Groceries, household',
     note: 'Used "weekly" coupons',
     accountLabel: 'Credit, Card',
+    sourceRuleId: null,
     createdAt: Date.UTC(2026, 4, 16, 12),
   },
   {
@@ -39,6 +41,7 @@ const transactions: PersonalTransaction[] = [
     category: 'Housing',
     note: null,
     accountLabel: 'Chequing',
+    sourceRuleId: null,
     createdAt: Date.UTC(2026, 3, 1, 12),
   },
 ]

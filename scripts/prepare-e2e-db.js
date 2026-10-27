@@ -25,7 +25,12 @@ if (migrate.status !== 0) {
   process.exit(migrate.status ?? 1)
 }
 
-const now = Date.UTC(2026, 5, 1, 12, 0, 0)
+// Noon today, local time: the personal dashboard's month filter defaults to
+// the current month, so a fixed calendar date would hide the seed rows as
+// soon as the real month rolls past it.
+const seedDate = new Date()
+seedDate.setHours(12, 0, 0, 0)
+const now = seedDate.getTime()
 const db = new Database(absoluteDbPath)
 db.pragma('foreign_keys = ON')
 

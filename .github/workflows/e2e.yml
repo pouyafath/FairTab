@@ -20,6 +20,7 @@ jobs:
     timeout-minutes: 20
     env:
       DATABASE_URL: ./.tmp/fairtab-e2e.db
+      FAIRTAB_BACKUP_TOKEN: e2e-fairtab-backup-token
 
     steps:
       - uses: actions/checkout@v4

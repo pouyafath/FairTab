@@ -6,21 +6,23 @@ import { failure } from './result'
 const ARCHIVED_GROUP_ERROR = 'Archived groups are read-only. Unarchive the group to make changes.'
 
 export function createSettlementService({ repositories, now }: BackendServiceDeps) {
+  async function computeBalances(groupId: number): Promise<MemberBalance[]> {
+    const [data, paid] = await Promise.all([
+      repositories.expenses.getBalanceData(groupId),
+      repositories.settlements.findPaidForGroup(groupId),
+    ])
+    return calculateMemberBalances(data.members, data.expenses, paid)
+  }
+
   return {
     async getGroupBalances(groupId: number): Promise<MemberBalance[]> {
-      const data = await repositories.expenses.getBalanceData(groupId)
-      return calculateMemberBalances(data.members, data.expenses)
+      return computeBalances(groupId)
     },
 
     async getSettlementSuggestions(groupId: number): Promise<SettlementSuggestion[]> {
-      const [data, paid] = await Promise.all([
-        repositories.expenses.getBalanceData(groupId),
-        repositories.settlements.findPaidForGroup(groupId),
-      ])
-      const balances = calculateMemberBalances(data.members, data.expenses)
-      const suggestions = calculateSettlements(balances)
-      const paidKeys = new Set(paid.map((s) => `${s.fromMemberId}-${s.toMemberId}`))
-      return suggestions.filter((s) => !paidKeys.has(`${s.fromMember.id}-${s.toMember.id}`))
+      // Balances already net out paid settlements, so suggestions vanish when
+      // debt reaches zero and reappear when new expenses create new debt.
+      return calculateSettlements(await computeBalances(groupId))
     },
 
     async getPaidSettlements(groupId: number): Promise<Settlement[]> {

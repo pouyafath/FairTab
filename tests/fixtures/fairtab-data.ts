@@ -41,6 +41,7 @@ export const mockExpenses: ExpenseWithParticipants[] = [
       amountCents: 3000,
       member,
     })),
+    attachments: [],
   },
 ]
 
@@ -68,6 +69,7 @@ export const mockPersonalTransactions: PersonalTransaction[] = [
     category: 'Salary',
     note: null,
     accountLabel: 'Chequing',
+    sourceRuleId: null,
     createdAt: Date.UTC(2026, 4, 15, 12),
   },
   {
@@ -80,6 +82,7 @@ export const mockPersonalTransactions: PersonalTransaction[] = [
     category: 'Groceries',
     note: null,
     accountLabel: 'Credit Card',
+    sourceRuleId: null,
     createdAt: Date.UTC(2026, 4, 16, 12),
   },
 ]

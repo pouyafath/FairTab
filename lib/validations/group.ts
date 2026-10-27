@@ -7,6 +7,7 @@ export const createGroupSchema = z.object({
 
 export const updateGroupSchema = z.object({
   name: z.string().min(2, 'Group name must be at least 2 characters').max(100),
+  currency: z.enum(['CAD', 'USD', 'EUR', 'GBP']).optional(),
 })
 
 export const addMemberSchema = z.object({

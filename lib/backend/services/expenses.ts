@@ -26,7 +26,7 @@ function validateExpenseMembers(
   return null
 }
 
-export function createExpenseService({ repositories, now }: BackendServiceDeps) {
+export function createExpenseService({ repositories, now, storage }: BackendServiceDeps) {
   return {
     async addExpense(
       groupId: number,
@@ -130,6 +130,10 @@ export function createExpenseService({ repositories, now }: BackendServiceDeps) 
       const group = await repositories.groups.findById(existing.groupId)
       if (!group) return failure<void>('Group not found')
       if (group.isArchived) return failure<void>(ARCHIVED_GROUP_ERROR)
+
+      for (const attachment of existing.attachments) {
+        await storage.delete(attachment.storageKey)
+      }
 
       await repositories.expenses.delete(expenseId)
       return { success: true, data: undefined }

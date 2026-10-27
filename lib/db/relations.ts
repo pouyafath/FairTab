@@ -1,10 +1,11 @@
 import { relations } from 'drizzle-orm'
-import { groups, groupMembers, expenses, expenseParticipants, settlements } from './schema'
+import { groups, groupMembers, expenses, expenseParticipants, settlements, attachments } from './schema'
 
 export const groupsRelations = relations(groups, ({ many }) => ({
   members: many(groupMembers),
   expenses: many(expenses),
   settlements: many(settlements),
+  attachments: many(attachments),
 }))
 
 export const groupMembersRelations = relations(groupMembers, ({ one, many }) => ({
@@ -16,6 +17,7 @@ export const expensesRelations = relations(expenses, ({ one, many }) => ({
   group: one(groups, { fields: [expenses.groupId], references: [groups.id] }),
   paidBy: one(groupMembers, { fields: [expenses.paidById], references: [groupMembers.id] }),
   participants: many(expenseParticipants),
+  attachments: many(attachments),
 }))
 
 export const expenseParticipantsRelations = relations(expenseParticipants, ({ one }) => ({
@@ -39,4 +41,9 @@ export const settlementsRelations = relations(settlements, ({ one }) => ({
     fields: [settlements.toMemberId],
     references: [groupMembers.id],
   }),
+}))
+
+export const attachmentsRelations = relations(attachments, ({ one }) => ({
+  group: one(groups, { fields: [attachments.groupId], references: [groups.id] }),
+  expense: one(expenses, { fields: [attachments.expenseId], references: [expenses.id] }),
 }))

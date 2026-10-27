@@ -55,8 +55,8 @@ export function centsToInputString(cents: number): string {
   return (cents / 100).toFixed(2)
 }
 
-export function timestampToDateInput(value: number): string {
-  const d = new Date(value)
+export function timestampToDateInput(value: number | Date): string {
+  const d = typeof value === 'number' ? new Date(value) : value
   const year = d.getFullYear()
   const month = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')

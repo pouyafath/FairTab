@@ -4,6 +4,7 @@ import { createBackendServices } from '@/lib/backend/services'
 import type { BackendServices } from '@/lib/backend/services'
 import type { GroupMember } from '@/types'
 import { createInMemoryRepositories } from '../support/in-memory-repositories'
+import { createInMemoryStorage } from '../support/in-memory-storage'
 
 const fixedNow = new Date('2026-05-29T10:00:00.000Z')
 
@@ -13,6 +14,7 @@ function createTestBackend() {
     repositories,
     createId: () => 'group123',
     now: () => fixedNow,
+    storage: createInMemoryStorage(),
   })
 
   return { backend, state }
@@ -346,7 +348,7 @@ describe('backend services', () => {
     const { backend } = createTestBackend()
     const { groupId } = await createGroupWithMembers(backend, ['Alice'])
 
-    const result = await backend.groups.renameGroup(groupId, { name: 'Updated Name' })
+    const result = await backend.groups.updateGroup(groupId, { name: 'Updated Name' })
     assert.equal(result.success, true)
     if (!result.success) return
 
@@ -360,9 +362,23 @@ describe('backend services', () => {
     const { backend } = createTestBackend()
     const { groupId } = await createGroupWithMembers(backend, ['Alice'])
 
-    const result = await backend.groups.renameGroup(groupId, { name: 'X' })
+    const result = await backend.groups.updateGroup(groupId, { name: 'X' })
     assert.equal(result.success, false)
     if (!result.success) assert.match(result.error, /at least 2 characters/)
+  })
+
+  it('changes the group currency without touching amounts', async () => {
+    const { backend, state } = createTestBackend()
+    const { groupId } = await createGroupWithMembers(backend, ['Alice'])
+
+    const result = await backend.groups.updateGroup(groupId, { name: 'Test Group', currency: 'EUR' })
+    assert.equal(result.success, true)
+    if (!result.success) return
+    assert.equal(result.data.currency, 'EUR')
+
+    const rejected = await backend.groups.updateGroup(groupId, { name: 'Test Group', currency: 'XYZ' })
+    assert.equal(rejected.success, false)
+    assert.equal(state.groups[0].currency, 'EUR')
   })
 
   it('deletes a group and cascades members, expenses, and participants', async () => {
@@ -532,7 +548,7 @@ describe('backend services', () => {
     if (!result.success) assert.match(result.error, /not found/)
   })
 
-  it('filters paid settlements out of suggestions and supports undo', async () => {
+  it('paid settlements zero out balances and suggestions, and undo restores them', async () => {
     const { backend, state } = createTestBackend()
     const { groupId, members } = await createGroupWithMembers(backend, ['Alice', 'Bob'])
 
@@ -546,7 +562,7 @@ describe('backend services', () => {
       participants: members.map((m) => ({ memberId: m.id, shareValue: 1 })),
     })
 
-    // Before marking paid: suggestion present
+    // Before marking paid: suggestion present, balances show the debt
     const before = await backend.settlements.getSettlementSuggestions(groupId)
     assert.equal(before.length, 1)
     assert.equal(before[0].fromMember.id, members[1].id)
@@ -559,18 +575,77 @@ describe('backend services', () => {
       2000
     )
 
-    // After marking paid: suggestion filtered out
+    // After marking paid: balances net to zero, so no suggestions remain
+    const balancesAfter = await backend.settlements.getGroupBalances(groupId)
+    for (const balance of balancesAfter) assert.equal(balance.netBalance, 0)
     const after = await backend.settlements.getSettlementSuggestions(groupId)
     assert.equal(after.length, 0)
 
     const paid = await backend.settlements.getPaidSettlements(groupId)
     assert.equal(paid.length, 1)
 
-    // Undo: settlement reappears
+    // Undo: the debt and suggestion reappear
     await backend.settlements.undoSettlement(paid[0].id)
     const restored = await backend.settlements.getSettlementSuggestions(groupId)
     assert.equal(restored.length, 1)
     assert.equal(state.settlements.length, 0)
+  })
+
+  it('keeps the residual debt visible after a partial settlement', async () => {
+    const { backend } = createTestBackend()
+    const { groupId, members } = await createGroupWithMembers(backend, ['Alice', 'Bob'])
+
+    await backend.expenses.addExpense(groupId, {
+      title: 'Dinner',
+      amount: 4000,
+      currency: 'CAD',
+      paidById: members[0].id,
+      date: fixedNow.getTime(),
+      splitMethod: 'equal',
+      participants: members.map((m) => ({ memberId: m.id, shareValue: 1 })),
+    })
+
+    await backend.settlements.markSettlementPaid(groupId, members[1].id, members[0].id, 1500)
+
+    const suggestions = await backend.settlements.getSettlementSuggestions(groupId)
+    assert.equal(suggestions.length, 1)
+    assert.equal(suggestions[0].fromMember.id, members[1].id)
+    assert.equal(suggestions[0].amount, 500)
+  })
+
+  it('surfaces new debt between a member pair that already settled once', async () => {
+    const { backend } = createTestBackend()
+    const { groupId, members } = await createGroupWithMembers(backend, ['Alice', 'Bob'])
+
+    await backend.expenses.addExpense(groupId, {
+      title: 'Dinner',
+      amount: 4000,
+      currency: 'CAD',
+      paidById: members[0].id,
+      date: fixedNow.getTime(),
+      splitMethod: 'equal',
+      participants: members.map((m) => ({ memberId: m.id, shareValue: 1 })),
+    })
+    await backend.settlements.markSettlementPaid(groupId, members[1].id, members[0].id, 2000)
+    assert.equal((await backend.settlements.getSettlementSuggestions(groupId)).length, 0)
+
+    // A later expense creates fresh debt for the same pair; it must not be
+    // hidden by the earlier settlement.
+    await backend.expenses.addExpense(groupId, {
+      title: 'Taxi',
+      amount: 1000,
+      currency: 'CAD',
+      paidById: members[0].id,
+      date: fixedNow.getTime(),
+      splitMethod: 'equal',
+      participants: members.map((m) => ({ memberId: m.id, shareValue: 1 })),
+    })
+
+    const suggestions = await backend.settlements.getSettlementSuggestions(groupId)
+    assert.equal(suggestions.length, 1)
+    assert.equal(suggestions[0].fromMember.id, members[1].id)
+    assert.equal(suggestions[0].toMember.id, members[0].id)
+    assert.equal(suggestions[0].amount, 500)
   })
 
   it('archives and unarchives a group', async () => {

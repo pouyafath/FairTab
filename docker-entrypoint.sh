@@ -8,4 +8,6 @@ echo "FairTab: applying migrations ..."
 node /app/scripts/migrate.js
 echo "FairTab: database ready."
 
+mkdir -p "${UPLOADS_DIR:-/data/uploads}"
+
 exec "$@"

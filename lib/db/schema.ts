@@ -111,9 +111,75 @@ export const personalTransactions = sqliteTable(
     category: text('category'),
     note: text('note'),
     accountLabel: text('account_label'),
+    sourceRuleId: integer('source_rule_id'),
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
   },
   (table) => [
     index('personal_transactions_date_idx').on(table.date),
+    uniqueIndex('personal_transactions_source_rule_date_unique').on(
+      table.sourceRuleId,
+      table.date
+    ),
+  ]
+)
+
+export const recurringRules = sqliteTable(
+  'recurring_rules',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    type: text('type', { enum: ['income', 'expense'] }).notNull(),
+    title: text('title').notNull(),
+    amount: integer('amount').notNull(), // cents
+    currency: text('currency').notNull().default('CAD'),
+    category: text('category'),
+    note: text('note'),
+    accountLabel: text('account_label'),
+    frequency: text('frequency', {
+      enum: ['weekly', 'biweekly', 'monthly', 'yearly'],
+    }).notNull(),
+    intervalCount: integer('interval_count').notNull().default(1),
+    // Day-of-month the rule is anchored to. nextRunDate clamps to short
+    // months (Jan 31 -> Feb 28), so without this a monthly rule would drift
+    // to the 28th forever after its first February.
+    anchorDay: integer('anchor_day'),
+    nextRunDate: integer('next_run_date', { mode: 'timestamp_ms' }).notNull(),
+    lastRunDate: integer('last_run_date', { mode: 'timestamp_ms' }),
+    active: integer('active', { mode: 'boolean' }).notNull().default(true),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (table) => [
+    index('recurring_rules_active_next_run_idx').on(table.active, table.nextRunDate),
+  ]
+)
+
+export const savingsGoals = sqliteTable('savings_goals', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  targetAmount: integer('target_amount').notNull(), // cents
+  currentAmount: integer('current_amount').notNull().default(0), // cents
+  currency: text('currency').notNull().default('CAD'),
+  targetDate: integer('target_date', { mode: 'timestamp_ms' }),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+})
+
+export const attachments = sqliteTable(
+  'attachments',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    groupId: integer('group_id')
+      .notNull()
+      .references(() => groups.id, { onDelete: 'cascade' }),
+    expenseId: integer('expense_id').references(() => expenses.id, { onDelete: 'cascade' }),
+    storageKey: text('storage_key').notNull().unique(),
+    filename: text('filename').notNull(),
+    contentType: text('content_type').notNull(),
+    size: integer('size').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (table) => [
+    // Names match migration 0006, which created these before the schema
+    // declared them; a mismatch would make drizzle-kit emit duplicates.
+    index('idx_attachments_group_id').on(table.groupId),
+    index('idx_attachments_expense_id').on(table.expenseId),
   ]
 )

@@ -6,10 +6,27 @@ FairTab ships with a multi-stage `Dockerfile` and a `docker-compose.yml` for eas
 
 ## Before You Deploy
 
-FairTab currently has no authentication or authorization. Anyone who can reach the instance can
-open the shared personal dashboard, and anyone with a group token can manage that group. Restrict
-network access or place FairTab behind an access-control layer when the deployment is not limited
-to trusted users.
+FairTab has no user accounts. Anyone who can reach the instance can open the shared personal
+dashboard, and anyone with a group token can manage that group. For trusted-LAN use that is the
+point; for anything else, enable the built-in access gate and/or restrict network access.
+
+### Access gate (optional)
+
+Set `APP_ACCESS_PIN` (in `.env` next to `docker-compose.yml`, or directly in the compose file)
+to require a PIN once per browser:
+
+```bash
+echo 'APP_ACCESS_PIN=a-long-passphrase-not-1234' >> .env
+docker compose up -d
+```
+
+- Every page and API route redirects to `/unlock` (or returns 401) until the PIN is entered;
+  the resulting cookie lasts 30 days.
+- Unlock attempts are rate limited per IP (10 tries per 15 minutes, then a 15-minute lockout)
+  to slow online guessing — still pick a long passphrase, not a short numeric code.
+- `/api/health` stays open so Docker healthchecks and uptime monitors keep working.
+- Changing the PIN invalidates all existing sessions. Unsetting it disables the gate.
+- Enable this **before** exposing the instance to the internet, and serve it over HTTPS.
 
 See [project-overview.md](project-overview.md#data-and-trust-model) for details.
 
@@ -67,9 +84,12 @@ No manual steps are needed when upgrading — pull the new image and restart.
 
 ```
 ./data/fairtab.db    ← bind-mounted into /data/fairtab.db inside the container
+./data/uploads/      ← uploaded receipt files (created on first boot)
 ```
 
-This is a plain file on your host. Back it up by copying it.
+These are plain files on your host. Back them up by copying the `./data`
+directory, or use Settings → Backup and restore → **Export** for a portable
+JSON export of the database (receipt files stay in `./data/uploads`).
 
 ---
 
@@ -159,24 +179,38 @@ Your `./data/fairtab.db` is never touched by the build — data is always safe.
 
 ## Backup and Restore
 
-### Manual backup
+### JSON backup (token-gated)
+
+Set `FAIRTAB_BACKUP_TOKEN`, then export from Settings → **Backup and
+restore** → **Export**, or:
 
 ```bash
-cp ./data/fairtab.db ./data/fairtab-backup-$(date +%Y%m%d).db
+curl -fsS -H "Authorization: Bearer $FAIRTAB_BACKUP_TOKEN" \
+  http://localhost:3000/api/backups/export -o fairtab-backup-$(date +%Y%m%d).json
 ```
 
-### Automated daily backup
+Export and restore both refuse to run until `FAIRTAB_BACKUP_TOKEN` is
+configured. Restore from Settings → **Backup and restore** (replaces all
+data, type-to-confirm `REPLACE ALL FAIRTAB DATA`). Receipt files are not in
+the JSON — they live in `./data/uploads`, so back up the whole `./data`
+directory too. See [docs/database.md](./database.md#backup) for the full
+backup model.
+
+### File-level backup
 
 ```bash
-# Add to crontab (crontab -e)
-0 2 * * * cp ~/FairTab/data/fairtab.db ~/FairTab/data/backup-$(date +\%Y\%m\%d).db
+# Manual — covers database AND receipts
+cp -r ./data ./data-backup-$(date +%Y%m%d)
+
+# Automated daily backup (crontab -e)
+0 2 * * * cp -r ~/FairTab/data ~/FairTab/data-backup-$(date +\%Y\%m\%d)
 ```
 
-### Restore
+### File-level restore
 
 ```bash
 docker compose down
-cp ./data/backup-20260101.db ./data/fairtab.db
+rm -rf ./data && cp -r ./data-backup-20260101 ./data
 docker compose up -d
 ```
 
