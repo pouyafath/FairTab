@@ -191,8 +191,10 @@ begin
   perform public.require_user();
   perform public._require_not_archived(
     (select group_id from public.expenses where id = p_expense_id and public.is_group_member(group_id)));
+  -- Like _write_expense: someone who left can still be in a payment (settling up), not in an expense.
   if exists (select 1 from public.expense_shares s join public.group_members m on m.id = s.member_id
-             where s.expense_id = p_expense_id and m.left_at is not null) then
+             join public.expenses e on e.id = s.expense_id
+             where s.expense_id = p_expense_id and m.left_at is not null and e.kind <> 'payment') then
     raise exception 'This expense involves someone who has left the group, so it cannot be restored' using errcode = '22023';
   end if;
   update public.expenses set deleted_at = null, updated_at = now()

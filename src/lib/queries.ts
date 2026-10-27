@@ -194,14 +194,17 @@ export interface CreateRecurringArgs extends Record<string, unknown> {
 }
 
 export const useCreateRecurring = () => useRpc<CreateRecurringArgs, string>('create_recurring');
-export const useSetRecurringPaused = () => useRpc<{ p_recurring_id: string; p_paused: boolean }>('set_recurring_paused');
+export const useSetRecurringPaused = () =>
+  useRpc<{ p_recurring_id: string; p_paused: boolean; p_today: string }>('set_recurring_paused');
 export const useDeleteRecurring = () => useRpc<{ p_recurring_id: string }>('delete_recurring');
 
 export function useUpdate<T extends Record<string, unknown>>(table: 'groups' | 'group_members' | 'profiles') {
   const invalidate = useInvalidateAll();
   return useMutation({
     mutationFn: async ({ id, values }: { id: string; values: T }) => {
-      check(await supabase.from(table).update(values as never).eq('id', id));
+      const rows = check(await supabase.from(table).update(values as never).eq('id', id).select('id'));
+      // Row level security turns a refused update into "nothing changed" rather than an error.
+      if (!rows?.length) throw new Error('Nothing was saved: the group may be archived, or you are no longer a member.');
     },
     onSuccess: () => {
       void invalidate();

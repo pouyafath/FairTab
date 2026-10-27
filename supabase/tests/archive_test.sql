@@ -379,4 +379,34 @@ begin
   end;
 end $$;
 
+-- A deleted payment with someone who has left can be restored (payments with them are allowed);
+-- an expense with them cannot.
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
+do $$
+declare gid uuid; me uuid; tom uuid; taxi uuid; pay uuid;
+begin
+  gid := public.create_group('Taxi', 'EUR');
+  select id into me from public.group_members where group_id = gid and user_id = auth.uid();
+  insert into public.group_members (group_id, display_name) values (gid, 'Tom') returning id into tom;
+  taxi := public.save_expense(gid, 'Taxi', 2000, 'EUR', jsonb_build_array(
+    jsonb_build_object('member_id', tom, 'paid', 2000, 'owed', 1000),
+    jsonb_build_object('member_id', me, 'paid', 0, 'owed', 1000)));
+  pay := public.save_expense(gid, 'Payment', 1000, 'EUR', jsonb_build_array(
+    jsonb_build_object('member_id', me, 'paid', 1000, 'owed', 0),
+    jsonb_build_object('member_id', tom, 'paid', 0, 'owed', 1000)), p_kind => 'payment');
+  perform public.remove_member(tom);
+  perform public.delete_expense(pay);
+  perform public.restore_expense(pay);
+  if (select deleted_at from public.expenses where id = pay) is not null then
+    raise exception 'FAIL: payment with a former member was not restored';
+  end if;
+  perform public.delete_expense(taxi);
+  begin
+    perform public.restore_expense(taxi);
+    raise exception 'FAIL: restored an expense with a former member';
+  exception when sqlstate '22023' then null;
+  end;
+  perform public.delete_group(gid);
+end $$;
+
 \echo 'ARCHIVE TESTS PASSED'

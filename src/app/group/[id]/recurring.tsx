@@ -6,6 +6,7 @@ import { Button, Card, Empty, ErrorText, Loading, Screen, T } from '@/components
 import { Spacing } from '@/constants/theme';
 import { formatMoney } from '@/domain';
 import { repeatEnded, repeatSummary } from '@/domain/recurring';
+import { todayLocal } from '@/lib/dates';
 import { useDeleteRecurring, useInvalidateAll, useRecurringExpenses, useSetRecurringPaused } from '@/lib/queries';
 import { useGroup } from '@/lib/use-group';
 
@@ -83,7 +84,7 @@ export default function RecurringScreen() {
                         title={rule.paused ? 'Resume' : 'Pause'}
                         variant="secondary"
                         loading={pause.isPending && busy(pause)}
-                        onPress={() => pause.mutate({ p_recurring_id: rule.id, p_paused: !rule.paused })}
+                        onPress={() => pause.mutate({ p_recurring_id: rule.id, p_paused: !rule.paused, p_today: todayLocal() })}
                       />
                     </View>
                   )}

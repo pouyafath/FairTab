@@ -12,7 +12,8 @@ const sql = readdirSync(migrationsDir)
   .filter((f) => f.endsWith('.sql'))
   .sort()
   .map((f) => readFileSync(join(migrationsDir, f), 'utf8'))
-  .join('\n');
+  .join('\n')
+  .replace(/--[^\n]*/g, ''); // comments could otherwise look like statements
 
 /** The text between the bracket at `open` and its matching closing bracket. */
 function block(text: string, open: number): string {
@@ -49,12 +50,19 @@ interface SqlFunction {
 
 /** The latest definition of each function, in migration order. */
 const functions = new Map<string, SqlFunction>();
+/** Functions defined with different parameter lists and never dropped: Postgres keeps both (overloads). */
+const overloaded = new Set<string>();
 for (const m of sql.matchAll(/create\s+(?:or\s+replace\s+)?function\s+public\.(\w+)\s*\(/gi)) {
   const open = m.index! + m[0].length - 1;
   const params = splitTopLevel(block(sql, open)).map((p) => ({
     name: p.split(/\s+/)[0],
     optional: /\bdefault\b/i.test(p),
   }));
+  const previous = functions.get(m[1]);
+  const dropped = new RegExp(`drop\\s+function\\s+(if\\s+exists\\s+)?public\\.${m[1]}\\b`, 'i').test(sql);
+  if (previous && previous.params.map((p) => p.name).join() !== params.map((p) => p.name).join() && !dropped) {
+    overloaded.add(m[1]);
+  }
   functions.set(m[1], { params });
 }
 
@@ -84,15 +92,21 @@ function keysOf(typeBody: string) {
 
 const calls: AppCall[] = [];
 const queries = readFileSync(join(root, 'src', 'lib', 'queries.ts'), 'utf8');
-const interfaces = new Map<string, string>();
-for (const m of queries.matchAll(/interface\s+(\w+)\s+extends\s+Record<string,\s*unknown>\s*\{/g)) {
-  interfaces.set(m[1], block(queries, m.index! + m[0].length - 1));
+const namedTypes = new Map<string, string>();
+for (const m of queries.matchAll(/(?:interface\s+(\w+)\s+extends\s+Record<string,\s*unknown>|type\s+(\w+)\s*=)\s*\{/g)) {
+  namedTypes.set(m[1] ?? m[2], block(queries, m.index! + m[0].length - 1));
 }
+/** Calls that could not be read: the test fails on them instead of silently skipping them. */
+const unreadable: string[] = [];
 for (const m of queries.matchAll(/useRpc<\s*(\{|\w+)/g)) {
-  const typeBody = m[1] === '{' ? block(queries, m.index! + m[0].length - 1) : interfaces.get(m[1]);
+  if (m[1] === 'A') continue; // the useRpc definition itself
+  const typeBody = m[1] === '{' ? block(queries, m.index! + m[0].length - 1) : namedTypes.get(m[1]);
   // The function name is the string right after the generic: useRpc<...>('name') (maybe on its own line).
-  const fn = /^useRpc<[\s\S]*?>\(\s*'(\w+)'\s*,?\s*\)/.exec(queries.slice(m.index!))?.[1];
-  if (!fn || typeBody === undefined || m[1] === 'A') continue; // skip the useRpc definition itself
+  const fn = /^useRpc<[\s\S]*?>\(\s*['"](\w+)['"]\s*,?\s*\)/.exec(queries.slice(m.index!))?.[1];
+  if (!fn || typeBody === undefined) {
+    unreadable.push(queries.slice(m.index!, m.index! + 80));
+    continue;
+  }
   // Object type literals in one line ("{ p_a: string; p_b: number }") need splitting on ';'.
   calls.push({ where: `queries.ts useRpc('${fn}')`, fn, keys: keysOf(typeBody.replace(/;/g, ';\n')) });
 }
@@ -104,10 +118,16 @@ function sourceFiles(dir: string): string[] {
 }
 for (const file of sourceFiles(join(root, 'src'))) {
   const text = readFileSync(file, 'utf8');
-  for (const m of text.matchAll(/supabase\.rpc\(\s*'(\w+)'\s*,\s*\{/g)) {
-    const body = block(text, m.index! + m[0].length - 1);
+  for (const m of text.matchAll(/supabase\.rpc\(/g)) {
+    const call = /^supabase\.rpc\(\s*['"](\w+)['"]\s*(?:,\s*\{|\))/.exec(text.slice(m.index!));
+    if (!call) {
+      // useRpc's own generic call (supabase.rpc(fn, args)) is checked through the useRpc calls above.
+      if (!/^supabase\.rpc\(fn, args\)/.test(text.slice(m.index!))) unreadable.push(`${file}: ${text.slice(m.index!, m.index! + 60)}`);
+      continue;
+    }
+    const body = call[0].endsWith('{') ? block(text, m.index! + call[0].length - 1) : '';
     const keys = [...body.matchAll(/(p_\w+)\s*:/g)].map((k) => ({ name: k[1], optional: false }));
-    calls.push({ where: `${file.slice(root.length + 1)} rpc('${m[1]}')`, fn: m[1], keys });
+    calls.push({ where: `${file.slice(root.length + 1)} rpc('${call[1]}')`, fn: call[1], keys });
   }
 }
 
@@ -115,12 +135,14 @@ describe('app ↔ database functions', () => {
   it('found the calls and functions to check', () => {
     expect(calls.length).toBeGreaterThan(15);
     expect(functions.size).toBeGreaterThan(15);
+    expect(unreadable, 'calls this test cannot read; write them like the others').toEqual([]);
   });
 
   it.each(calls.map((c) => [c.where, c] as const))('%s matches the SQL function', (_where, call) => {
     const fn = functions.get(call.fn);
     expect(fn, `public.${call.fn} is not defined in supabase/migrations`).toBeDefined();
     expect(callable.has(call.fn), `public.${call.fn} is not granted to authenticated`).toBe(true);
+    expect(overloaded.has(call.fn), `public.${call.fn} has two versions with different parameters; drop the old one`).toBe(false);
     const params = new Set(fn!.params.map((p) => p.name));
     for (const key of call.keys) {
       expect(params.has(key.name), `public.${call.fn} has no parameter ${key.name}`).toBe(true);

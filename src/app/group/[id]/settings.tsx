@@ -71,6 +71,7 @@ function SettingsForm({ group, members, meId }: { group: Group; members: Member[
         <T variant="small" selectable>{inviteUrl(group.invite_code)}</T>
         <Button
           title="Share invite link"
+          disabled={archived}
           onPress={() => shareInvite(group.name, group.invite_code).then((s) => setShareStatus(s === 'copied' ? 'Link copied' : ''))}
         />
         {shareStatus ? <T variant="small" muted>{shareStatus}</T> : null}
@@ -90,9 +91,9 @@ function SettingsForm({ group, members, meId }: { group: Group; members: Member[
             key={m.id}
             title={m.id === meId ? `${m.display_name} (you)` : m.display_name}
             subtitle={m.user_id ? 'joined' : 'not joined yet'}
-            right={m.id === meId ? undefined : <T variant="small" muted>remove</T>}
+            right={m.id === meId || archived ? undefined : <T variant="small" muted>remove</T>}
             onPress={
-              m.id === meId
+              m.id === meId || archived
                 ? undefined
                 : () => confirm(`Remove ${m.display_name} from the group?`, () => removeMember.mutate({ p_member_id: m.id }))
             }

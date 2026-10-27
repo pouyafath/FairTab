@@ -28,7 +28,7 @@ FairTab is a Splitwise alternative. One codebase runs on **iOS, Android and the 
 - **Archive** a finished group: it becomes read-only and moves to the bottom of the list. **Recently deleted** brings back deleted expenses and payments.
 - Remove people or leave a group once settled up. The group's creator can delete the group.
 - **Import from Splitwise:** the CSV export of a group, including history, payments and balances.
-- **Search and filters** on a group's expenses (by words, who paid, or category), and **Export CSV**: a spreadsheet of the whole group in Splitwise's format, so you can keep a copy or import it again.
+- **Search and filters** on a group's expenses (by words, who paid, or category), and **Export CSV**: the whole group in Splitwise's spreadsheet format, so you can keep a copy or import it again. On the web it downloads a .csv file; on phones it opens the share sheet with the CSV text (save it as a .csv file to import it later).
 - **Invite-only mode:** only people whose email you list can create an account.
 - Light and dark mode.
 
@@ -69,7 +69,7 @@ Security lives in the database: row-level security means people can only read gr
 
 ## Database updates
 
-Already set up the backend? Run each new file below in the SQL Editor, in order: open the link, select everything, copy, paste into the SQL Editor, click **Run**. Each file only needs to be run once.
+Already set up the backend? Run each new file below in the SQL Editor, in order: open the link, select everything, copy, paste into the SQL Editor, click **Run**. Each file only needs to be run once. If you see an error saying something "already exists", that file was already run and nothing was changed.
 
 - [`supabase/migrations/20261027000100_archive_and_restore.sql`](https://raw.githubusercontent.com/pouyafath/FairTab/main/supabase/migrations/20261027000100_archive_and_restore.sql): lets members archive a group so it becomes read-only (and unarchive it again).
 - [`supabase/migrations/20261027000200_recurring.sql`](https://raw.githubusercontent.com/pouyafath/FairTab/main/supabase/migrations/20261027000200_recurring.sql): adds recurring expenses (rent, subscriptions); the app adds the ones that are due whenever someone opens it.
@@ -94,7 +94,7 @@ This repository is public, so GitHub Pages is free. Every push to `main` rebuild
 
 Good to know:
 - Supabase's free plan **pauses a project after 7 days without activity**. Open the dashboard and click **Restore** soon. A paused free project can only be restored for a limited time (Supabase has used 90 days and, more recently, up to a year). After that you can only download its backup and load it into a new project.
-- The free plan has no backups you can restore yourself, so keep your own copy now and then. The simplest way: in **Table Editor**, open each table (`groups`, `group_members`, `expenses`, `expense_shares`, `profiles`) and use **Export → CSV**. Advanced: `pg_dump` with the connection string from **Connect**, or `npx supabase db dump` (needs Docker). Save backups **outside this folder** (for example in your Documents): this repository is public, and a backup contains everyone's names and expenses.
+- The free plan has no backups you can restore yourself, so keep your own copy now and then. The simplest way: in **Table Editor**, open each table and use **Export → CSV**: `profiles`, `groups`, `group_members`, `recurring_expenses`, `expenses`, `expense_shares` and `signup_allowlist`. To restore into a new project, run the database files first, then import the CSVs in that same order. Advanced: `pg_dump` with the connection string from **Connect**, or `npx supabase db dump` (needs Docker). Save backups **outside this folder** (for example in your Documents): this repository is public, and a backup contains everyone's names and expenses.
 - Optional custom domain: add it under Settings → Pages, then add a repository variable `WEB_URL` (for example `https://fairtab.example.com`) so the app is built for the root of that domain.
 - Other free hosts also work, since the web build is a plain static site: Cloudflare Pages (works with private repositories too), Netlify, Vercel. Point them at `npx expo export --platform web` with output folder `dist`, and make sure unknown paths fall back to `index.html`.
 

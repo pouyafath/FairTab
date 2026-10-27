@@ -18,7 +18,7 @@ Splitwise facts come from Splitwise's help center and app-store listings, plus t
 | **Groups & people** | Add people before they join | Yes | Yes | Yes | Yes |
 | | Remove people / leave | Only when settled up | Same | Only when settled up; history kept | Only people with no expenses |
 | | Delete group | Yes (restorable) | Same | Creator only (recoverable by you in Supabase) | Yes, by anyone with the link |
-| | Archive group | Auto-hidden after 40+ days settled | Same | Not yet (planned) | Yes (mostly read-only) |
+| | Archive group | Auto-hidden after 40+ days settled | Same | Yes (read-only; any member can unarchive) | Yes (mostly read-only) |
 | | Expenses outside any group | Yes | Yes | No | No |
 | **Expenses** | Equal / exact / percent / shares | Yes | Yes | Yes | Yes (whole % only) |
 | | Adjustment, itemized, reimbursement splits | Yes (receipt-scan itemizing is Pro) | Yes | No | No |
@@ -26,7 +26,7 @@ Splitwise facts come from Splitwise's help center and app-store listings, plus t
 | | Categories / notes | Yes | Yes | Yes / Yes | Yes / Yes |
 | | Default split per group | No | Yes | No | No |
 | | Receipt photos | 1 photo per expense | 10 GB + OCR scan | Not yet (planned) | Only on v2, self-hosted only |
-| | Recurring expenses | Yes | Yes | Not yet (planned) | No (v2: personal only) |
+| | Recurring expenses | Yes | Yes | Yes (weekly, monthly, yearly; pause and resume) | No (v2: personal only) |
 | | Comments | Yes | Yes | No | No |
 | **Balances** | Recording a payment reduces balances | Yes | Yes | Yes | **Bug on main**: payments are ignored (fixed on v2) |
 | | Partial payments | Yes | Yes | Yes | No |
@@ -36,10 +36,10 @@ Splitwise facts come from Splitwise's help center and app-store listings, plus t
 | **Money** | Multiple currencies | Yes, separate balances | Yes | Yes, any currency | 4 currencies, one per group |
 | | Currency conversion | No | Yes | No (planned, free) | No |
 | **History & data** | Activity feed | Yes | Yes | Basic | No |
-| | Restore deleted expense | Yes | Yes | In the database, no button yet | No |
-| | Search | No | Yes | No | Personal ledger only |
+| | Restore deleted expense | Yes | Yes | Yes ("Recently deleted") | No |
+| | Search | No | Yes | Yes (words, who paid, category) | Personal ledger only |
 | | Charts | Small chart | Full | No | Personal ledger only |
-| | Export | CSV | CSV + JSON | Not yet (planned) | Personal CSV + full JSON backup (**open to anyone by default** on main) |
+| | Export | CSV | CSV + JSON | CSV in Splitwise's format (a file on the web, shared text on phones) | Personal CSV + full JSON backup (**open to anyone by default** on main) |
 | | Import from Splitwise | n/a | n/a | **Yes** (CSV) | No |
 | **Extras** | Personal finance (own income/spending) | No | No | No (possible later) | Yes (one shared ledger, no login) |
 | | Notifications | Email/push | Same | No | No |
@@ -49,7 +49,7 @@ Splitwise facts come from Splitwise's help center and app-store listings, plus t
 | | Languages | 7+ | Same | English (Persian planned) | English |
 | **Running it** | Free hosting today | n/a | n/a | **Ready**: GitHub Pages + Supabase free plan | **Broken**: all 22 recorded cloud deploys failed; needs 3 fixes |
 | | Backups | n/a | JSON download | Your own `supabase db dump` | JSON export/restore (restore likely fails on Cloudflare D1) |
-| | Tests | n/a | n/a | 64 unit tests + database security tests, run in CI | 77 tests (129 on v2); CI red on main |
+| | Tests | n/a | n/a | 119 unit tests + 3 database test files, run in CI | 77 tests (129 on v2); CI red on main |
 
 ## Why the new app replaced the first FairTab
 
@@ -65,14 +65,14 @@ But its foundations were missing three things: accounts, safe access control, an
 - categories and notes;
 - the Interac e-Transfer message;
 - deleting a group;
-- removing people only once they are settled up.
-
-**Planned next:**
+- removing people only once they are settled up;
 - archive groups;
 - CSV export;
 - search and filters;
 - a currency picker;
-- recurring expenses, using v2's design;
+- recurring expenses, using v2's design (anchor day, no duplicates, capped catch-up).
+
+**Planned next:**
 - receipt photos;
 - optionally, the personal-finance tab.
 

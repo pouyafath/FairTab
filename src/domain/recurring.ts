@@ -39,3 +39,22 @@ export function repeatHint(frequency: RepeatFrequency, startOn: string, today: s
   if (startOn === today) return `Added today, ${then}.`;
   return `Added for ${startOn} and every date since, ${then}.`;
 }
+
+/**
+ * How many dates from `startOn` up to `today` (both YYYY-MM-DD) a new recurring expense adds right
+ * away. Used to ask before a start date in the past adds several expenses at once.
+ */
+export function datesDueNow(startOn: string, today: string, frequency: RepeatFrequency): number {
+  if (startOn > today) return 0;
+  const [sy, sm, sd] = startOn.split('-').map(Number);
+  const [ty, tm, td] = today.split('-').map(Number);
+  if (frequency === 'weekly') {
+    const days = Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(sy, sm - 1, sd)) / 86400000);
+    return Math.floor(days / 7) + 1;
+  }
+  // Month ends count as reached on the last day of shorter months (Jan 31 -> Feb 28), like the database.
+  const lastDay = new Date(Date.UTC(ty, tm, 0)).getUTCDate();
+  const dayReached = td >= Math.min(sd, lastDay);
+  if (frequency === 'monthly') return (ty - sy) * 12 + (tm - sm) + (dayReached ? 1 : 0);
+  return ty - sy + (tm > sm || (tm === sm && dayReached) ? 1 : 0);
+}

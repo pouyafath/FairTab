@@ -6,6 +6,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 PREFIX=${TEST_DB_PREFIX:-fairtab_test}
+if [[ ! $PREFIX =~ ^[a-z_][a-z0-9_]*$ ]]; then
+  echo "TEST_DB_PREFIX must use only lowercase letters, digits and _ (got: $PREFIX)" >&2
+  exit 1
+fi
 psql -q -v ON_ERROR_STOP=1 -d postgres -c "do \$\$ begin
   if not exists (select from pg_roles where rolname = 'anon') then create role anon nologin; end if;
   if not exists (select from pg_roles where rolname = 'authenticated') then create role authenticated nologin; end if;

@@ -8,6 +8,8 @@ import { keys } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
 
 const MIN_GAP_MS = 60 * 60 * 1000; // at most once an hour
+const BUDGET = 200; // run_recurring stops after about this many; call again while it returns at least this
+const MAX_CALLS = 5;
 
 /**
  * Adds recurring expenses that are due (rent, subscriptions): once after sign-in, and again when the
@@ -29,13 +31,20 @@ export function useRecurringRunner() {
       running = true;
       lastRun.current = { userId, at: Date.now() };
       try {
-        // The device's date, so a date that is "today" here is added today (the database uses UTC).
-        const { data, error } = await supabase.rpc('run_recurring', { p_today: todayLocal() });
-        if (error) throw error;
+        let added = 0;
+        for (let call = 0; call < MAX_CALLS; call++) {
+          // The device's date, so a date that is "today" here is added today (the database uses UTC).
+          const { data, error } = await supabase.rpc('run_recurring', { p_today: todayLocal() });
+          if (error) throw error;
+          added += Number(data);
+          if (Number(data) < BUDGET) break;
+        }
         // Something was added: refresh everything. Otherwise only the rules may have moved on.
-        void client.invalidateQueries(Number(data) > 0 ? undefined : { queryKey: keys.recurring });
+        void client.invalidateQueries(added > 0 ? undefined : { queryKey: keys.recurring });
       } catch {
-        // Not critical (offline, or the database update has not been run yet): try again next time.
+        // Not critical (offline, or the database update has not been run yet): allow a retry on the
+        // next foreground instead of waiting an hour.
+        lastRun.current = { userId: '', at: 0 };
       } finally {
         running = false;
       }

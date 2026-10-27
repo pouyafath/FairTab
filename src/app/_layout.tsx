@@ -7,6 +7,7 @@ import { Card, Screen, T } from '@/components/ui';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { isConfigured } from '@/lib/supabase';
+import { useRecurringRunner } from '@/lib/use-recurring-runner';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -29,6 +30,8 @@ export default function RootLayout() {
 
 function RootStack() {
   const { session, loading } = useAuth();
+  // Adds due recurring expenses whatever screen the app opens on (a group or invite link included).
+  useRecurringRunner();
 
   useEffect(() => {
     if (!loading) SplashScreen.hideAsync();

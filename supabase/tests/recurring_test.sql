@@ -14,6 +14,15 @@ create function pg_temp.act_as(uid text) returns void language sql as $$
 $$;
 -- The migration removes PUBLIC's default EXECUTE on new functions, so grant this test helper explicitly.
 grant execute on function pg_temp.act_as(text) to authenticated, anon;
+-- Test-only: move a rule back in time. The app cannot start a rule more than a year ago, but these
+-- tests need fixed historical dates (month ends, leap years, long catch-ups).
+create function pg_temp.backdate(p_rid uuid, p_start date, p_end date default null) returns void
+language sql security definer as $$
+  update public.recurring_expenses
+     set start_on = p_start, next_on = p_start, anchor_day = extract(day from p_start), end_on = p_end
+   where id = p_rid;
+$$;
+grant execute on function pg_temp.backdate(uuid, date, date) to authenticated;
 
 create temp table ctx (k text primary key, v text);
 grant all on ctx to authenticated;
@@ -27,6 +36,7 @@ begin
     'public.recurring_next_date(date,text,int,int)',
     'public._recurring_first_on_or_after(date,text,int,int,date)',
     'public._check_recurring(uuid,bigint,jsonb,text,int,date,date)',
+    'public._check_recurring_dates(date,date,date)',
     'public._materialize_recurring(uuid,date)',
     'public.run_recurring_all()'
   ] loop
@@ -36,8 +46,8 @@ begin
   end loop;
   foreach fn in array array[
     'public.create_recurring(uuid,text,bigint,text,jsonb,text,int,date,date,text,text,date)',
-    'public.update_recurring(uuid,text,bigint,text,jsonb,text,int,date,date,text,text)',
-    'public.set_recurring_paused(uuid,boolean)',
+    'public.update_recurring(uuid,text,bigint,text,jsonb,text,int,date,date,text,text,date)',
+    'public.set_recurring_paused(uuid,boolean,date)',
     'public.delete_recurring(uuid)',
     'public.run_recurring(date)'
   ] loop
@@ -107,7 +117,9 @@ begin
   rid := public.create_recurring(gid, ' Rent ', 100000, 'eur', jsonb_build_array(
       jsonb_build_object('member_id', me, 'paid', 100000, 'owed', 50000),
       jsonb_build_object('member_id', dana, 'paid', 0, 'owed', 50000)),
-    'monthly', 1, make_date(y, 1, 31), make_date(y, 3, 31), 'Rent', 'Paid to the landlord');
+    'monthly', 1, current_date + 1, null, 'Rent', 'Paid to the landlord');
+  perform pg_temp.backdate(rid, make_date(y, 1, 31), make_date(y, 3, 31));
+  perform public.run_recurring();
   insert into ctx values ('monthly', rid);
 
   select array_agg(spent_on order by spent_on) into dates from public.expenses where recurring_id = rid;
@@ -132,7 +144,9 @@ begin
   -- The same in a leap year, whatever this year is.
   rid := public.create_recurring(gid, 'Rent 2024', 1000, 'EUR', jsonb_build_array(
       jsonb_build_object('member_id', me, 'paid', 1000, 'owed', 1000)),
-    'monthly', 1, '2024-01-31', '2024-03-31');
+    'monthly', 1, current_date + 1);
+  perform pg_temp.backdate(rid, '2024-01-31', '2024-03-31');
+  perform public.run_recurring();
   insert into ctx values ('leap', rid);
   select array_agg(spent_on order by spent_on) into dates from public.expenses where recurring_id = rid;
   if dates is distinct from array['2024-01-31', '2024-02-29', '2024-03-31']::date[] then
@@ -212,7 +226,9 @@ declare
 begin
   rid := public.create_recurring(gid, 'Cleaner', 2000, 'EUR',
     jsonb_build_array(jsonb_build_object('member_id', me, 'paid', 2000, 'owed', 2000)),
-    'weekly', p_start_on => current_date - 7 * 70);
+    'weekly', p_start_on => current_date + 1);
+  perform pg_temp.backdate(rid, current_date - 7 * 70);
+  perform public.run_recurring();
   insert into ctx values ('weekly', rid);
   if (select count(*) from public.expenses where recurring_id = rid) <> 60
      or (select next_on from public.recurring_expenses where id = rid) is distinct from current_date - 7 * 10 then
@@ -522,7 +538,7 @@ begin
   end;
 end $$;
 
--- The scheduler function runs every group's rules; a deleted group's rules are paused.
+-- The scheduler function runs every group's rules; a deleted group's rules are left alone (so restoring the group from the dashboard brings them back).
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
 do $$
 begin
@@ -545,8 +561,8 @@ begin
   update public.groups set deleted_at = now() where id = (select v from ctx where k = 'gid')::uuid;
   update public.recurring_expenses set next_on = current_date - 1 where id = rid;
   n := public.run_recurring_all();
-  if n <> 0 or not (select paused from public.recurring_expenses where id = rid) then
-    raise exception 'FAIL: a deleted group''s rule was not paused';
+  if n <> 0 or (select paused from public.recurring_expenses where id = rid) then
+    raise exception 'FAIL: the scheduler added to or paused a deleted group''s rule';
   end if;
 end $$;
 
@@ -645,7 +661,17 @@ begin
   if (select paused from public.recurring_expenses where id = rid) then
     raise exception 'FAIL: archiving paused the recurring expense';
   end if;
+  -- Unarchiving skips the dates missed while archived (like resuming), instead of adding them all.
+  reset role;
+  update public.recurring_expenses set next_on = current_date - 28 where id = rid;
+  set role authenticated;
   perform public.unarchive_group(gid);
+  if (select next_on from public.recurring_expenses where id = rid) < current_date - 1 then
+    raise exception 'FAIL: unarchiving left missed dates to back-fill (next_on %)', (select next_on from public.recurring_expenses where id = rid);
+  end if;
+  if public.run_recurring() > 1 then
+    raise exception 'FAIL: unarchiving back-filled the missed dates';
+  end if;
   perform public.delete_group(gid);
 end $$;
 
@@ -676,6 +702,87 @@ begin
     raise exception 'FAIL: scheduler did not catch up after unarchiving (got %)', (select count(*) from public.expenses where group_id = gid) - before;
   end if;
   delete from public.groups where id = gid;
+end $$;
+
+-- Start dates must be real and at most a year back, so a typo in the year cannot add hundreds of expenses.
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
+do $$
+declare gid uuid; me uuid; shares jsonb;
+begin
+  gid := public.create_group('Dates', 'EUR');
+  select id into me from public.group_members where group_id = gid and user_id = auth.uid();
+  shares := jsonb_build_array(jsonb_build_object('member_id', me, 'paid', 100, 'owed', 100));
+  begin
+    perform public.create_recurring(gid, 'Typo', 100, 'EUR', shares, 'weekly', p_start_on => current_date - 3650);
+    raise exception 'FAIL: start date ten years ago accepted';
+  exception when sqlstate '22023' then null;
+  end;
+  begin
+    perform public.create_recurring(gid, 'Inf', 100, 'EUR', shares, 'weekly', p_start_on => '-infinity'::date);
+    raise exception 'FAIL: infinite start date accepted';
+  exception when sqlstate '22023' then null;
+  end;
+  begin
+    perform public.create_recurring(gid, 'Inf end', 100, 'EUR', shares, 'weekly', p_start_on => current_date, p_end_on => 'infinity'::date);
+    raise exception 'FAIL: infinite end date accepted';
+  exception when sqlstate '22023' then null;
+  end;
+  perform public.delete_group(gid);
+end $$;
+
+-- run_recurring stops after about 200 expenses per call (so it never hits the time limit); the next call continues.
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
+do $$
+declare gid uuid; me uuid; i int; first int; second int; third int;
+begin
+  gid := public.create_group('Backlog', 'EUR');
+  select id into me from public.group_members where group_id = gid and user_id = auth.uid();
+  for i in 1..5 loop
+    perform public.create_recurring(gid, 'Weekly ' || i, 100, 'EUR',
+      jsonb_build_array(jsonb_build_object('member_id', me, 'paid', 100, 'owed', 100)), 'weekly',
+      p_start_on => current_date + 1);
+  end loop;
+  insert into ctx values ('backlog_gid', gid);
+end $$;
+reset role;
+update public.recurring_expenses set next_on = current_date - 7 * 52
+ where group_id = (select v from ctx where k = 'backlog_gid')::uuid; -- 53 dates due for each of the 5
+set role authenticated;
+do $$
+declare first int; second int;
+begin
+  first := public.run_recurring(current_date);
+  second := public.run_recurring(current_date);
+  if first < 200 or first >= 265 or first + second <> 265 or public.run_recurring(current_date) <> 0 then
+    raise exception 'FAIL: run_recurring budget: % then %', first, second;
+  end if;
+  perform public.delete_group((select v from ctx where k = 'backlog_gid')::uuid);
+end $$;
+
+-- Resuming uses the app's date: in the evening in the Americas the database (UTC) is already on
+-- tomorrow, and the expense due "today" (local) must still be added.
+do $$
+declare gid uuid; me uuid; rid uuid; local_today date := current_date - 1;
+begin
+  gid := public.create_group('Evening', 'CAD');
+  select id into me from public.group_members where group_id = gid and user_id = auth.uid();
+  rid := public.create_recurring(gid, 'Cleaner', 5000, 'CAD',
+    jsonb_build_array(jsonb_build_object('member_id', me, 'paid', 5000, 'owed', 5000)), 'weekly',
+    p_start_on => current_date + 1);
+  perform public.set_recurring_paused(rid, true, local_today);
+  insert into ctx values ('evening_rid', rid), ('evening_gid', gid);
+end $$;
+reset role;
+update public.recurring_expenses set next_on = current_date - 1 where id = (select v from ctx where k = 'evening_rid')::uuid;
+set role authenticated;
+do $$
+declare rid uuid := (select v from ctx where k = 'evening_rid')::uuid;
+begin
+  perform public.set_recurring_paused(rid, false, current_date - 1);
+  if not exists (select 1 from public.expenses where recurring_id = rid and occurrence_on = current_date - 1) then
+    raise exception 'FAIL: resuming in the evening skipped today''s expense';
+  end if;
+  perform public.delete_group((select v from ctx where k = 'evening_gid')::uuid);
 end $$;
 
 \echo 'RECURRING TESTS PASSED'

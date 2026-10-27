@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { repeatEnded, repeatHint, repeatLabel, repeatSummary } from './recurring';
+import { datesDueNow, repeatEnded, repeatHint, repeatLabel, repeatSummary } from './recurring';
 
 const rule = { frequency: 'monthly' as const, interval_count: 1, next_on: '2026-11-01', end_on: null, paused: false };
 
@@ -25,5 +25,17 @@ describe('recurring wording', () => {
     expect(repeatHint('monthly', '2026-11-01', '2026-10-27')).toBe('The first one is added on 2026-11-01, then every month.');
     expect(repeatHint('weekly', '2026-10-27', '2026-10-27')).toBe('Added today, then every week.');
     expect(repeatHint('yearly', '2026-01-15', '2026-10-27')).toBe('Added for 2026-01-15 and every date since, then every year.');
+  });
+});
+
+describe('datesDueNow', () => {
+  it('counts the dates a new recurring expense adds at once', () => {
+    expect(datesDueNow('2026-11-01', '2026-10-27', 'monthly')).toBe(0);
+    expect(datesDueNow('2026-10-27', '2026-10-27', 'weekly')).toBe(1);
+    expect(datesDueNow('2026-10-06', '2026-10-27', 'weekly')).toBe(4);
+    expect(datesDueNow('2026-01-31', '2026-03-30', 'monthly')).toBe(2); // Jan 31, Feb 28 (Mar 31 not yet)
+    expect(datesDueNow('2026-01-31', '2026-02-28', 'monthly')).toBe(2);
+    expect(datesDueNow('2025-10-28', '2026-10-27', 'yearly')).toBe(1);
+    expect(datesDueNow('2025-10-27', '2026-10-27', 'yearly')).toBe(2);
   });
 });

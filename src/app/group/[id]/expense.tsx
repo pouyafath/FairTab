@@ -17,7 +17,7 @@ import {
   type SplitEntry,
   type SplitMethod,
 } from '@/domain';
-import type { RepeatFrequency } from '@/domain/recurring';
+import { datesDueNow, type RepeatFrequency } from '@/domain/recurring';
 import { isValidDate, todayLocal } from '@/lib/dates';
 import { useCreateRecurring, useDeleteExpense, useSaveExpense } from '@/lib/queries';
 import type { Expense, Group, Member } from '@/lib/types';
@@ -160,7 +160,7 @@ function ExpenseForm({ group, members, meId, expense }: { group: Group; members:
     for (const [memberId, value] of Object.entries(owed)) share(memberId).owed = value;
     if (repeat && !expense) {
       // The recurring expense adds this first one itself (now, or on the date if it is in the future).
-      createRecurring.mutate(
+      const create = () => createRecurring.mutate(
         {
           p_group_id: group.id,
           p_description: description.trim(),
@@ -175,6 +175,21 @@ function ExpenseForm({ group, members, meId, expense }: { group: Group; members:
         },
         { onSuccess: () => router.back() },
       );
+      // A start date in the past adds every date since then right away: ask first.
+      const due = datesDueNow(date, todayLocal(), repeat);
+      if (due > 1) {
+        const question = `This starts on ${date}, so ${due} expenses (one for each date since then) will be added now. Continue?`;
+        if (Platform.OS === 'web') {
+          if (window.confirm(question)) create();
+        } else {
+          Alert.alert('Add past dates?', question, [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Add them', onPress: create },
+          ]);
+        }
+      } else {
+        create();
+      }
       return;
     }
     save.mutate(
