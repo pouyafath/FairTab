@@ -1,6 +1,7 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { View } from 'react-native';
 
+import { ArchivedNotice } from '@/components/archive';
 import { ExpenseRow } from '@/components/expense-row';
 import { BalanceText, Button, Card, Empty, ErrorText, ListRow, Loading, Screen, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
@@ -38,14 +39,17 @@ export default function GroupScreen() {
   return (
     <Screen refreshing={refreshing} onRefresh={refresh}>
       <Stack.Screen options={{ title: group.name }} />
-      <View style={{ flexDirection: 'row', gap: Spacing.two }}>
-        <View style={{ flex: 1 }}>
-          <Button title="Add expense" onPress={() => router.push({ pathname: '/group/[id]/expense', params: { id } })} />
+      <ArchivedNotice group={group} />
+      {group.archived_at ? null : (
+        <View style={{ flexDirection: 'row', gap: Spacing.two }}>
+          <View style={{ flex: 1 }}>
+            <Button title="Add expense" onPress={() => router.push({ pathname: '/group/[id]/expense', params: { id } })} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Button title="Settle up" variant="secondary" onPress={() => router.push({ pathname: '/group/[id]/settle', params: { id } })} />
+          </View>
         </View>
-        <View style={{ flex: 1 }}>
-          <Button title="Settle up" variant="secondary" onPress={() => router.push({ pathname: '/group/[id]/settle', params: { id } })} />
-        </View>
-      </View>
+      )}
       <ErrorText error={error} />
 
       <Card>
@@ -107,6 +111,7 @@ export default function GroupScreen() {
       )}
 
       <Button title="Group settings & invite" variant="secondary" onPress={() => router.push({ pathname: '/group/[id]/settings', params: { id } })} />
+      <Button title="Recently deleted" variant="secondary" onPress={() => router.push({ pathname: '/group/[id]/deleted', params: { id } })} />
     </Screen>
   );
 }

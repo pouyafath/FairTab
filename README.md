@@ -23,6 +23,7 @@ FairTab is a Splitwise alternative. One codebase runs on **iOS, Android and the 
 - A **"Copy Interac e-Transfer message"** button for CAD groups (and a plain payment message for other currencies).
 - **Friends tab:** your balance with each person, added up across all groups.
 - Activity feed. Edit and delete expenses.
+- **Archive** a finished group: it becomes read-only and moves to the bottom of the list. **Recently deleted** brings back deleted expenses and payments.
 - Remove people or leave a group once settled up. The group's creator can delete the group.
 - **Import from Splitwise:** the CSV export of a group, including history, payments and balances.
 - **Invite-only mode:** only people whose email you list can create an account.
@@ -47,7 +48,7 @@ Security lives in the database: row-level security means people can only read gr
 ## Set up the backend (free, about 20 minutes)
 
 1. Create a free account and project at [supabase.com](https://supabase.com).
-2. Open **SQL Editor**, paste the whole of `supabase/migrations/20261026000000_init.sql` and click **Run**.
+2. Open **SQL Editor**, paste the whole of `supabase/migrations/20261026000000_init.sql` and click **Run**. Then run each file listed under [Database updates](#database-updates) the same way, in order.
 3. **Invite-only (recommended while it's just for you):** in **Table Editor → signup_allowlist**, add a row with your own email address, written in lowercase. Add each friend's email the same way. While this table has at least one row, nobody else can create an account. If you empty it, anyone can sign up.
 4. **Sign-in emails.** Under **Authentication → Emails**, edit both the **"Confirm signup"** and the **"Magic Link"** templates so they show the code, for example `Your FairTab code is {{ .Token }}`. New users get the first email and returning users get the second. The app accepts 6–10 digit codes.
 5. **Email sending.** Supabase's built-in sender only delivers to your own Supabase team, at about 2 emails per hour. To email friends, go to **Authentication → Emails → SMTP Settings** and use a Gmail account. This needs no domain of your own:
@@ -60,6 +61,12 @@ Security lives in the database: row-level security means people can only read gr
    - the **Publishable key** (starts with `sb_publishable_`), under **API Keys**. If your project only shows legacy keys, use the `anon` key.
 
    Never use the secret key (`sb_secret_…`) or the `service_role` key in the app.
+
+## Database updates
+
+Already set up the backend? Run each new file below in the SQL Editor, in order (open it on GitHub, click Raw, copy everything, paste, Run):
+
+- `supabase/migrations/20261027000100_archive_and_restore.sql`: lets members archive a group so it becomes read-only (and unarchive it again).
 
 ## Put it online for free (GitHub Pages)
 

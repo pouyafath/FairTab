@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Platform, View } from 'react-native';
 
+import { ReadOnlyExpense } from '@/components/read-only-expense';
 import { Button, Card, Chip, ChipRow, ErrorText, Field, Loading, Screen, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { parseAmount, toInputString } from '@/domain';
@@ -27,6 +28,7 @@ export default function SettleScreen() {
       </Screen>
     );
   }
+  if (group.archived_at) return <ReadOnlyExpense group={group} expense={payment} members={members} meId={me.id} />;
   // Former members can still be paid back (or pay back) what was owed when they left.
   const involved = new Set([params.from, params.to, ...(payment?.expense_shares.map((s) => s.member_id) ?? [])]);
   const formMembers = members.filter((m) => !m.left_at || involved.has(m.id));

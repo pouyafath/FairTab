@@ -12,6 +12,8 @@ export interface Group {
   invite_code: string;
   created_by: string | null;
   created_at: string;
+  /** Set while the group is archived (read-only). Missing until the archive database update is run. */
+  archived_at?: string | null;
 }
 
 export interface Member {
@@ -43,3 +45,6 @@ export interface Expense {
   created_at: string;
   expense_shares: ShareRow[];
 }
+
+/** An expense or payment someone deleted; it can be restored from "Recently deleted". */
+export type DeletedExpense = Expense & { deleted_at: string };
