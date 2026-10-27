@@ -1,10 +1,14 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import { View } from 'react-native';
 
+import { ExpenseFilters } from '@/components/expense-filters';
 import { ExpenseRow } from '@/components/expense-row';
+import { ExportCsvButton } from '@/components/export-button';
 import { BalanceText, Button, Card, Empty, ErrorText, ListRow, Loading, Screen, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { formatMoney, netBalances } from '@/domain';
+import { filterExpenses, NO_FILTER } from '@/lib/filters';
 import { groupTransfers, toLedger, type Amounts } from '@/lib/ledger';
 import { useInvalidateAll } from '@/lib/queries';
 import { useGroup } from '@/lib/use-group';
@@ -13,6 +17,7 @@ export default function GroupScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { loading, error, refreshing, group, members, membersById, me, expenses } = useGroup(id);
   const refresh = useInvalidateAll();
+  const [filter, setFilter] = useState(NO_FILTER);
 
   if (loading) return <Loading />;
   if (!group) {
@@ -34,6 +39,8 @@ export default function GroupScreen() {
   };
   const transfers = groupTransfers(group, expenses);
   const name = (memberId: string) => (memberId === me?.id ? 'You' : membersById.get(memberId)?.display_name ?? '?');
+  // Balances above always use every expense; the search and filters only narrow the list below.
+  const shown = filterExpenses(expenses, filter);
 
   return (
     <Screen refreshing={refreshing} onRefresh={refresh}>
@@ -82,13 +89,16 @@ export default function GroupScreen() {
       ) : null}
 
       <T variant="label" muted>Expenses</T>
+      {expenses.length > 0 ? (
+        <ExpenseFilters expenses={expenses} shown={shown.length} filter={filter} onChange={setFilter} members={membersById} myMemberId={me?.id} />
+      ) : null}
       {expenses.length === 0 ? (
         <Empty title="No expenses yet">
           <T muted style={{ textAlign: 'center' }}>Add the first one, or invite people from the group settings.</T>
         </Empty>
       ) : (
         <View>
-          {expenses.map((e) => (
+          {shown.map((e) => (
             <ExpenseRow
               key={e.id}
               expense={e}
@@ -106,6 +116,7 @@ export default function GroupScreen() {
         </View>
       )}
 
+      <ExportCsvButton group={group} members={members} expenses={expenses} />
       <Button title="Group settings & invite" variant="secondary" onPress={() => router.push({ pathname: '/group/[id]/settings', params: { id } })} />
     </Screen>
   );

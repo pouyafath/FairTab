@@ -25,6 +25,7 @@ FairTab is a Splitwise alternative. One codebase runs on **iOS, Android and the 
 - Activity feed. Edit and delete expenses.
 - Remove people or leave a group once settled up. The group's creator can delete the group.
 - **Import from Splitwise:** the CSV export of a group, including history, payments and balances.
+- **Search and filters** on a group's expenses (by words, who paid, or category), and **Export CSV**: a spreadsheet of the whole group in Splitwise's format, so you can keep a copy or import it again.
 - **Invite-only mode:** only people whose email you list can create an account.
 - Light and dark mode.
 
