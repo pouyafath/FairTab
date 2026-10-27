@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Platform, Switch, View } from 'react-native';
 
+import { ArchivedNotice, ArchiveGroupButton } from '@/components/archive';
 import { Button, Card, ErrorText, Field, ListRow, Loading, Screen, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useUserId } from '@/lib/auth';
@@ -54,12 +55,15 @@ function SettingsForm({ group, members, meId }: { group: Group; members: Member[
   const regenerate = useRegenerateInvite();
   const leave = useLeaveGroup();
   const deleteGroup = useDeleteGroup();
+  // Archived groups are read-only (the database refuses changes too).
+  const archived = !!group.archived_at;
 
   const changed = name.trim() !== group.name || currency !== group.default_currency;
   const validCurrency = /^[A-Z]{3}$/.test(currency);
 
   return (
     <Screen>
+      <ArchivedNotice group={group} />
       <Card>
         <T variant="heading">Invite people</T>
         <T muted>Anyone with this link can join the group. They can also take over a person you already added.</T>
@@ -72,6 +76,7 @@ function SettingsForm({ group, members, meId }: { group: Group; members: Member[
         <Button
           title="Make a new link (old one stops working)"
           variant="secondary"
+          disabled={archived}
           loading={regenerate.isPending}
           onPress={() => confirm('Make a new invite link?', () => regenerate.mutate({ p_group_id: group.id }))}
         />
@@ -100,7 +105,7 @@ function SettingsForm({ group, members, meId }: { group: Group; members: Member[
           </View>
           <Button
             title="Add"
-            disabled={!guestName.trim()}
+            disabled={archived || !guestName.trim()}
             loading={addGuest.isPending}
             onPress={() =>
               addGuest.mutate({ group_id: group.id, display_name: guestName.trim() }, { onSuccess: () => setGuestName('') })
@@ -123,7 +128,7 @@ function SettingsForm({ group, members, meId }: { group: Group; members: Member[
         />
         <Button
           title="Save"
-          disabled={!changed || !validCurrency || !name.trim()}
+          disabled={archived || !changed || !validCurrency || !name.trim()}
           loading={update.isPending}
           onPress={() => update.mutate({ id: group.id, values: { name: name.trim(), default_currency: currency } })}
         />
@@ -134,12 +139,14 @@ function SettingsForm({ group, members, meId }: { group: Group; members: Member[
           </View>
           <Switch
             value={group.simplify_debts}
+            disabled={archived}
             onValueChange={(v) => update.mutate({ id: group.id, values: { simplify_debts: v } })}
           />
         </View>
         <ErrorText error={update.error} />
       </Card>
 
+      <ArchiveGroupButton group={group} />
       <ErrorText error={leave.error ?? regenerate.error ?? deleteGroup.error} />
       <Button
         title="Leave group"

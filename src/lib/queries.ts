@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { supabase } from '@/lib/supabase';
-import type { Expense, Group, Member, Profile } from '@/lib/types';
+import type { DeletedExpense, Expense, Group, Member, Profile } from '@/lib/types';
 
 const EXPENSE_COLUMNS = '*, expense_shares(member_id, paid, owed)';
 const PAGE = 1000; // Supabase returns at most 1000 rows per request by default.
@@ -86,6 +86,25 @@ export function useExpenses() {
   });
 }
 
+/** Deleted expenses and payments of one group, most recently deleted first. */
+export function useDeletedExpenses(groupId: string) {
+  return useQuery({
+    queryKey: ['deleted-expenses', groupId],
+    enabled: !!groupId,
+    queryFn: () =>
+      fetchAll<DeletedExpense>((from, to) =>
+        supabase
+          .from('expenses')
+          .select(EXPENSE_COLUMNS)
+          .eq('group_id', groupId)
+          .not('deleted_at', 'is', null)
+          .order('deleted_at', { ascending: false })
+          .order('id')
+          .range(from, to),
+      ),
+  });
+}
+
 /** Refetch everything after a change. Data is small, so this keeps things simple and correct. */
 export function useInvalidateAll() {
   const client = useQueryClient();
@@ -119,10 +138,13 @@ export interface SaveExpenseArgs extends Record<string, unknown> {
 
 export const useSaveExpense = () => useRpc<SaveExpenseArgs, string>('save_expense');
 export const useDeleteExpense = () => useRpc<{ p_expense_id: string }>('delete_expense');
+export const useRestoreExpense = () => useRpc<{ p_expense_id: string }>('restore_expense');
 export const useCreateGroup = () => useRpc<{ p_name: string; p_currency: string }, string>('create_group');
 export const useJoinGroup = () => useRpc<{ p_code: string; p_claim_member_id: string | null }, string>('join_group');
 export const useLeaveGroup = () => useRpc<{ p_group_id: string }>('leave_group');
 export const useDeleteGroup = () => useRpc<{ p_group_id: string }>('delete_group');
+export const useArchiveGroup = () => useRpc<{ p_group_id: string }>('archive_group');
+export const useUnarchiveGroup = () => useRpc<{ p_group_id: string }>('unarchive_group');
 export const useRemoveMember = () => useRpc<{ p_member_id: string }>('remove_member');
 export const useRegenerateInvite = () => useRpc<{ p_group_id: string }, string>('regenerate_invite');
 export const useImportMore = () => useRpc<{ p_group_id: string; p_entries: unknown[] }>('import_more');

@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { View } from 'react-native';
 
+import { ArchivedGroups } from '@/components/archived-groups';
 import { BalanceText, Button, Empty, ErrorText, ListRow, Loading, Screen, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useUserId } from '@/lib/auth';
@@ -38,7 +39,7 @@ export default function Groups() {
         </Empty>
       ) : (
         <View>
-          {groups.data?.map((group) => {
+          {groups.data?.filter((g) => !g.archived_at).map((group) => {
             const me = members.data?.find((m) => m.group_id === group.id && m.user_id === userId);
             const count = members.data?.filter((m) => m.group_id === group.id && !m.left_at).length ?? 0;
             const net = myNet(me?.id, expenses.data?.filter((e) => e.group_id === group.id) ?? []);
@@ -52,6 +53,7 @@ export default function Groups() {
               />
             );
           })}
+          <ArchivedGroups groups={groups.data?.filter((g) => !!g.archived_at) ?? []} />
         </View>
       )}
     </Screen>

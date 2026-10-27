@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Platform, View } from 'react-native';
 
+import { ReadOnlyExpense } from '@/components/read-only-expense';
 import { Button, Card, Chip, ChipRow, ErrorText, Field, ListRow, Loading, Screen, T } from '@/components/ui';
 import { CATEGORIES } from '@/constants/categories';
 import { Spacing } from '@/constants/theme';
@@ -39,6 +40,7 @@ export default function ExpenseScreen() {
       </Screen>
     );
   }
+  if (group.archived_at) return <ReadOnlyExpense group={group} expense={expense} members={members} meId={me.id} />;
   // New expenses can only include current members; an old expense also keeps the people in it.
   const inExpense = new Set(expense?.expense_shares.map((s) => s.member_id) ?? []);
   const formMembers = members.filter((m) => !m.left_at || inExpense.has(m.id));
