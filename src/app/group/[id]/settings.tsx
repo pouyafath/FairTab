@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Alert, Platform, Switch, View } from 'react-native';
 
 import { ArchivedNotice, ArchiveGroupButton } from '@/components/archive';
+import { CurrencyPicker } from '@/components/currency-picker';
 import { Button, Card, ErrorText, Field, ListRow, Loading, Screen, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useUserId } from '@/lib/auth';
@@ -118,12 +119,11 @@ function SettingsForm({ group, members, meId }: { group: Group; members: Member[
       <Card>
         <T variant="heading">Settings</T>
         <Field label="Group name" value={name} onChangeText={setName} maxLength={100} />
-        <Field
+        <CurrencyPicker
           label="Default currency"
           value={currency}
-          onChangeText={(v) => setCurrency(v.toUpperCase())}
-          autoCapitalize="characters"
-          maxLength={3}
+          onChange={setCurrency}
+          pinned={[group.default_currency]}
           error={validCurrency ? undefined : 'Use a 3-letter code'}
         />
         <Button

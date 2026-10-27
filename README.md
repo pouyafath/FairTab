@@ -20,6 +20,7 @@ FairTab is a Splitwise alternative. One codebase runs on **iOS, Android and the 
 - **Categories and notes** on expenses.
 - **Recurring expenses** (rent, subscriptions): added again by themselves every week, month or year. Pause, resume or delete them any time.
 - **Multiple currencies**, with balances kept separately per currency.
+- **Currency picker:** search common currencies by name or code ("euro", "CAD"). Any other 3-letter code works too.
 - Balances, **simplified debts** (on/off per group), and recording payments to settle up.
 - A **"Copy Interac e-Transfer message"** button for CAD groups (and a plain payment message for other currencies).
 - **Friends tab:** your balance with each person, added up across all groups.

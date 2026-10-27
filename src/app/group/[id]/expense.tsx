@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Platform, View } from 'react-native';
 
+import { CurrencyPicker } from '@/components/currency-picker';
 import { ReadOnlyExpense } from '@/components/read-only-expense';
 import { RepeatCard } from '@/components/repeat-card';
 import { Button, Card, Chip, ChipRow, ErrorText, Field, ListRow, Loading, Screen, T } from '@/components/ui';
@@ -216,12 +217,11 @@ function ExpenseForm({ group, members, meId, expense }: { group: Group; members:
           <Field label="Amount" value={amountText} onChangeText={setAmountText} keyboardType="decimal-pad" placeholder="0.00" />
         </View>
         <View style={{ flex: 1 }}>
-          <Field
+          <CurrencyPicker
             label="Currency"
             value={currency}
-            onChangeText={(v) => setCurrency(v.toUpperCase())}
-            autoCapitalize="characters"
-            maxLength={3}
+            onChange={setCurrency}
+            pinned={[group.default_currency]}
             error={validCurrency ? undefined : 'e.g. EUR'}
           />
         </View>

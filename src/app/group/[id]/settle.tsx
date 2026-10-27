@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Platform, View } from 'react-native';
 
+import { CurrencyPicker } from '@/components/currency-picker';
 import { ReadOnlyExpense } from '@/components/read-only-expense';
 import { Button, Card, Chip, ChipRow, ErrorText, Field, Loading, Screen, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
@@ -112,7 +113,7 @@ function SettleForm({
           <Field label="Amount" value={amountText} onChangeText={setAmountText} keyboardType="decimal-pad" />
         </View>
         <View style={{ flex: 1 }}>
-          <Field label="Currency" value={currency} onChangeText={(v) => setCurrency(v.toUpperCase())} autoCapitalize="characters" maxLength={3} />
+          <CurrencyPicker label="Currency" value={currency} onChange={setCurrency} pinned={[group.default_currency]} />
         </View>
       </View>
       <T variant="small" muted>
