@@ -10,11 +10,17 @@ alter table public.groups add column if not exists archived_at timestamptz;
 -- Helpers
 ------------------------------------------------------------------------------
 
--- True when the group exists, is not deleted and is not archived. Used by row level security.
+-- True when the signed-in user is a member of the group and it is not deleted or archived.
+-- Used by row level security. Checking membership here too means people outside the group
+-- always get false, so they cannot use it to find out whether a group exists or is archived.
 create or replace function public.group_is_active(gid uuid) returns boolean
 language sql stable security definer set search_path = '' as $$
   select exists (
-    select 1 from public.groups g where g.id = gid and g.deleted_at is null and g.archived_at is null
+    select 1
+    from public.group_members m
+    join public.groups g on g.id = m.group_id
+    where m.group_id = gid and m.user_id = (select auth.uid())
+      and g.deleted_at is null and g.archived_at is null
   )
 $$;
 

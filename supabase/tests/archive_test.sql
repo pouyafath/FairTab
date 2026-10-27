@@ -92,11 +92,15 @@ begin
   perform public.join_group((select v from ctx where k = 'code'));
 end $$;
 
--- Mallory is not a member: she cannot archive, unarchive or restore anything.
+-- Mallory is not a member: she cannot archive, unarchive or restore anything, and cannot use
+-- group_is_active to find out whether the group exists.
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000c');
 do $$
 declare gid uuid := (select v from ctx where k = 'gid');
 begin
+  if public.group_is_active(gid) then
+    raise exception 'FAIL: group_is_active tells an outsider that the group exists';
+  end if;
   begin
     perform public.archive_group(gid);
     raise exception 'FAIL: outsider archived the group';
@@ -324,11 +328,26 @@ begin
   end if;
 end $$;
 
+-- Bob left, so he cannot use group_is_active to see that the group is active again.
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000b');
+do $$
+begin
+  if public.group_is_active((select v from ctx where k = 'gid')::uuid) then
+    raise exception 'FAIL: group_is_active tells a former member that the group is active';
+  end if;
+end $$;
+
 -- Mallory can join again once the group is no longer archived.
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000c');
 do $$
 begin
+  if public.group_is_active((select v from ctx where k = 'gid')::uuid) then
+    raise exception 'FAIL: group_is_active tells an outsider that the group is active';
+  end if;
   perform public.join_group((select v from ctx where k = 'code'));
+  if not public.group_is_active((select v from ctx where k = 'gid')::uuid) then
+    raise exception 'FAIL: group_is_active is false for a new member of an active group';
+  end if;
   if not exists (select 1 from public.groups where id = (select v from ctx where k = 'gid')::uuid) then
     raise exception 'FAIL: could not join after unarchiving';
   end if;
@@ -344,6 +363,9 @@ begin
   perform public.delete_group(gid);
   if exists (select 1 from public.groups where id = gid) then
     raise exception 'FAIL: could not delete an archived group';
+  end if;
+  if public.group_is_active(gid) then
+    raise exception 'FAIL: a deleted group counts as active';
   end if;
   begin
     perform public.unarchive_group(gid);
