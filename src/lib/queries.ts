@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { supabase } from '@/lib/supabase';
-import type { Expense, Group, Member, Profile } from '@/lib/types';
+import type { DeletedExpense, Expense, Group, Member, Profile, RecurringExpense } from '@/lib/types';
 
 const EXPENSE_COLUMNS = '*, expense_shares(member_id, paid, owed)';
 const PAGE = 1000; // Supabase returns at most 1000 rows per request by default.
@@ -10,14 +10,25 @@ async function fetchAll<T>(build: (from: number, to: number) => PromiseLike<{ da
   const rows: T[] = [];
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await build(from, from + PAGE - 1);
-    if (error) throw error;
+    if (error) throw friendlyError(error);
     rows.push(...(data ?? []));
     if (!data || data.length < PAGE) return rows;
   }
 }
 
+/**
+ * A newer feature called before its database file was run in Supabase shows up as "function/table not
+ * found". Say what to do instead of showing that technical message.
+ */
+function friendlyError(error: Error & { code?: string }): Error {
+  if (['PGRST202', 'PGRST205', '42883', '42P01', '42703'].includes(error.code ?? '')) {
+    return new Error('This needs a database update: run the new files listed under "Database updates" in the README.');
+  }
+  return error;
+}
+
 function check<T>({ data, error }: { data: T; error: Error | null }): T {
-  if (error) throw error;
+  if (error) throw friendlyError(error);
   return data;
 }
 
@@ -27,6 +38,7 @@ export const keys = {
   members: ['members'] as const,
   profiles: ['profiles'] as const,
   expenses: ['expenses'] as const,
+  recurring: ['recurring'] as const,
 };
 
 export function useProfile(userId: string) {
@@ -86,6 +98,34 @@ export function useExpenses() {
   });
 }
 
+/** Deleted expenses and payments of one group, most recently deleted first. */
+export function useDeletedExpenses(groupId: string) {
+  return useQuery({
+    queryKey: ['deleted-expenses', groupId],
+    enabled: !!groupId,
+    queryFn: () =>
+      fetchAll<DeletedExpense>((from, to) =>
+        supabase
+          .from('expenses')
+          .select(EXPENSE_COLUMNS)
+          .eq('group_id', groupId)
+          .not('deleted_at', 'is', null)
+          .order('deleted_at', { ascending: false })
+          .order('id')
+          .range(from, to),
+      ),
+  });
+}
+
+/** Recurring expenses (rent, subscriptions) in all my groups, next date first. */
+export function useRecurringExpenses() {
+  return useQuery({
+    queryKey: keys.recurring,
+    queryFn: async () =>
+      check(await supabase.from('recurring_expenses').select('*').order('next_on').order('id')) as RecurringExpense[],
+  });
+}
+
 /** Refetch everything after a change. Data is small, so this keeps things simple and correct. */
 export function useInvalidateAll() {
   const client = useQueryClient();
@@ -119,10 +159,13 @@ export interface SaveExpenseArgs extends Record<string, unknown> {
 
 export const useSaveExpense = () => useRpc<SaveExpenseArgs, string>('save_expense');
 export const useDeleteExpense = () => useRpc<{ p_expense_id: string }>('delete_expense');
+export const useRestoreExpense = () => useRpc<{ p_expense_id: string }>('restore_expense');
 export const useCreateGroup = () => useRpc<{ p_name: string; p_currency: string }, string>('create_group');
 export const useJoinGroup = () => useRpc<{ p_code: string; p_claim_member_id: string | null }, string>('join_group');
 export const useLeaveGroup = () => useRpc<{ p_group_id: string }>('leave_group');
 export const useDeleteGroup = () => useRpc<{ p_group_id: string }>('delete_group');
+export const useArchiveGroup = () => useRpc<{ p_group_id: string }>('archive_group');
+export const useUnarchiveGroup = () => useRpc<{ p_group_id: string }>('unarchive_group');
 export const useRemoveMember = () => useRpc<{ p_member_id: string }>('remove_member');
 export const useRegenerateInvite = () => useRpc<{ p_group_id: string }, string>('regenerate_invite');
 export const useImportMore = () => useRpc<{ p_group_id: string; p_entries: unknown[] }>('import_more');
@@ -131,11 +174,37 @@ export const useImportGroup = () =>
     'import_group',
   );
 
+/**
+ * An expense plus a schedule. p_start_on is the first date (today when left out). p_today is the
+ * device's date, so "today" means the same day here and in the database (which uses UTC).
+ */
+export interface CreateRecurringArgs extends Record<string, unknown> {
+  p_group_id: string;
+  p_description: string;
+  p_amount: number;
+  p_currency: string;
+  p_shares: { member_id: string; paid: number; owed: number }[];
+  p_frequency: 'weekly' | 'monthly' | 'yearly';
+  p_interval?: number;
+  p_start_on?: string | null;
+  p_end_on?: string | null;
+  p_category?: string | null;
+  p_notes?: string | null;
+  p_today?: string | null;
+}
+
+export const useCreateRecurring = () => useRpc<CreateRecurringArgs, string>('create_recurring');
+export const useSetRecurringPaused = () =>
+  useRpc<{ p_recurring_id: string; p_paused: boolean; p_today: string }>('set_recurring_paused');
+export const useDeleteRecurring = () => useRpc<{ p_recurring_id: string }>('delete_recurring');
+
 export function useUpdate<T extends Record<string, unknown>>(table: 'groups' | 'group_members' | 'profiles') {
   const invalidate = useInvalidateAll();
   return useMutation({
     mutationFn: async ({ id, values }: { id: string; values: T }) => {
-      check(await supabase.from(table).update(values as never).eq('id', id));
+      const rows = check(await supabase.from(table).update(values as never).eq('id', id).select('id'));
+      // Row level security turns a refused update into "nothing changed" rather than an error.
+      if (!rows?.length) throw new Error('Nothing was saved: the group may be archived, or you are no longer a member.');
     },
     onSuccess: () => {
       void invalidate();

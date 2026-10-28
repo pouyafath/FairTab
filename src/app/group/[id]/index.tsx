@@ -1,10 +1,15 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import { View } from 'react-native';
 
+import { ArchivedNotice } from '@/components/archive';
+import { ExpenseFilters } from '@/components/expense-filters';
 import { ExpenseRow } from '@/components/expense-row';
+import { ExportCsvButton } from '@/components/export-button';
 import { BalanceText, Button, Card, Empty, ErrorText, ListRow, Loading, Screen, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { formatMoney, netBalances } from '@/domain';
+import { filterExpenses, NO_FILTER } from '@/lib/filters';
 import { groupTransfers, toLedger, type Amounts } from '@/lib/ledger';
 import { useInvalidateAll } from '@/lib/queries';
 import { useGroup } from '@/lib/use-group';
@@ -13,6 +18,7 @@ export default function GroupScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { loading, error, refreshing, group, members, membersById, me, expenses } = useGroup(id);
   const refresh = useInvalidateAll();
+  const [filter, setFilter] = useState(NO_FILTER);
 
   if (loading) return <Loading />;
   if (!group) {
@@ -34,18 +40,23 @@ export default function GroupScreen() {
   };
   const transfers = groupTransfers(group, expenses);
   const name = (memberId: string) => (memberId === me?.id ? 'You' : membersById.get(memberId)?.display_name ?? '?');
+  // Balances above always use every expense; the search and filters only narrow the list below.
+  const shown = filterExpenses(expenses, filter);
 
   return (
     <Screen refreshing={refreshing} onRefresh={refresh}>
       <Stack.Screen options={{ title: group.name }} />
-      <View style={{ flexDirection: 'row', gap: Spacing.two }}>
-        <View style={{ flex: 1 }}>
-          <Button title="Add expense" onPress={() => router.push({ pathname: '/group/[id]/expense', params: { id } })} />
+      <ArchivedNotice group={group} />
+      {group.archived_at ? null : (
+        <View style={{ flexDirection: 'row', gap: Spacing.two }}>
+          <View style={{ flex: 1 }}>
+            <Button title="Add expense" onPress={() => router.push({ pathname: '/group/[id]/expense', params: { id } })} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Button title="Settle up" variant="secondary" onPress={() => router.push({ pathname: '/group/[id]/settle', params: { id } })} />
+          </View>
         </View>
-        <View style={{ flex: 1 }}>
-          <Button title="Settle up" variant="secondary" onPress={() => router.push({ pathname: '/group/[id]/settle', params: { id } })} />
-        </View>
-      </View>
+      )}
       <ErrorText error={error} />
 
       <Card>
@@ -82,13 +93,16 @@ export default function GroupScreen() {
       ) : null}
 
       <T variant="label" muted>Expenses</T>
+      {expenses.length > 0 ? (
+        <ExpenseFilters expenses={expenses} shown={shown.length} filter={filter} onChange={setFilter} members={membersById} myMemberId={me?.id} />
+      ) : null}
       {expenses.length === 0 ? (
         <Empty title="No expenses yet">
           <T muted style={{ textAlign: 'center' }}>Add the first one, or invite people from the group settings.</T>
         </Empty>
       ) : (
         <View>
-          {expenses.map((e) => (
+          {shown.map((e) => (
             <ExpenseRow
               key={e.id}
               expense={e}
@@ -106,7 +120,10 @@ export default function GroupScreen() {
         </View>
       )}
 
+      <Button title="Recurring expenses" variant="secondary" onPress={() => router.push({ pathname: '/group/[id]/recurring', params: { id } })} />
+      <ExportCsvButton group={group} members={members} expenses={expenses} />
       <Button title="Group settings & invite" variant="secondary" onPress={() => router.push({ pathname: '/group/[id]/settings', params: { id } })} />
+      <Button title="Recently deleted" variant="secondary" onPress={() => router.push({ pathname: '/group/[id]/deleted', params: { id } })} />
     </Screen>
   );
 }

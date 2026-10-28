@@ -36,27 +36,24 @@ Nobody offers all of these together: **free + unlimited + native phone apps + ac
 ### v0.1, the first version (built)
 Sign in with an email code, groups, people added by name, invite link and claiming your name, several payers per expense, four split methods, categories and notes, multiple currencies, balances, simplified debts, settle up with an Interac e-Transfer message, friends across groups, activity, edit and delete, removing people and leaving once settled, deleting a group, invite-only sign-up, Splitwise CSV import, web + iOS + Android from one codebase, free hosting on GitHub Pages.
 
+### v0.2, first part (built)
+Archive groups (read-only) and "Recently deleted" to restore expenses, recurring expenses (weekly, monthly, yearly; pause and resume), search and filters on a group's expenses, CSV export in Splitwise's format, and a currency picker.
+
 ### v0.2: ready for friends (next 2–4 weeks)
 - Sign in with Google and Apple (Apple is required on iOS if you offer Google).
 - Push notifications ("Sara added Dinner – you owe €12").
 - Live updates when someone else adds an expense (Supabase Realtime).
 - Category icons and a real date picker.
-- A currency picker instead of typing the 3-letter code.
-- Archive groups (read-only), from the first FairTab.
 - Comments on expenses.
-- Undo delete (the database already keeps deleted expenses and has a restore function).
-- Export a group to CSV (in Splitwise's format, so it can be imported back).
 - Your own icon, name and colors.
 - Custom SMTP for emails, a privacy policy page and a "delete my account" option (the App Store and Google Play require these).
 
 ### v0.3: launch (month 2–3)
 - Works offline: add expenses without internet, synced later.
-- Recurring expenses (rent and subscriptions every month), reusing the design from the first FairTab's v2 branch: anchor day, no duplicates, run on a schedule.
 - Receipt photos, stored in Supabase Storage (the first FairTab's v2 branch had this for self-hosting).
 - Optional "Personal" tab for your own income and spending, from the first FairTab, if you still want it.
 - Currency conversion: "show everything in EUR". Splitwise charges for this; we give it away, using a free exchange-rate API.
-- Search and filters.
-- CSV and PDF export.
+- PDF export, and sharing the CSV export as a real file on phones.
 - Translations (English plus Persian, with right-to-left layout).
 - Publish to the App Store, Google Play and the web.
 

@@ -7,6 +7,7 @@ import { Card, Screen, T } from '@/components/ui';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { isConfigured } from '@/lib/supabase';
+import { useRecurringRunner } from '@/lib/use-recurring-runner';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -29,6 +30,8 @@ export default function RootLayout() {
 
 function RootStack() {
   const { session, loading } = useAuth();
+  // Adds due recurring expenses whatever screen the app opens on (a group or invite link included).
+  useRecurringRunner();
 
   useEffect(() => {
     if (!loading) SplashScreen.hideAsync();
@@ -45,6 +48,8 @@ function RootStack() {
         <Stack.Screen name="group/[id]/expense" options={{ title: 'Expense', presentation: 'modal' }} />
         <Stack.Screen name="group/[id]/settle" options={{ title: 'Record a payment', presentation: 'modal' }} />
         <Stack.Screen name="group/[id]/settings" options={{ title: 'Group settings' }} />
+        <Stack.Screen name="group/[id]/deleted" options={{ title: 'Recently deleted' }} />
+        <Stack.Screen name="group/[id]/recurring" options={{ title: 'Recurring expenses' }} />
         <Stack.Screen name="new-group" options={{ title: 'New group', presentation: 'modal' }} />
         <Stack.Screen name="import" options={{ title: 'Import from Splitwise' }} />
       </Stack.Protected>

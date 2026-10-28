@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useState } from 'react';
 
+import { CurrencyPicker } from '@/components/currency-picker';
 import { Button, Card, ErrorText, Field, Loading, Screen, T } from '@/components/ui';
 import { useUserId } from '@/lib/auth';
 import { useProfile, useUpdate } from '@/lib/queries';
@@ -49,12 +50,10 @@ function ProfileForm({ profile }: { profile: Profile }) {
     <Card>
       <T variant="heading">Your profile</T>
       <Field label="Name" value={name} onChangeText={setName} maxLength={80} />
-      <Field
+      <CurrencyPicker
         label="Default currency"
         value={currency}
-        onChangeText={(v) => setCurrency(v.toUpperCase())}
-        autoCapitalize="characters"
-        maxLength={3}
+        onChange={setCurrency}
         error={validCurrency ? undefined : 'Use a 3-letter code like USD, EUR or IRR'}
       />
       <ErrorText error={update.error} />
